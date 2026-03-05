@@ -1,0 +1,9 @@
+# Ignore non-deploy folders
+data/**
+example/**
+ss/**
+frontend/**
+
+# Ignore markdown docs
+*.md
+**/*.md

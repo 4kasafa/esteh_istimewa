@@ -1,0 +1,9 @@
+**/**
+!appsscript.json
+!Code.js
+!Config.js
+!Auth.js
+!DatabaseService.js
+!CalculationService.js
+!CommonUtils.js
+!SheetUtils.js

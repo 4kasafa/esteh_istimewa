@@ -1,0 +1,308 @@
+<script>
+  // Daftar pecahan uang
+  const pecahan = [100000, 75000, 50000, 20000, 10000, 5000, 2000, 1000, 500, 200, 100];
+  const container = document.getElementById("pecahanContainer");
+  let activeMenu = 'masuk';
+  
+  function buatTampilanPecahan() {
+    container.innerHTML = '';
+    if (activeMenu === 'masuk') {
+      document.getElementById('uang-section-title').textContent = '💰 PECAHAN UANG KAS MASUK';
+      document.querySelector('.uang-section').classList.remove('keluar');
+      pecahan.forEach((nilai, index) => {
+        const div = document.createElement('div');
+        div.className = 'uang-item';
+        div.innerHTML = `
+          <div class="uang-nominal">Rp ${nilai.toLocaleString('id-ID')}</div>
+          <div class="uang-input-container">
+            <span class="multiply-sign">×</span>
+            <input type="number" id="uang-${index}" class="uang-input" value="0" min="0" oninput="hitungPerNominal(${index})" placeholder="0">
+          </div>
+          <div class="uang-hasil-container">
+            <div class="uang-hasil" id="hasil-${index}">
+              = Rp 0
+              <div class="uang-total" id="detail-${index}">0 lembar</div>
+            </div>
+          </div>`;
+        container.appendChild(div);
+      });
+    } else if (activeMenu === 'keluar') {
+      document.getElementById('uang-section-title').textContent = '💰 PECAHAN UANG KAS KELUAR';
+      document.querySelector('.uang-section').classList.add('keluar');
+      const pecahanBesar = [100000, 75000, 50000, 20000, 10000, 5000, 2000, 1000];
+      const titleBesar = document.createElement('div');
+      titleBesar.className = 'pecahan-besar-title';
+      titleBesar.textContent = 'PECAHAN BESAR (Dapat Diikat 100 Lembar/Ikat)';
+      container.appendChild(titleBesar);
+      pecahanBesar.forEach((nilai, index) => {
+        const div = document.createElement('div');
+        div.className = 'uang-item';
+        div.innerHTML = `
+          <div class="uang-nominal">Rp ${nilai.toLocaleString('id-ID')}</div>
+          <div class="ikat-container">
+            <span class="ikat-label">IKAT:</span>
+            <input type="number" id="ikat-${index}" class="ikat-input" value="0" min="0" oninput="hitungPerNominalKeluar(${index})" placeholder="0">
+            <span class="multiply-sign">+</span>
+            <span class="ikat-label">LEMBAR:</span>
+            <input type="number" id="lembar-${index}" class="lembar-input" value="0" min="0" max="99" oninput="hitungPerNominalKeluar(${index})" placeholder="0">
+          </div>
+          <div class="uang-hasil-container">
+            <div class="uang-hasil" id="hasil-${index}">
+              = Rp 0
+              <div class="ikat-info" id="detail-${index}">0 ikat + 0 lembar</div>
+            </div>
+          </div>`;
+        container.appendChild(div);
+      });
+      const pecahanKecil = [500, 200, 100];
+      const titleKecil = document.createElement('div');
+      titleKecil.className = 'pecahan-kecil-title';
+      titleKecil.textContent = 'PECAHAN KECIL (per lembar)';
+      container.appendChild(titleKecil);
+      pecahanKecil.forEach((nilai, index) => {
+        const idx = index + pecahanBesar.length;
+        const div = document.createElement('div');
+        div.className = 'uang-item';
+        div.innerHTML = `
+          <div class="uang-nominal">Rp ${nilai.toLocaleString('id-ID')}</div>
+          <div class="uang-input-container">
+            <span class="multiply-sign">×</span>
+            <input type="number" id="uang-${idx}" class="uang-input" value="0" min="0" oninput="hitungPerNominalKeluarKecil(${idx})" placeholder="0">
+          </div>
+          <div class="uang-hasil-container">
+            <div class="uang-hasil" id="hasil-${idx}">
+              = Rp 0
+              <div class="uang-total" id="detail-${idx}">0 lembar</div>
+            </div>
+          </div>`;
+        container.appendChild(div);
+      });
+    }
+    hitungTotal();
+  }
+  
+  function setActiveMenu(menu) {
+    activeMenu = menu;
+    ['masuk', 'keluar', 'laporan'].forEach(m => document.getElementById('menu-' + m).classList.remove('active'));
+    document.getElementById('menu-' + menu).classList.add('active');
+    ['tab-kas', 'tab-uang', 'tab-laporan'].forEach(t => document.getElementById(t).classList.remove('active'));
+    
+    if (menu === 'laporan') {
+      document.getElementById('tab-laporan').classList.add('active');
+      document.getElementById('tab-uang').style.display = 'none';
+      loadReportCabangData();
+      loadReportKasirData();
+    } else {
+      document.getElementById('tab-kas').classList.add('active');
+      document.getElementById('tab-uang').classList.add('active');
+      document.getElementById('tab-uang').style.display = 'block';
+      document.getElementById('fields-masuk').style.display = menu === 'masuk' ? 'block' : 'none';
+      document.getElementById('fields-keluar').style.display = menu === 'keluar' ? 'block' : 'none';
+      document.getElementById('total-label').textContent = menu === 'masuk' ? 'TOTAL KAS MASUK' : 'TOTAL KAS KELUAR';
+      const btn = document.getElementById('btnSimpan');
+      btn.innerHTML = menu === 'masuk' ? '💾 SIMPAN KAS MASUK' : '💾 SIMPAN KAS KELUAR';
+      btn.style.background = menu === 'masuk' ? 'linear-gradient(to right, #2ecc71, #27ae60)' : 'linear-gradient(to right, #e74c3c, #c0392b)';
+      buatTampilanPecahan();
+    }
+  }
+  
+  function hitungPerNominal(index) {
+    const input = document.getElementById('uang-' + index);
+    const total = (parseInt(input.value) || 0) * pecahan[index];
+    document.getElementById('hasil-' + index).innerHTML = `= Rp ${total.toLocaleString('id-ID')}<div class="uang-total">${input.value || 0} lembar</div>`;
+    hitungTotal();
+  }
+  
+  function hitungPerNominalKeluar(index) {
+    const ikat = parseInt(document.getElementById('ikat-' + index).value) || 0;
+    const lembarInput = document.getElementById('lembar-' + index);
+    let lembar = parseInt(lembarInput.value) || 0;
+    if (lembar > 99) { lembar = 99; lembarInput.value = 99; }
+    const nilai = [100000, 75000, 50000, 20000, 10000, 5000, 2000, 1000][index];
+    const total = (ikat * 100 + lembar) * nilai;
+    document.getElementById('hasil-' + index).innerHTML = `= Rp ${total.toLocaleString('id-ID')}<div class="ikat-info">${ikat} ikat + ${lembar} lembar</div>`;
+    hitungTotal();
+  }
+  
+  function hitungPerNominalKeluarKecil(index) {
+    const input = document.getElementById('uang-' + index);
+    const total = (parseInt(input.value) || 0) * [500, 200, 100][index - 8];
+    document.getElementById('hasil-' + index).innerHTML = `= Rp ${total.toLocaleString('id-ID')}<div class="uang-total">${input.value || 0} lembar</div>`;
+    hitungTotal();
+  }
+  
+  function hitungTotal() {
+    let total = 0;
+    if (activeMenu === 'masuk') {
+      pecahan.forEach((p, i) => total += (parseInt(document.getElementById('uang-' + i).value) || 0) * p);
+    } else if (activeMenu === 'keluar') {
+      [100000, 75000, 50000, 20000, 10000, 5000, 2000, 1000].forEach((p, i) => {
+        total += (parseInt(document.getElementById('ikat-' + i).value) * 100 + parseInt(document.getElementById('lembar-' + i).value) || 0) * p;
+      });
+      [500, 200, 100].forEach((p, i) => total += (parseInt(document.getElementById('uang-' + (i+8)).value) || 0) * p);
+    }
+    document.getElementById('total').textContent = total.toLocaleString('id-ID');
+    return total;
+  }
+  
+  function formatRupiah(angka) {
+    return (parseInt(angka.toString().replace(/\D/g, '')) || 0).toLocaleString('id-ID');
+  }
+  
+  function setupCurrencyInput(id) {
+    const el = document.getElementById(id);
+    el.addEventListener('input', () => el.value = formatRupiah(el.value));
+    el.addEventListener('focus', () => el.value = el.value.replace(/\D/g, ''));
+    el.addEventListener('blur', () => el.value = formatRupiah(el.value));
+  }
+  
+  function getNumericValue(id) {
+    return parseInt(document.getElementById(id).value.replace(/\D/g, '')) || 0;
+  }
+  
+  function loadCabangData() {
+    google.script.run.withSuccessHandler(data => {
+      const select = document.getElementById('cabang');
+      select.innerHTML = '<option value="">Pilih Cabang Lay</option>' + data.map(i => `<option value="${i}">${i}</option>`).join('');
+    }).getDataCabang();
+  }
+  
+  function loadKasirData() {
+    google.script.run.withSuccessHandler(data => {
+      const select = document.getElementById('kasir');
+      select.innerHTML = '<option value="">Pilih Nama Kasir</option>' + data.map(i => `<option value="${i}">${i}</option>`).join('');
+    }).getDataKasir();
+  }
+
+  function loadReportCabangData() {
+    google.script.run.withSuccessHandler(data => {
+      const select = document.getElementById('report-cabang');
+      select.innerHTML = '<option value="">Semua Cabang</option>' + data.map(i => `<option value="${i}">${i}</option>`).join('');
+    }).getDataCabang();
+  }
+
+  function loadReportKasirData() {
+    google.script.run.withSuccessHandler(data => {
+      const select = document.getElementById('report-kasir');
+      select.innerHTML = '<option value="">Semua Kasir</option>' + data.map(i => `<option value="${i}">${i}</option>`).join('');
+    }).getDataKasir();
+  }
+  
+  function simpanData() {
+    const data = {
+      tanggal: document.getElementById('tanggal').value,
+      shift: document.getElementById('shift').value,
+      cabang: document.getElementById('cabang').value,
+      kasir: document.getElementById('kasir').value,
+      keterangan: document.getElementById('keterangan').value,
+      subtotal: hitungTotal(),
+      jenis: activeMenu,
+      jam: new Date().toTimeString().slice(0, 5)
+    };
+    
+    if (!data.tanggal || !data.shift || !data.cabang || !data.kasir) {
+      return showMessage('Harap lengkapi semua kolom wajib!', 'error');
+    }
+    
+    if (activeMenu === 'masuk') {
+      data.penjualan = getNumericValue('penjualan');
+      data.pengeluaran = getNumericValue('pengeluaran');
+      data.pecahan = pecahan.map((p, i) => ({ nominal: p, jumlah: parseInt(document.getElementById('uang-' + i).value) || 0 })).filter(i => i.jumlah > 0);
+    } else {
+      data.jumlah_keluar = getNumericValue('jumlah-keluar');
+      const besar = [100000, 75000, 50000, 20000, 10000, 5000, 2000, 1000].map((p, i) => ({
+        nominal: p, 
+        jumlah: (parseInt(document.getElementById('ikat-' + i).value) || 0) * 100 + (parseInt(document.getElementById('lembar-' + i).value) || 0)
+      }));
+      const kecil = [500, 200, 100].map((p, i) => ({ nominal: p, jumlah: parseInt(document.getElementById('uang-' + (i+8)).value) || 0 }));
+      data.pecahan = [...besar, ...kecil].filter(i => i.jumlah > 0);
+    }
+    
+    const btn = document.getElementById('btnSimpan');
+    const oldText = btn.innerHTML;
+    btn.innerHTML = '⏳ Menyimpan...'; btn.disabled = true;
+    
+    google.script.run.withSuccessHandler(res => {
+      showMessage(res, 'success'); resetForm();
+      btn.innerHTML = oldText; btn.disabled = false;
+    }).withFailureHandler(err => {
+      showMessage('Error: ' + err.message, 'error');
+      btn.innerHTML = oldText; btn.disabled = false;
+    }).simpanData(data);
+  }
+  
+  function previewLaporan() {
+    const data = {
+      tanggal: document.getElementById('report-tanggal').value,
+      shift: document.getElementById('report-shift').value,
+      cabang: document.getElementById('report-cabang').value,
+      kasir: document.getElementById('report-kasir').value
+    };
+    if (!data.tanggal) return showReportMessage('Harap pilih tanggal!', 'error');
+    
+    const resultDiv = document.getElementById('report-result');
+    resultDiv.textContent = '⏳ Memuat laporan...'; resultDiv.className = 'result loading'; resultDiv.style.display = 'block';
+    
+    google.script.run.withSuccessHandler(res => {
+      if (res.error) return showReportMessage(res.error, 'error');
+      displayReportPreview(res);
+      showReportMessage('Laporan berhasil dimuat!', 'success');
+    }).getLaporanData(data);
+  }
+  
+  function displayReportPreview(data) {
+    document.getElementById('report-preview').style.display = 'block';
+    document.getElementById('preview-tanggal').textContent = data.tanggal;
+    document.getElementById('preview-shift').textContent = data.shift;
+    document.getElementById('preview-cabang').textContent = data.cabang;
+    document.getElementById('preview-kasir').textContent = data.kasir;
+    document.getElementById('preview-penjualan').textContent = 'Rp ' + formatRupiah(data.totalPenjualan);
+    document.getElementById('preview-pengeluaran').textContent = 'Rp ' + formatRupiah(data.totalPengeluaran);
+    document.getElementById('preview-fisik').textContent = 'Rp ' + formatRupiah(data.totalFisik);
+    
+    const setoran = data.setoran;
+    const div = document.getElementById('preview-setoran');
+    if (setoran === 0) { div.textContent = 'SETORAN PAS'; div.className = 'setoran-message setoran-pas'; }
+    else if (setoran > 0) { div.textContent = 'SETORAN KURANG Rp ' + formatRupiah(setoran); div.className = 'setoran-message setoran-kurang'; }
+    else { div.textContent = 'SETORAN LEBIH Rp ' + formatRupiah(Math.abs(setoran)); div.className = 'setoran-message setoran-lebih'; }
+    
+    const cont = document.getElementById('rincian-uang-container');
+    cont.innerHTML = '<div class="section-title">💰 RINCIAN UANG</div>';
+    const labels = [100000, 75000, 50000, 20000, 10000, 5000, 2000, 1000, 500, 200, 100];
+    labels.forEach(nom => {
+      if (data.rincianUang[nom] > 0) {
+        const item = document.createElement('div'); item.className = 'rincian-item';
+        item.innerHTML = `<div>${nom.toLocaleString('id-ID')} × ${data.rincianUang[nom]} lembar</div><div><strong>Rp ${(data.rincianUang[nom] * nom).toLocaleString('id-ID')}</strong></div>`;
+        cont.appendChild(item);
+      }
+    });
+  }
+  
+  function showMessage(msg, type) {
+    const div = document.getElementById('result');
+    div.textContent = msg; div.className = 'result ' + type; div.style.display = 'block';
+    if (type === 'success') setTimeout(() => div.style.display = 'none', 5000);
+  }
+  
+  function showReportMessage(msg, type) {
+    const div = document.getElementById('report-result');
+    div.textContent = msg; div.className = 'result ' + type; div.style.display = 'block';
+  }
+  
+  function resetForm() {
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('tanggal').value = today;
+    ['shift', 'cabang', 'kasir'].forEach(id => document.getElementById(id).selectedIndex = 0);
+    document.getElementById('keterangan').value = '';
+    ['penjualan', 'pengeluaran', 'jumlah-keluar'].forEach(id => document.getElementById(id).value = '0');
+    buatTampilanPecahan();
+  }
+  
+  window.onload = () => {
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('tanggal').value = today;
+    document.getElementById('report-tanggal').value = today;
+    ['penjualan', 'pengeluaran', 'jumlah-keluar'].forEach(id => setupCurrencyInput(id));
+    buatTampilanPecahan(); loadCabangData(); loadKasirData();
+  };
+</script>

@@ -1,0 +1,138 @@
+import { DENOMINATIONS_DATA } from "../constants/forms";
+import { parseLooseNumber, parseTimestamp, toCurrency, toPeriodValue } from "./formatters";
+
+const REPORT_TIMESTAMP_KEYS = ["TIME STAMP INPUT", "TIMESTAMP INPUT", "NO TRANSAKSI"];
+const REPORT_ARUS_DANA_KEYS = ["ARUS DANA", "ARUS_DANA"];
+const REPORT_KASIR_KEYS = ["KASIR", "NAMA KASIR"];
+const REPORT_TOTAL_NOTA_KEYS = ["TOTAL NOTA", "TOTAL_NOTA"];
+const REPORT_UANG_MASUK_KEYS = ["UANG MASUK", "UNAG MASUK", "UANG_MASUK", "INPUT KASIR", "KASIR INPUT"];
+const REPORT_INPUT_KASIR_KEYS = ["INPUT KASIR", "KASIR INPUT"];
+const REPORT_PENGELUARAN_KEYS = ["PENGELUARAN", "UANG KELUAR"];
+const REPORT_SELISIH_KEYS = ["SELISIH"];
+const REPORT_GELAS_LAKU_KEYS = ["GELAS LAKU", "GELAS_LAKU"];
+const REPORT_GELAS_RUSAK_KEYS = ["GELAS RUSAK", "GELAS_RUSAK"];
+const REPORT_GELAS_MASUK_KEYS = ["GELAS MASUK", "GELAS_MASUK"];
+const REPORT_ESBATU_DEPO_KEYS = ["ES BATU DEPO", "ESBATU DEPO", "ES BATU_DEP0", "ES BATU DEPO (KG)"];
+const REPORT_ESBATU_BELI_KEYS = ["ES BATU BELI", "ESBATU BELI", "ES BATU BELI (KG)"];
+const REPORT_GULA_KEYS = ["GULA", "PEMAKAIAN GULA"];
+const REPORT_TEH_KEYS = ["TEH", "PEMAKAIAN TEH"];
+
+function getField(row, keys, fallback = "") {
+  for (const key of keys) {
+    if (row[key] !== undefined && row[key] !== null && row[key] !== "") return row[key];
+  }
+  return fallback;
+}
+
+function getNumber(row, keys) {
+  return parseLooseNumber(getField(row, keys));
+}
+
+function parsePeriod(period) {
+  const [year, month] = String(period || "").split("-").map(Number);
+  if (!year || !month) return null;
+  return { year, month: month - 1 };
+}
+
+function isSameDay(a, b) {
+  return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+}
+
+function buildDenominationList(rawRow) {
+  return DENOMINATIONS_DATA.map((item) => ({
+    label: item.label,
+    value: parseLooseNumber(rawRow[item.label]),
+  })).filter((item) => item.value > 0);
+}
+
+export function sanitizeReportRows(rows) {
+  return rows
+    .map((raw) => {
+      const timestampStr = getField(raw, REPORT_TIMESTAMP_KEYS);
+      const timestamp = parseTimestamp(timestampStr);
+      const arusDana = String(getField(raw, REPORT_ARUS_DANA_KEYS, "Tanpa Area")).trim() || "Tanpa Area";
+      const kasir = String(getField(raw, REPORT_KASIR_KEYS, "Tanpa Kasir")).trim() || "Tanpa Kasir";
+      const denomination = buildDenominationList(raw);
+
+      return {
+        id: timestampStr ? String(timestampStr).trim() : "",
+        raw,
+        timestamp,
+        arusDana,
+        kasir,
+        totalNota: getNumber(raw, REPORT_TOTAL_NOTA_KEYS),
+        uangMasuk: getNumber(raw, REPORT_UANG_MASUK_KEYS),
+        inputKasir: getNumber(raw, REPORT_INPUT_KASIR_KEYS),
+        pengeluaran: getNumber(raw, REPORT_PENGELUARAN_KEYS),
+        selisih: getNumber(raw, REPORT_SELISIH_KEYS),
+        gelasLaku: getNumber(raw, REPORT_GELAS_LAKU_KEYS),
+        gelasRusak: getNumber(raw, REPORT_GELAS_RUSAK_KEYS),
+        gelasMasuk: getNumber(raw, REPORT_GELAS_MASUK_KEYS),
+        esBatuDepo: getNumber(raw, REPORT_ESBATU_DEPO_KEYS),
+        esBatuBeli: getNumber(raw, REPORT_ESBATU_BELI_KEYS),
+        gula: getNumber(raw, REPORT_GULA_KEYS),
+        teh: getNumber(raw, REPORT_TEH_KEYS),
+        denomination,
+      };
+    })
+    .filter((item) => item.timestamp);
+}
+
+export function getReportArusDanaOptions(rows) {
+  return ["semua", ...Array.from(new Set(rows.map((item) => item.arusDana))).sort((a, b) => a.localeCompare(b))];
+}
+
+export function getReportKasirOptions(rows) {
+  return ["semua", ...Array.from(new Set(rows.map((item) => item.kasir))).sort((a, b) => a.localeCompare(b))];
+}
+
+export function applyReportFilters(rows, { range = "month", period = toPeriodValue(), date = "", arusDana = "semua", kasir = "semua" } = {}) {
+  const now = new Date();
+  const monthRef = parsePeriod(period);
+
+  const filtered = rows.filter((item) => {
+    const dt = item.timestamp;
+
+    if (range === "today") {
+      if (!isSameDay(dt, now)) return false;
+    } else if (range === "last7") {
+      const start = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 6, 0, 0, 0, 0);
+      const end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+      if (dt < start || dt > end) return false;
+    } else if (range === "date" && date) {
+      const selected = new Date(date);
+      if (Number.isNaN(selected.getTime()) || !isSameDay(dt, selected)) return false;
+    } else if (range === "month") {
+      if (!monthRef || dt.getFullYear() !== monthRef.year || dt.getMonth() !== monthRef.month) return false;
+    }
+
+    if (arusDana !== "semua" && item.arusDana !== arusDana) return false;
+    if (kasir !== "semua" && item.kasir !== kasir) return false;
+    return true;
+  });
+
+  return filtered.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
+}
+
+export function buildReportStats(rows) {
+  const totalNota = rows.reduce((sum, item) => sum + item.totalNota, 0);
+  const totalUangMasuk = rows.reduce((sum, item) => sum + item.uangMasuk, 0);
+  const totalPengeluaran = rows.reduce((sum, item) => sum + item.pengeluaran, 0);
+  const totalSelisih = rows.reduce((sum, item) => sum + item.selisih, 0);
+
+  return {
+    totalNota,
+    totalUangMasuk,
+    totalPengeluaran,
+    totalSelisih,
+    count: rows.length,
+  };
+}
+
+export function buildReportTableData(rows) {
+  return rows.map((item) => ({
+    id: item.id,
+    row: item.raw,
+    denomination: item.denomination,
+  }));
+}
