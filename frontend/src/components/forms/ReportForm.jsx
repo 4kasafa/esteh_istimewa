@@ -186,14 +186,13 @@ export default function ReportForm({
                 return (
                   <label key={item.label} className="flex items-center justify-between gap-4 border-b border-white/5 pb-3.5 last:border-0 cursor-pointer group/item hover:bg-white/2 transition-colors">
                     <div className="flex-1 min-w-0">
-                      <p className="text-[8px] font-black text-white/40 uppercase tracking-[0.2em] mb-1.5 group-hover/item:text-brand-yellow transition-colors">{item.label}</p>
+                      <p className="text-[8px] font-black text-white uppercase tracking-[0.2em] mb-1.5 group-hover/item:text-brand-yellow transition-colors">{item.label}</p>
                       <div className="flex items-center gap-3">
                         <span className="text-white/10 font-black text-[9px]">×</span>
                         <input
                           type="number"
                           min="0"
-                          step="any"
-                          className="w-16 bg-white/5 border border-white/10 rounded-lg px-2.5 py-1 text-xs font-black text-white focus:bg-white/10 focus:outline-none focus:ring-2 focus:ring-brand-yellow/40 transition-all focus:placeholder:text-transparent"
+                          className="w-20 bg-white/5 border border-white/10 rounded-lg px-2.5 py-1 text-xs font-black text-white focus:bg-white/10 focus:outline-none focus:ring-2 focus:ring-brand-yellow/40 transition-all focus:placeholder:text-transparent"
                           value={value[item.label]}
                           onChange={(e) => onChange(item.label, e.target.value)}
                         />

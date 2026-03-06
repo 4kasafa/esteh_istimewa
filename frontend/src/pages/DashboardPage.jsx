@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { DASHBOARD_MENU } from "../constants/menu";
 import { REPORT_FORM_DEFAULT } from "../constants/forms";
 import { filterRows } from "../utils/dashboard";
 import Alert from "../components/common/Alert";
+import KasKeluarPanel from "../components/dashboard/KasKeluarPanel";
 import Sidebar from "../components/layout/Sidebar";
 import Topbar from "../components/layout/Topbar";
 import OverviewPanel from "../components/dashboard/OverviewPanel";
@@ -31,6 +32,7 @@ export default function DashboardPage({
   onRefreshAll,
   onCreateReport,
   onUpdateReport,
+  request,
   onLogout,
 }) {
   const isKasir = String(user?.role || "").toLowerCase() === "kasir";
@@ -69,10 +71,20 @@ export default function DashboardPage({
   const filteredDatabase = useMemo(() => filterRows(dbRows, dbSearch), [dbRows, dbSearch]);
   
   const sidebarMenu = useMemo(() => {
-    if (!isKasir) return DASHBOARD_MENU;
-    const kasirAllowed = new Set(["laporan", "kas-masuk", "setting", "about"]);
-    return DASHBOARD_MENU.filter((item) => kasirAllowed.has(item.key));
-  }, [isKasir]);
+    if (isKasir) {
+      const kasirAllowed = new Set(["laporan", "kas-masuk", "setting", "about"]);
+      return DASHBOARD_MENU.filter((item) => kasirAllowed.has(item.key));
+    }
+    if (isAdmin) {
+      return DASHBOARD_MENU;
+    }
+    return DASHBOARD_MENU.filter((item) => item.key !== "kas-keluar");
+  }, [isAdmin, isKasir]);
+
+  const reloadKasKeluar = useCallback(
+    (overridePeriod) => onRefreshMonthly(overridePeriod || period),
+    [onRefreshMonthly, period],
+  );
 
   useEffect(() => {
     if (!sidebarMenu.some((item) => item.key === activeMenu)) {
@@ -291,6 +303,16 @@ export default function DashboardPage({
                     onChange={(key, value) => setReportForm((prev) => ({ ...prev, [key]: value }))}
                   />
                 </div>
+              </div>
+
+              <div className={panelClass("kas-keluar")}>
+                <KasKeluarPanel
+                  dbRows={dbRows}
+                  request={request}
+                  period={period}
+                  onReload={reloadKasKeluar}
+                  user={user}
+                />
               </div>
 
               <div className={panelClass("setting")}>

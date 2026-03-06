@@ -14,6 +14,7 @@ export default function DataTable({
   arusDanaColorMap = {},
   dense = false,
   fitContainer = false,
+  headerActions = null,
 }) {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(PAGE_SIZE_OPTIONS[0]);
@@ -99,6 +100,7 @@ export default function DataTable({
               </svg>
             </div>
           </div>
+          {headerActions}
 
           {showFilterButton && (
             <button

@@ -41,4 +41,4 @@ export const DENOMINATIONS_DATA = [
 
 export const SHIFT_OPTIONS = ["Pagi", "Siang", "Sore", "Malam"];
 export const KASIR_OPTIONS = ["Abu Arfan", "Fajar", "Arief Rahman", "imam Solihin", "Arya Ahman", "Ardi", "Irfan", "Imam Hardani", "Aliansyah", "Syamsudin", "Abdul"];
-export const BRANCH_OPTIONS = ["SDF", "SELUMIT", "KAMPUNG SATU", "KAMPUNG BUGIS", "SEBENGKOK", "JUWATA", "TESTING"];
+export const BRANCH_OPTIONS = ["SDF", "SELUMIT", "KAMPUNG SATU", "KAMPUNG BUGIS", "SEBENGKOK", "JUWATA", "Setoran Bank BRI", "TESTING"];

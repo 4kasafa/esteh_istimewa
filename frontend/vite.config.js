@@ -12,9 +12,8 @@ export default defineConfig({
   },
   server: {
     host: true,
-    allowedHosts: true,
-    hmr: {
-      clientPort: 443,
-    }
+    allowedHosts: [
+      "semirigorously-branchial-margit.ngrok-free.dev"
+    ]
   }
 })

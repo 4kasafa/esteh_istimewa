@@ -140,6 +140,7 @@ export default function App() {
       onRefreshAll={() => loadData({ monthly: false })}
       onCreateReport={createReport}
       onUpdateReport={updateReport}
+      request={request}
       onLogout={logout}
     />
   );

@@ -1,5 +1,5 @@
 import { DENOMINATIONS_DATA } from "../constants/forms";
-import { parseLooseNumber, parseTimestamp, toCurrency, toPeriodValue } from "./formatters";
+import { parseLooseNumber, parseTimestamp, toPeriodValue } from "./formatters";
 
 const REPORT_TIMESTAMP_KEYS = ["TIME STAMP INPUT", "TIMESTAMP INPUT", "NO TRANSAKSI"];
 const REPORT_ARUS_DANA_KEYS = ["ARUS DANA", "ARUS_DANA"];
@@ -12,7 +12,7 @@ const REPORT_SELISIH_KEYS = ["SELISIH"];
 const REPORT_GELAS_LAKU_KEYS = ["GELAS LAKU", "GELAS_LAKU"];
 const REPORT_GELAS_RUSAK_KEYS = ["GELAS RUSAK", "GELAS_RUSAK"];
 const REPORT_GELAS_MASUK_KEYS = ["GELAS MASUK", "GELAS_MASUK"];
-const REPORT_ESBATU_DEPO_KEYS = ["ES BATU DEPO", "ESBATU DEPO", "ES BATU_DEP0", "ES BATU DEPO (KG)"];
+const REPORT_ESBATU_DEPO_KEYS = ["ES BATU DEPO", "ESBATU DEPO", "ES BATU_DEPO", "ES BATU DEPO (KG)"];
 const REPORT_ESBATU_BELI_KEYS = ["ES BATU BELI", "ESBATU BELI", "ES BATU BELI (KG)"];
 const REPORT_GULA_KEYS = ["GULA", "PEMAKAIAN GULA"];
 const REPORT_TEH_KEYS = ["TEH", "PEMAKAIAN TEH"];
@@ -115,17 +115,45 @@ export function applyReportFilters(rows, { range = "month", period = toPeriodVal
 }
 
 export function buildReportStats(rows) {
-  const totalNota = rows.reduce((sum, item) => sum + item.totalNota, 0);
-  const totalUangMasuk = rows.reduce((sum, item) => sum + item.uangMasuk, 0);
-  const totalPengeluaran = rows.reduce((sum, item) => sum + item.pengeluaran, 0);
-  const totalSelisih = rows.reduce((sum, item) => sum + item.selisih, 0);
+  const stats = {
+    gelasLaku: 0,
+    gelasRusak: 0,
+    gelasMasuk: 0,
+    esBatuDepo: 0,
+    esBatuBeli: 0,
+    gula: 0,
+    teh: 0,
+    uangLebih: 0,
+    uangKurang: 0,
+    pengeluaran: 0,
+    count: rows.length,
+  };
+
+  rows.forEach((item) => {
+    stats.gelasLaku += item.gelasLaku;
+    stats.gelasRusak += item.gelasRusak;
+    stats.gelasMasuk += item.gelasMasuk;
+    stats.esBatuDepo += item.esBatuDepo;
+    stats.esBatuBeli += item.esBatuBeli;
+    stats.gula += item.gula;
+    stats.teh += item.teh;
+    stats.pengeluaran += item.pengeluaran;
+
+    // Hitung selisih per transaksi: Uang Masuk - Total Nota
+    const selisih = item.uangMasuk - item.totalNota;
+    if (selisih > 0) {
+      stats.uangLebih += selisih;
+    } else if (selisih < 0) {
+      stats.uangKurang += Math.abs(selisih);
+    }
+  });
 
   return {
-    totalNota,
-    totalUangMasuk,
-    totalPengeluaran,
-    totalSelisih,
-    count: rows.length,
+    ...stats,
+    gula: Number(stats.gula.toFixed(2)),
+    teh: Number(stats.teh.toFixed(2)),
+    gelasTotal: stats.gelasLaku + stats.gelasRusak + stats.gelasMasuk,
+    esBatuTotal: stats.esBatuDepo + stats.esBatuBeli,
   };
 }
 

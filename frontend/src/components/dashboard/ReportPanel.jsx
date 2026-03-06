@@ -74,7 +74,24 @@ function ReportTable({
 
   const columns = useMemo(() => {
     if (!rows.length) return [];
-    return Object.keys(rows[0].row);
+    const blacklist = [
+      "TOTAL NOTA",
+      "STOK AWAL GELAS",
+      "STOK AKHIR GELAS",
+      "GELAS MASUK",
+      "Rp 100.000",
+      "Rp 75.000",
+      "Rp 50.000",
+      "Rp 20.000",
+      "Rp 10.000",
+      "Rp 5.000",
+      "Rp 2.000",
+      "Rp 1.000",
+      "Rp 500",
+      "Rp 200",
+      "Rp 100",
+    ];
+    return Object.keys(rows[0].row).filter((key) => !blacklist.includes(key));
   }, [rows]);
 
   const totalPages = Math.max(Math.ceil(rows.length / pageSize), 1);
@@ -96,7 +113,7 @@ function ReportTable({
         </div>
 
         {showControls ? (
-          <div className="flex flex-col gap-2">
+          <div className="flex flex-col sm:flex-row gap-2">
             {showAddButton && (
               <div className="flex justify-center">
                 <button
@@ -112,7 +129,7 @@ function ReportTable({
             <div className="flex flex-wrap items-center gap-2">
               <div className="relative group flex-1 min-w-0">
                 <input
-                  className="w-full pl-10 pr-4 py-2 bg-brand-bg border-none rounded-2xl text-sm font-bold focus:ring-2 focus:ring-brand-green/20 transition-all placeholder:text-brand-muted/40"
+                  className="w-full sm:w-lg pl-10 pr-4 py-2 bg-brand-bg border border-brand-green/15 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-brand-green/20 transition-all placeholder:text-brand-muted/40"
                   placeholder="Cari laporan..."
                   value={search}
                   onChange={(event) => onSearchChange(event.target.value)}

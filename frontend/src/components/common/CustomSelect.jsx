@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from "react";
 import { ChevronDown } from "lucide-react";
 
 export default function CustomSelect({ 
-  label, 
   value, 
   options, 
   placeholder = "Pilih...", 

@@ -1,31 +1,46 @@
-Mari rombak halaman Kasmasuk!
-features:
-hlaman bisa dual fungsi, jika diakses dari menu sidebar atau tombol "tambah laporan" dari halaman laporan akan menampilkan input kas masuk, jika diakses dari tombol edit pada table data di halaman laporan, akan menampilkan edit kas masuk dengan data template dari data yang dipilih yang sudah tertera pada input.
+mari buat satu menu lagi yaitu kas keluar!
+menu dan halaman ini hanya bisa dilihat oleh admin
 
-jika admin yang akses bisa input kapan saja, jika kasir yang akses saat sudah ada   lastTodayReport akan menampilkan mode edit kas masuk dengan data yang sudah tertera pada input dari data yang ada.
+halaman terbagi menadi 2 mode, mode view(default) dan input
 
-Buat input group:
-a. tanggal otomatis dengan format "Hari, 5(tgl saat  input) Bulan(nama bulan saat input contoh Maret) 2026(tahun saat input) 22.04.47(timestamp)"  lable pada data input = NO TRANSAKSI, 
-shift dengan opsi: pagi/siang/sore/malam label pada data input = SHIFT,
-Cabang Dengan opsi: SDF/SELUMIT/KAMPUNG SATU/KAMPUNG BUGIS/SEBENGKOK/JUWATA,  lable pada data input = ARUS DANA,
-Kasir(otomatis dari nama user) label = KASIR.
+saat mode view berisi list data dari read_database, tapi hanya mengambil data dengan ARUS DANA "Setoran Bank BRI" saja
+data difilter hanya menampilkan bulan ini saja melihat dari id/TIMESTAMP INPUT
+berikan filter untuk menampilkan bulan yang dipilih contoh: FEB/MAR/JUN/ dst..
 
-b. gelas terjual label = GELAS LAKU,
-gelas masuk lable = GELAS MASUK,
-dan gelas rusak = GELAS RUSAK.
+tambahkan tombol tambah untuk input kas keluar yang saat dipencet akan masuk mode input.
 
-c. es depo lable = ES BATU DEPO, 
-es beli lable = ES BATU BELI,
-teh lable = TEH,
-gula lable = GULA.
+saatmode input ada tombol arrow back untuk kembali ke mode view
+mode input halaman berisi input: 
+1. tgl yang akan menjadi data TIMESTAMP INPUT dengan format contoh "Minggu, 1 Maret 2026 22.22.26"
+2. arus dana yang akan menjadi data "ARUS DANA", berupa dropdown berisi data dari BRANCH_OPTIONS dari constants/forms.js
+3. shift brupa dropdown juga berisi data dari SHIFT_OPTIONS sourc nya sama
+4. Kasir sama dropdown juga data KASIR_OPTIONS
+5. nominal
+6. keterangan
 
-d. pengeluaran lable = PENGELUARAN,
-keterangan label = KETERANGAN.
+lalu tombol submit simpan kas keluar
+data akan dikirim dengan api yang ada seperti ini
+```json 
+{
+    "action": "create_database",
+    "authorization": "Bearer {{token}}",
+    "data":{
+        "TIMESTAMP INPUT": "Minggu, 1 Maret 2026 22.22.26",
+        "SHIFT": "Pagi",
+        "ARUS DANA": "tes",
+        "KASIR": "tes",
+        "KETERANGAN": "TES",
+        "UANG KELUAR": 1000
+    }
+}
+```
 
-e. grup input denominasi dengan card sendiri dan menampilkan input dengan lable denom dari rp 100.000 sampai rp 100, dengan susunan per row seperti ini "denominasi x input jumlah = hasil", dan dibawah ada total  penjumlahan seluruh hasil.
+jika sukses akan ada alert sukses dari element yang sudah ada, lalu kembali kemode view dengan data baru yang sudah kelihatan üada list.
 
-stelah submit mengirim data sesuai seperti pada file FRONTEND_IMPLEMENTATION.md dengan lable data yang sesuai
 
-buatkan code yang robust scallable jelas,  lengkap dengan style yang konsisten menyesuaikan website dan juga super responsive untuk semua device terutama mobil, sesuaikan layout untuk semua media 
+berikan code yang baik dengan metode metode dan menyesuaikan codebase dan data yang ada.
+jangan merusak atau mengganggu halaman lain. dan mengganggu fungsi yang sudah ada.
+buatkan tampilan style yang baik simple modern dan menyesuaikan halaman dan tampilan website
+buatkan layout yang baik dan responsive, harus responsive size dan juga layout.
 
-jika ada yang kurang jelas dari prompt ini sillahkan tanyakan dulu baru exekusi
+jika ada yang kurang jelas silahkan tanyakan dulu baru eksekusi.
