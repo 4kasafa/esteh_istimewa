@@ -12,8 +12,8 @@ export default defineConfig({
       registerType: 'autoUpdate',
       injectRegister: 'auto',
       manifest: {
-        name: 'EsTehLay Finance',
-        short_name: 'EsTehLay',
+        name: 'Esteh Lay',
+        short_name: 'Esteh Lay',
         description: 'Ringkasan keuangan sederhana untuk pemilik usaha kecil.',
         theme_color: '#f4d03f',
         background_color: '#ffffff',
