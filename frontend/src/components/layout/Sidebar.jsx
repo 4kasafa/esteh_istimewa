@@ -69,12 +69,12 @@ export default function Sidebar({
         <div className="mb-8">
           <div className={`${showLabel ? "flex items-start justify-between gap-3" : "flex flex-col items-center gap-3"}`}>
             <div className={`flex items-center ${showLabel ? "gap-3" : "justify-center"}`}>
-              <div className="h-10 w-10 rounded-xl bg-brand-yellow text-brand-green-dark shadow-lg flex items-center justify-center font-black">
-                🍃
+              <div className="h-10 w-10 rounded-xl bg-brand-yellow overflow-hidden shadow-lg flex items-center justify-center font-black transition-transform hover:scale-110 active:scale-95 duration-300">
+                <img src="/Appic.svg" alt="Logo" className="w-full h-full object-cover" />
               </div>
               {showLabel && (
                 <div>
-                  <h1 className="text-xl font-black tracking-tight">Es teh Lay</h1>
+                  <h1 className="text-xl font-black tracking-tight text-white leading-none mb-1">Es teh Lay</h1>
                   <p className="text-[10px] tracking-[0.18em] text-white/45">App By Kasafa</p>
                 </div>
               )}

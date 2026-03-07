@@ -1,0 +1,37 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- Gradasi Hijau untuk Daun Utama -->
+    <linearGradient id="leaf_grad_1" x1="256" y1="150" x2="256" y2="400" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#38B000"/>
+      <stop offset="100%" stop-color="#007022"/>
+    </linearGradient>
+    <!-- Gradasi Hijau untuk Daun Kecil -->
+    <linearGradient id="leaf_grad_2" x1="180" y1="280" x2="180" y2="420" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#70E000"/>
+      <stop offset="100%" stop-color="#38B000"/>
+    </linearGradient>
+    <!-- Drop Shadow -->
+    <filter id="shadow" x="0" y="0" width="150%" height="150%">
+      <feDropShadow dx="0" dy="8" stdDeviation="12" flood-opacity="0.15"/>
+    </filter>
+  </defs>
+
+  <!-- Background Kuning Brand (Superellipse Style) -->
+  <path d="M128 48H384C456 48 464 56 464 128V384C464 456 456 464 384 464H128C56 464 48 456 48 384V128C48 56 56 48 128 48Z" fill="#F6C945"/>
+
+  <!-- Grup Daun dengan Bayangan -->
+  <g filter="url(#shadow)">
+    <!-- Daun Kecil (Belakang) -->
+    <path d="M110 330C110 330 115 250 190 230C265 210 280 280 280 280C280 280 290 380 200 410C110 440 110 330 110 330Z" fill="url(#leaf_grad_2)"/>
+    <path d="M110 330C160 330 230 310 280 280" stroke="#F6C945" stroke-width="4" stroke-opacity="0.3" stroke-linecap="round"/>
+    
+    <!-- Daun Utama (Depan) -->
+    <path d="M200 240C200 240 220 100 340 80C460 60 440 200 440 200C440 200 445 370 310 400C175 430 200 240 200 240Z" fill="url(#leaf_grad_1)"/>
+    
+    <!-- Detail Tulang Daun Utama -->
+    <path d="M200 240C280 240 380 180 440 200" stroke="#ffffff" stroke-width="6" stroke-opacity="0.4" stroke-linecap="round"/>
+    <path d="M280 210L265 230" stroke="#ffffff" stroke-width="4" stroke-opacity="0.3" stroke-linecap="round"/>
+    <path d="M340 160L325 185" stroke="#ffffff" stroke-width="4" stroke-opacity="0.3" stroke-linecap="round"/>
+    <path d="M395 125L380 155" stroke="#ffffff" stroke-width="4" stroke-opacity="0.3" stroke-linecap="round"/>
+  </g>
+</svg>

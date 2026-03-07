@@ -10,6 +10,7 @@ import OverviewPanel from "../components/dashboard/OverviewPanel";
 import DataTable from "../components/dashboard/DataTable";
 import ReportPanel from "../components/dashboard/ReportPanel";
 import ReportForm from "../components/forms/ReportForm";
+import SettingPanel from "../components/dashboard/SettingPanel";
 import ConfirmDialog from "../components/common/ConfirmDialog";
 import { toPeriodValue } from "../utils/formatters";
 
@@ -72,7 +73,7 @@ export default function DashboardPage({
   
   const sidebarMenu = useMemo(() => {
     if (isKasir) {
-      const kasirAllowed = new Set(["laporan", "kas-masuk", "setting", "about"]);
+      const kasirAllowed = new Set(["laporan", "kas-masuk", "setting"]);
       return DASHBOARD_MENU.filter((item) => kasirAllowed.has(item.key));
     }
     if (isAdmin) {
@@ -316,27 +317,7 @@ export default function DashboardPage({
               </div>
 
               <div className={panelClass("setting")}>
-                <div className="space-y-6">
-                  {renderTopActions()}
-                  <div className="bg-white rounded-4xl p-8 border border-brand-green/5 card-shadow space-y-3">
-                    <h3 className="text-xl font-black text-brand-green-dark">Setting Panel</h3>
-                    <p className="text-sm text-brand-muted">Konfigurasi dasar akun dan filter laporan ada di menu ini.</p>
-                    <p className="text-xs text-brand-muted">Akun aktif: {user?.nama || "User"} ({user?.email || "-"})</p>
-                  </div>
-                  {isAdmin ? (
-                    <DataTable title="Data Database (Admin)" rows={filteredDatabase} search={dbSearch} onSearchChange={setDbSearch} />
-                  ) : (
-                    <Alert type="info">Data database hanya tersedia untuk akun admin.</Alert>
-                  )}
-                </div>
-              </div>
-
-              <div className={panelClass("about")}>
-                <div className="bg-white rounded-4xl p-8 border border-brand-green/5 card-shadow space-y-3">
-                  <h3 className="text-xl font-black text-brand-green-dark">About</h3>
-                  <p className="text-sm text-brand-muted">Dashboard operasional Es teh Lay untuk input dan monitoring transaksi harian outlet.</p>
-                  <p className="text-sm text-brand-muted">Frontend: React + Vite + Tailwind. Backend: Google Apps Script API.</p>
-                </div>
+                <SettingPanel user={user} />
               </div>
             </div>
           </div>

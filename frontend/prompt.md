@@ -1,46 +1,12 @@
-mari buat satu menu lagi yaitu kas keluar!
-menu dan halaman ini hanya bisa dilihat oleh admin
+mari rombak menu/halaman setting!
 
-halaman terbagi menadi 2 mode, mode view(default) dan input
+buat halaman berisi menu:
+1. Akun info yang menmpilkan nama email dan role
+2. Refresh / muat ulang aplikasi, dengan tombol refresh
+3. Download aplikasi dengan tombol >, hanya muncul saat aplikasi belum di download, dan jika di pencet akan masuk ke halaman tutrial mendownload aplikasi via google chroom, dengan langkah step by step dengan copywriting yang jelas, sampai tombol download paling bawah.
+4. Laporkan Error atau masalah aplikasi sama ada tombol >, akan menuju halaman dengan input text area dan tombol kirim yang jika dipencet akan mengirim pesan ke whatsapp developer dari ynag dituis di text area.
+5. Tentang sama ada > dengan masuk kehalaman Tentang yang menjelaskan aplikasi
 
-saat mode view berisi list data dari read_database, tapi hanya mengambil data dengan ARUS DANA "Setoran Bank BRI" saja
-data difilter hanya menampilkan bulan ini saja melihat dari id/TIMESTAMP INPUT
-berikan filter untuk menampilkan bulan yang dipilih contoh: FEB/MAR/JUN/ dst..
+buat menu dengan icon masing masing yang sesuai, dan buat style yang modern minimalis menyesuaikan style aplikasi, buat responsive size dan juga font nya, buat tapa mengganggu menu dan halaman lain, beri layout yang baik. buat kode menyesuaikan code yang sudah ada tanpa menggangu code yang lain.
 
-tambahkan tombol tambah untuk input kas keluar yang saat dipencet akan masuk mode input.
-
-saatmode input ada tombol arrow back untuk kembali ke mode view
-mode input halaman berisi input: 
-1. tgl yang akan menjadi data TIMESTAMP INPUT dengan format contoh "Minggu, 1 Maret 2026 22.22.26"
-2. arus dana yang akan menjadi data "ARUS DANA", berupa dropdown berisi data dari BRANCH_OPTIONS dari constants/forms.js
-3. shift brupa dropdown juga berisi data dari SHIFT_OPTIONS sourc nya sama
-4. Kasir sama dropdown juga data KASIR_OPTIONS
-5. nominal
-6. keterangan
-
-lalu tombol submit simpan kas keluar
-data akan dikirim dengan api yang ada seperti ini
-```json 
-{
-    "action": "create_database",
-    "authorization": "Bearer {{token}}",
-    "data":{
-        "TIMESTAMP INPUT": "Minggu, 1 Maret 2026 22.22.26",
-        "SHIFT": "Pagi",
-        "ARUS DANA": "tes",
-        "KASIR": "tes",
-        "KETERANGAN": "TES",
-        "UANG KELUAR": 1000
-    }
-}
-```
-
-jika sukses akan ada alert sukses dari element yang sudah ada, lalu kembali kemode view dengan data baru yang sudah kelihatan üada list.
-
-
-berikan code yang baik dengan metode metode dan menyesuaikan codebase dan data yang ada.
-jangan merusak atau mengganggu halaman lain. dan mengganggu fungsi yang sudah ada.
-buatkan tampilan style yang baik simple modern dan menyesuaikan halaman dan tampilan website
-buatkan layout yang baik dan responsive, harus responsive size dan juga layout.
-
-jika ada yang kurang jelas silahkan tanyakan dulu baru eksekusi.
+jikaada yang kurang jelas silahkan di tanyakan dulu baru exekusi.

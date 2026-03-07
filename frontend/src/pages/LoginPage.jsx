@@ -21,8 +21,8 @@ export default function LoginPage({ hasApiUrl, loading, error, onLogin }) {
         <section className="bg-white/80 backdrop-blur-3xl border border-white/60 rounded-4xl sm:rounded-[40px] p-6 sm:p-8 md:p-10 shadow-[0_40px_80px_-20px_rgba(43,147,72,0.12)]">
           
           <header className="flex flex-col items-center text-center mb-8 sm:mb-10">
-            <div className="w-16 h-16 sm:w-20 sm:h-20 bg-linear-to-br from-[#f6c945] to-[#fcd34d] rounded-[22px] sm:rounded-[30px] flex items-center justify-center text-3xl sm:text-4xl shadow-xl shadow-yellow-200/40 mb-5 sm:mb-6 transition-transform hover:scale-105 duration-300">
-              🍃
+            <div className="w-16 h-16 sm:w-20 sm:h-20 bg-linear-to-br from-[#f6c945] to-[#fcd34d] rounded-[22px] sm:rounded-[30px] overflow-hidden flex items-center justify-center shadow-xl shadow-yellow-200/40 mb-5 sm:mb-6 transition-transform hover:scale-105 duration-300">
+              <img src="/Appic.svg" alt="Logo" className="w-full h-full object-cover" />
             </div>
             <h1 className="text-3xl sm:text-4xl font-black text-[#1B3A1E] tracking-tighter mb-1">
               Es teh Lay
