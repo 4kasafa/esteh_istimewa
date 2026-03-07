@@ -188,6 +188,27 @@ const created = await apiRequest(
 );
 ```
 
+### Create (Database Direct - Admin Only)
+
+Digunakan oleh admin untuk memasukkan data langsung ke tab `Database` tanpa melalui tab `Rincian`.
+
+```js
+const createdDb = await apiRequest(
+  {
+    action: "create_database",
+    data: {
+      "TIMESTAMP INPUT":"Minggu, 1 Maret 2026 22.22.26",
+      SHIFT: "Sore",
+      "ARUS DANA": "KAMPUNG DUA",
+      KASIR: "Admin",
+      KETERANGAN: "Input manual admin",
+      "UANG KELUAR": 100000,
+    },
+  },
+  adminToken
+);
+```
+
 ### Update
 
 ```js

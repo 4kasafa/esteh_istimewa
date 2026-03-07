@@ -47,10 +47,12 @@ function doPost(e) {
         return handleRead_(payload, session);
       case "read_database":
         return handleReadDatabase_(payload, session);
+      case "create_database":
+        return handleCreateDatabase_(payload, session);
       case "update":
         return handleUpdate_(payload, session);
       default:
-        return jsonResponse_(false, null, "Unknown action for POST. Allowed: login, logout, create, read, read_database, update");
+        return jsonResponse_(false, null, "Unknown action for POST. Allowed: login, logout, create, read, read_database, create_database, update");
     }
   } catch (error) {
     return jsonResponse_(false, null, error.message);

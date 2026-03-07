@@ -1,3 +1,39 @@
+function handleCreateDatabase_(payload, session) {
+  ensurePermission_(session, "create_database", payload);
+
+  if (!isAdmin_(session)) {
+    throw new Error("Action 'create_database' is admin-only");
+  }
+
+  const sheet = getDatabaseSheet_();
+  const headers = getSheetHeaders_(sheet);
+  if (headers.length === 0) {
+    throw new Error("Sheet '" + getDatabaseSheetName_() + "' has no headers.");
+  }
+
+  const idHeader = getDatabaseHeaderName_(headers, "TIME STAMP INPUT");
+  if (!idHeader) {
+    throw new Error("Sheet '" + getDatabaseSheetName_() + "' missing header: TIME STAMP INPUT");
+  }
+
+  const source = getPayloadDataSource_(payload);
+  const rowData = extractRowData_(payload, headers);
+
+  if (!rowData[idHeader]) {
+    rowData[idHeader] = createTimestampId_();
+  }
+
+  const rowValues = headers.map(function (header) {
+    return Object.prototype.hasOwnProperty.call(rowData, header) ? rowData[header] : "";
+  });
+
+  sheet.appendRow(rowValues);
+  const rowIndex = sheet.getLastRow();
+  applyBorderToDatabaseRow_(sheet, rowIndex, getLastNonEmptyHeaderColumn_(headers));
+
+  return jsonResponse_(true, rowData, "Database entry created");
+}
+
 function handleReadDatabase_(payload, session) {
   ensurePermission_(session, "read_database", payload);
   const id = sanitize_(payload.id);

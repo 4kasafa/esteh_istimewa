@@ -87,7 +87,7 @@ function ensurePermission_(session, action, payload) {
     throw new Error("Unknown role: " + session.role);
   }
 
-  if (action === "create" || action === "update" || action === "read") {
+  if (action === "create" || action === "update" || action === "read" || action === "create_database") {
     if (action === "read") {
       return true;
     }
