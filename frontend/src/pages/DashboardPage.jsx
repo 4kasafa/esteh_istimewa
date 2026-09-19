@@ -1,18 +1,18 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { DASHBOARD_MENU } from "../constants/menu";
-import { REPORT_FORM_DEFAULT } from "../constants/forms";
-import { filterRows } from "../utils/dashboard";
+import { BRANCH_OPTIONS, DENOMINATIONS_DATA, REPORT_FORM_DEFAULT } from "../constants/forms";
 import Alert from "../components/common/Alert";
 import KasKeluarPanel from "../components/dashboard/KasKeluarPanel";
 import Sidebar from "../components/layout/Sidebar";
 import Topbar from "../components/layout/Topbar";
 import OverviewPanel from "../components/dashboard/OverviewPanel";
-import DataTable from "../components/dashboard/DataTable";
 import ReportPanel from "../components/dashboard/ReportPanel";
 import ReportForm from "../components/forms/ReportForm";
+import KaryawanPanel from "../components/dashboard/KaryawanPanel";
+import CabangPanel from "../components/dashboard/CabangPanel";
 import SettingPanel from "../components/dashboard/SettingPanel";
 import ConfirmDialog from "../components/common/ConfirmDialog";
-import { toPeriodValue } from "../utils/formatters";
+import { parseTimestamp, toPeriodValue } from "../utils/formatters";
 
 function getViewportMode() {
   if (typeof window === "undefined") return "desktop";
@@ -36,17 +36,35 @@ export default function DashboardPage({
   request,
   onLogout,
 }) {
-  const isKasir = String(user?.role || "").toLowerCase() === "kasir";
+  const isStaff = String(user?.role || "").toLowerCase() === "staff" || String(user?.role || "").toLowerCase() === "kasir";
   const [activeMenu, setActiveMenu] = useState("dashboard");
   const [mode, setMode] = useState(getViewportMode);
   const [isCollapsed, setIsCollapsed] = useState(mode === "tablet");
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [period, setPeriod] = useState(toPeriodValue());
-  const [dbSearch, setDbSearch] = useState("");
+  const [selectedBranch, setSelectedBranch] = useState("Semua");
+  const period = toPeriodValue();
   const [reportForm, setReportForm] = useState(REPORT_FORM_DEFAULT);
   const [isEditMode, setIsEditMode] = useState(false);
   const [logoutDialogOpen, setLogoutDialogOpen] = useState(false);
   const [logoutLoading, setLogoutLoading] = useState(false);
+
+  const branches = useMemo(() => ["Semua", ...BRANCH_OPTIONS], []);
+
+  const filteredReportRows = useMemo(() => {
+    if (!selectedBranch || selectedBranch.toLowerCase() === "semua") return reportRows;
+    return (reportRows || []).filter((r) => {
+      const branchVal = String(r["ARUS DANA"] || r.ARUS_DANA || "").trim().toLowerCase();
+      return branchVal === selectedBranch.toLowerCase();
+    });
+  }, [reportRows, selectedBranch]);
+
+  const filteredDbRows = useMemo(() => {
+    if (!selectedBranch || selectedBranch.toLowerCase() === "semua") return dbRows;
+    return (dbRows || []).filter((r) => {
+      const branchVal = String(r["ARUS DANA"] || r.ARUS_DANA || "").trim().toLowerCase();
+      return branchVal === selectedBranch.toLowerCase();
+    });
+  }, [dbRows, selectedBranch]);
 
   useEffect(() => {
     function handleResize() {
@@ -68,52 +86,71 @@ export default function DashboardPage({
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
   }, []);
-
-  const filteredDatabase = useMemo(() => filterRows(dbRows, dbSearch), [dbRows, dbSearch]);
   
   const sidebarMenu = useMemo(() => {
-    if (isKasir) {
-      const kasirAllowed = new Set(["laporan", "kas-masuk", "setting"]);
-      return DASHBOARD_MENU.filter((item) => kasirAllowed.has(item.key));
+    if (isStaff) {
+      return [{ key: "laporan", label: "Laporan Hari Ini", icon: "laporan" }];
     }
     if (isAdmin) {
       return DASHBOARD_MENU;
     }
-    return DASHBOARD_MENU.filter((item) => item.key !== "kas-keluar");
-  }, [isAdmin, isKasir]);
+    return DASHBOARD_MENU.filter((item) => item.key !== "pengeluaran");
+  }, [isAdmin, isStaff]);
 
-  const reloadKasKeluar = useCallback(
+  const reloadPengeluaran = useCallback(
     (overridePeriod) => onRefreshMonthly(overridePeriod || period),
     [onRefreshMonthly, period],
   );
 
   useEffect(() => {
-    if (!sidebarMenu.some((item) => item.key === activeMenu)) {
+    const allowedKeys = new Set([...sidebarMenu.map((item) => item.key), "pemasukan"]);
+    if (!allowedKeys.has(activeMenu)) {
       setActiveMenu(sidebarMenu[0]?.key || "laporan");
     }
   }, [activeMenu, sidebarMenu]);
 
-  // Logic for Kasir lastTodayReport
+  // Cari apakah staf sudah memiliki laporan hari ini
+  const todayStaffReport = useMemo(() => {
+    if (!reportRows || reportRows.length === 0) return null;
+    const now = new Date();
+
+    return (
+      reportRows.find((r) => {
+        if (user?.lastTodayReport && r["NO TRANSAKSI"] === user.lastTodayReport) return true;
+        const ts = String(r["TIME STAMP INPUT"] || "");
+        const d = parseTimestamp(ts);
+        if (d) {
+          return (
+            d.getFullYear() === now.getFullYear() &&
+            d.getMonth() === now.getMonth() &&
+            d.getDate() === now.getDate()
+          );
+        }
+        return false;
+      }) || null
+    );
+  }, [reportRows, user?.lastTodayReport]);
+
+  // Logic for Staff lastTodayReport
   useEffect(() => {
-    if (isKasir && user?.lastTodayReport && reportRows.length > 0 && activeMenu === "kas-masuk") {
-      const todayReport = reportRows.find(row => row["NO TRANSAKSI"] === user.lastTodayReport);
-      if (todayReport) {
-        setReportForm({ ...REPORT_FORM_DEFAULT, ...todayReport });
-        setIsEditMode(true);
-      }
+    if (isStaff && todayStaffReport && activeMenu === "pemasukan") {
+      setReportForm({ ...REPORT_FORM_DEFAULT, ...todayStaffReport });
+      setIsEditMode(true);
     }
-  }, [isKasir, user?.lastTodayReport, reportRows, activeMenu]);
+  }, [isStaff, todayStaffReport, activeMenu]);
 
   function handleSelectMenu(menuKey) {
-    if (menuKey === "kas-masuk") {
-      // Jika bukan kasir, atau kasir tapi belum ada report (tidak di edit mode), reset form
-      // Tapi jika kasir dan sudah ada report, biarkan isEditMode tetap true
-      if (!isKasir) {
+    if (menuKey === "pemasukan") {
+      const defaultBranch = selectedBranch.toLowerCase() !== "semua" ? selectedBranch : (BRANCH_OPTIONS[0] || "");
+      if (!isStaff) {
         setIsEditMode(false);
-        setReportForm(REPORT_FORM_DEFAULT);
-      } else if (!isEditMode) {
+        setReportForm({ ...REPORT_FORM_DEFAULT, "ARUS DANA": defaultBranch });
+      } else if (todayStaffReport) {
+        setIsEditMode(true);
+        setReportForm({ ...REPORT_FORM_DEFAULT, ...todayStaffReport });
+      } else {
         setIsEditMode(false);
-        setReportForm(REPORT_FORM_DEFAULT);
+        setReportForm({ ...REPORT_FORM_DEFAULT, "ARUS DANA": defaultBranch });
       }
     }
     setActiveMenu(menuKey);
@@ -148,79 +185,65 @@ export default function DashboardPage({
     }
   }
 
-  function renderTopActions() {
-    if (isKasir) {
-      return (
-        <div className="flex items-center justify-end gap-2 mb-6 bg-white/50 p-4 rounded-2xl border border-white/80 shadow-sm">
-          <button
-            className="px-5 py-2.5 bg-brand-green text-white rounded-xl text-sm font-bold hover:bg-brand-green-dark transition-all shadow-lg shadow-brand-green/10 disabled:opacity-50"
-            onClick={onRefreshAll}
-            disabled={loading}
-          >
-            Refresh Data
-          </button>
-        </div>
-      );
-    }
-
-    return (
-      <div className="flex flex-wrap items-center gap-3 mb-6 bg-white/50 p-4 rounded-2xl border border-white/80 shadow-sm">
-        <div className="flex flex-col gap-1 flex-1 min-w-50">
-          <label className="text-[10px] font-black uppercase tracking-widest text-brand-muted opacity-60 ml-1">Periode Laporan</label>
-          <input
-            type="month"
-            value={period}
-            onChange={(event) => setPeriod(event.target.value)}
-            className="w-full bg-white border border-brand-green/10 rounded-xl px-4 py-2 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-brand-green/20"
-          />
-        </div>
-        <div className="flex gap-2">
-          <button
-            className="px-5 py-2.5 bg-brand-green text-white rounded-xl text-sm font-bold hover:bg-brand-green-dark transition-all shadow-lg shadow-brand-green/10 disabled:opacity-50"
-            onClick={() => onRefreshMonthly(period)}
-            disabled={loading}
-          >
-            Terapkan
-          </button>
-          <button
-            className="px-5 py-2.5 bg-brand-yellow text-brand-green-dark rounded-xl text-sm font-bold hover:bg-yellow-400 transition-all shadow-lg shadow-yellow-200/50 disabled:opacity-50"
-            onClick={onRefreshAll}
-            disabled={loading}
-          >
-            Semua
-          </button>
-        </div>
-      </div>
-    );
-  }
-
   function handleEditReportRow(item) {
-    const rowData = item?.row;
+    const rowData = item?.row || item;
     if (!rowData) return;
     setReportForm({ ...REPORT_FORM_DEFAULT, ...rowData });
     setIsEditMode(true);
-    setActiveMenu("kas-masuk");
+    setActiveMenu("pemasukan");
   }
 
   function handleAddReport() {
+    if (isStaff && todayStaffReport) {
+      handleEditReportRow({ row: todayStaffReport });
+      return;
+    }
+    const defaultBranch = selectedBranch.toLowerCase() !== "semua" ? selectedBranch : (BRANCH_OPTIONS[0] || "");
     setIsEditMode(false);
-    setReportForm(REPORT_FORM_DEFAULT);
-    setActiveMenu("kas-masuk");
+    setReportForm({ ...REPORT_FORM_DEFAULT, "ARUS DANA": defaultBranch });
+    setActiveMenu("pemasukan");
   }
 
   async function handleFormSubmit(e) {
     e.preventDefault();
+    const gelasAwal = Number(reportForm["GELAS AWAL"] ?? reportForm["GELAS MASUK"]) || 0;
+    const gelasSisa = Number(reportForm["GELAS SISA"]) || 0;
+    const gelasRusak = Number(reportForm["GELAS RUSAK"]) || 0;
+    const gelasLaku = Number(reportForm["GELAS LAKU"]) || Math.max(0, gelasAwal - (gelasSisa + gelasRusak));
+    const denomTotal = DENOMINATIONS_DATA.reduce((acc, item) => {
+      const count = parseInt(reportForm[item.label]) || 0;
+      return acc + (count * item.value);
+    }, 0);
+    const autoTotalPenjualan = gelasLaku * 4000;
+    const totalNota = autoTotalPenjualan > 0 ? autoTotalPenjualan : (Number(reportForm["TOTAL NOTA"]) || denomTotal);
+    const uangMasuk = denomTotal > 0 ? denomTotal : (Number(reportForm["UANG MASUK"] || reportForm["UNAG MASUK"]) || totalNota);
+    const pengeluaran = Number(reportForm.PENGELUARAN || 0);
+    const selisih = uangMasuk - totalNota;
+
+    const payload = {
+      ...reportForm,
+      "GELAS AWAL": String(gelasAwal),
+      "GELAS SISA": String(gelasSisa),
+      "GELAS RUSAK": String(gelasRusak),
+      "GELAS LAKU": String(gelasLaku),
+      "TOTAL NOTA": String(totalNota),
+      "UANG MASUK": String(uangMasuk),
+      "UNAG MASUK": String(uangMasuk),
+      "SELISIH": String(selisih),
+      "PENGELUARAN": String(pengeluaran),
+    };
+
     if (isEditMode) {
       const id = reportForm["NO TRANSAKSI"];
-      const patch = { ...reportForm };
+      const patch = { ...payload };
       delete patch["NO TRANSAKSI"]; // ID is not updated
       if (await onUpdateReport(id, patch, period)) {
         setActiveMenu("laporan");
       }
     } else {
-      const success = await onCreateReport(reportForm, period);
+      const success = await onCreateReport(payload, period);
       if (success) {
-        if (isKasir) {
+        if (isStaff) {
           setIsEditMode(true);
           setActiveMenu("laporan");
         } else {
@@ -264,6 +287,9 @@ export default function DashboardPage({
           mode={mode}
           isCollapsed={isCollapsed}
           onToggleSidebar={handleToggleSidebar}
+          selectedBranch={selectedBranch}
+          onSelectBranch={setSelectedBranch}
+          branches={branches}
         />
 
         <div className="flex-1 overflow-y-auto overflow-x-hidden p-3 sm:p-4 lg:p-4 no-scrollbar">
@@ -274,7 +300,7 @@ export default function DashboardPage({
             <div className="animate-fade-in">
               <div className={panelClass("dashboard")}>
                 <OverviewPanel
-                  dbRows={dbRows}
+                  dbRows={filteredDbRows}
                   loading={loading}
                   onRefreshMonthly={onRefreshMonthly}
                   onRefreshAll={onRefreshAll}
@@ -283,17 +309,18 @@ export default function DashboardPage({
 
               <div className={panelClass("laporan")}>
                 <ReportPanel
-                  reportRows={reportRows}
+                  reportRows={filteredReportRows}
                   loading={loading}
                   isAdmin={isAdmin}
                   onRefreshMonthly={onRefreshMonthly}
                   onRefreshAll={onRefreshAll}
                   onEditRow={handleEditReportRow}
                   onAddReport={handleAddReport}
+                  todayReport={todayStaffReport}
                 />
               </div>
 
-              <div className={panelClass("kas-masuk")}>
+              <div className={panelClass("pemasukan")}>
                 <div className="bg-white rounded-4xl p-6 sm:p-10 border border-brand-green/5 card-shadow">
                   <ReportForm
                     value={reportForm}
@@ -301,19 +328,28 @@ export default function DashboardPage({
                     user={user}
                     isEdit={isEditMode}
                     onSubmit={handleFormSubmit}
+                    onCancel={() => setActiveMenu("laporan")}
                     onChange={(key, value) => setReportForm((prev) => ({ ...prev, [key]: value }))}
                   />
                 </div>
               </div>
 
-              <div className={panelClass("kas-keluar")}>
+              <div className={panelClass("pengeluaran")}>
                 <KasKeluarPanel
-                  dbRows={dbRows}
+                  dbRows={filteredDbRows}
                   request={request}
                   period={period}
-                  onReload={reloadKasKeluar}
+                  onReload={reloadPengeluaran}
                   user={user}
                 />
+              </div>
+
+              <div className={panelClass("karyawan")}>
+                <KaryawanPanel selectedBranch={selectedBranch} />
+              </div>
+
+              <div className={panelClass("cabang")}>
+                <CabangPanel selectedBranch={selectedBranch} />
               </div>
 
               <div className={panelClass("setting")}>

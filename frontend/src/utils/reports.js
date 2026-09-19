@@ -10,6 +10,8 @@ const REPORT_INPUT_KASIR_KEYS = ["INPUT KASIR", "KASIR INPUT"];
 const REPORT_PENGELUARAN_KEYS = ["PENGELUARAN", "UANG KELUAR"];
 const REPORT_SELISIH_KEYS = ["SELISIH"];
 const REPORT_GELAS_LAKU_KEYS = ["GELAS LAKU", "GELAS_LAKU"];
+const REPORT_GELAS_AWAL_KEYS = ["GELAS AWAL", "GELAS_AWAL", "STOK AWAL GELAS"];
+const REPORT_GELAS_SISA_KEYS = ["GELAS SISA", "GELAS_SISA", "STOK AKHIR GELAS"];
 const REPORT_GELAS_RUSAK_KEYS = ["GELAS RUSAK", "GELAS_RUSAK"];
 const REPORT_GELAS_MASUK_KEYS = ["GELAS MASUK", "GELAS_MASUK"];
 const REPORT_ESBATU_DEPO_KEYS = ["ES BATU DEPO", "ESBATU DEPO", "ES BATU_DEPO", "ES BATU DEPO (KG)"];
@@ -47,12 +49,38 @@ function buildDenominationList(rawRow) {
 
 export function sanitizeReportRows(rows) {
   return rows
-    .map((raw) => {
+    .map((rawItem) => {
+      const raw = { ...rawItem };
       const timestampStr = getField(raw, REPORT_TIMESTAMP_KEYS);
       const timestamp = parseTimestamp(timestampStr);
       const arusDana = String(getField(raw, REPORT_ARUS_DANA_KEYS, "Tanpa Area")).trim() || "Tanpa Area";
       const kasir = String(getField(raw, REPORT_KASIR_KEYS, "Tanpa Kasir")).trim() || "Tanpa Kasir";
       const denomination = buildDenominationList(raw);
+
+      const gelasAwal = getNumber(raw, REPORT_GELAS_AWAL_KEYS);
+      const gelasSisa = getNumber(raw, REPORT_GELAS_SISA_KEYS);
+      const gelasRusak = getNumber(raw, REPORT_GELAS_RUSAK_KEYS);
+      const gelasLaku = getNumber(raw, REPORT_GELAS_LAKU_KEYS) || Math.max(0, gelasAwal - (gelasSisa + gelasRusak));
+
+      let totalNota = getNumber(raw, REPORT_TOTAL_NOTA_KEYS);
+      if (!totalNota && gelasLaku > 0) {
+        totalNota = gelasLaku * 4000;
+      }
+
+      let uangMasuk = getNumber(raw, REPORT_UANG_MASUK_KEYS);
+      if (!uangMasuk && totalNota > 0) {
+        uangMasuk = totalNota;
+      }
+
+      const pengeluaran = getNumber(raw, REPORT_PENGELUARAN_KEYS);
+      const selisih = getNumber(raw, REPORT_SELISIH_KEYS) || (uangMasuk - totalNota);
+
+      raw["GELAS LAKU"] = gelasLaku;
+      raw["TOTAL NOTA"] = totalNota;
+      raw["UANG MASUK"] = uangMasuk;
+      raw["UNAG MASUK"] = uangMasuk;
+      raw["PENGELUARAN"] = pengeluaran;
+      raw["SELISIH"] = selisih;
 
       return {
         id: timestampStr ? String(timestampStr).trim() : "",
@@ -60,13 +88,15 @@ export function sanitizeReportRows(rows) {
         timestamp,
         arusDana,
         kasir,
-        totalNota: getNumber(raw, REPORT_TOTAL_NOTA_KEYS),
-        uangMasuk: getNumber(raw, REPORT_UANG_MASUK_KEYS),
-        inputKasir: getNumber(raw, REPORT_INPUT_KASIR_KEYS),
-        pengeluaran: getNumber(raw, REPORT_PENGELUARAN_KEYS),
-        selisih: getNumber(raw, REPORT_SELISIH_KEYS),
-        gelasLaku: getNumber(raw, REPORT_GELAS_LAKU_KEYS),
-        gelasRusak: getNumber(raw, REPORT_GELAS_RUSAK_KEYS),
+        totalNota,
+        uangMasuk,
+        inputKasir: getNumber(raw, REPORT_INPUT_KASIR_KEYS) || uangMasuk,
+        pengeluaran,
+        selisih,
+        gelasAwal,
+        gelasSisa,
+        gelasLaku,
+        gelasRusak,
         gelasMasuk: getNumber(raw, REPORT_GELAS_MASUK_KEYS),
         esBatuDepo: getNumber(raw, REPORT_ESBATU_DEPO_KEYS),
         esBatuBeli: getNumber(raw, REPORT_ESBATU_BELI_KEYS),
@@ -116,6 +146,8 @@ export function applyReportFilters(rows, { range = "month", period = toPeriodVal
 
 export function buildReportStats(rows) {
   const stats = {
+    gelasAwal: 0,
+    gelasSisa: 0,
     gelasLaku: 0,
     gelasRusak: 0,
     gelasMasuk: 0,
@@ -130,6 +162,8 @@ export function buildReportStats(rows) {
   };
 
   rows.forEach((item) => {
+    stats.gelasAwal += item.gelasAwal || 0;
+    stats.gelasSisa += item.gelasSisa || 0;
     stats.gelasLaku += item.gelasLaku;
     stats.gelasRusak += item.gelasRusak;
     stats.gelasMasuk += item.gelasMasuk;
@@ -152,7 +186,7 @@ export function buildReportStats(rows) {
     ...stats,
     gula: Number(stats.gula.toFixed(2)),
     teh: Number(stats.teh.toFixed(2)),
-    gelasTotal: stats.gelasLaku + stats.gelasRusak + stats.gelasMasuk,
+    gelasTotal: stats.gelasLaku,
     esBatuTotal: stats.esBatuDepo + stats.esBatuBeli,
   };
 }

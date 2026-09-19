@@ -7,7 +7,7 @@ import DataTable from "./DataTable";
 import { mapApiErrorMessage } from "../../utils/errors";
 import { filterRows } from "../../utils/dashboard";
 import { parseTimestamp, toFormattedTimestamp, toPeriodValue } from "../../utils/formatters";
-import { BRANCH_OPTIONS, KASIR_OPTIONS, SHIFT_OPTIONS } from "../../constants/forms";
+import { BRANCH_OPTIONS, SHIFT_OPTIONS, STAFF_OPTIONS } from "../../constants/forms";
 
 const MONTH_LABEL_FORMATTER = new Intl.DateTimeFormat("id-ID", {
   month: "short",
@@ -21,7 +21,7 @@ function buildEmptyForm(userName = "") {
     "TIMESTAMP INPUT": toFormattedTimestamp(),
     SHIFT: SHIFT_OPTIONS[0] || "",
     "ARUS DANA": BRANCH_OPTIONS[0] || "",
-    KASIR: userName || KASIR_OPTIONS[0] || "",
+    KASIR: userName || STAFF_OPTIONS[0] || "",
     "UANG KELUAR": "",
     KETERANGAN: "",
   };
@@ -91,7 +91,12 @@ export default function KasKeluarPanel({ dbRows = [], request, period, onReload,
         const timestamp = extractTimestamp(row);
         return { timestamp, row };
       })
-      .filter((item) => item.timestamp && normalizeArusDana(item.row["ARUS DANA"]) === ARUS_DANA_TARGET);
+      .filter((item) => {
+        if (!item.timestamp) return false;
+        const arus = normalizeArusDana(item.row["ARUS DANA"]);
+        const nominal = Number(item.row["UANG KELUAR"] || 0);
+        return arus === ARUS_DANA_TARGET || nominal > 0;
+      });
   }, [dbRows]);
 
   const monthOptions = useMemo(() => {
@@ -167,7 +172,7 @@ export default function KasKeluarPanel({ dbRows = [], request, period, onReload,
         },
       });
 
-      const successMessage = "Kas keluar tersimpan.";
+      const successMessage = "Pengeluaran tersimpan.";
       setFormSuccess(successMessage);
       setViewAlert(successMessage);
       setMode("view");
@@ -195,7 +200,7 @@ export default function KasKeluarPanel({ dbRows = [], request, period, onReload,
 
       <div className="relative" ref={monthPopoverRef}>
         <DataTable
-          title="Kas Keluar"
+          title="Pengeluaran"
           rows={filteredRows}
           search={searchValue}
           onSearchChange={setSearchValue}
@@ -282,9 +287,9 @@ export default function KasKeluarPanel({ dbRows = [], request, period, onReload,
             />
           </div>
           <div>
-            <label className="text-[10px] font-black uppercase tracking-[0.32em] text-brand-muted mb-2 block">Kasir</label>
+            <label className="text-[10px] font-black uppercase tracking-[0.32em] text-brand-muted mb-2 block">Staff</label>
             <CustomSelect
-              options={KASIR_OPTIONS}
+              options={STAFF_OPTIONS}
               value={formState.KASIR}
               onChange={(value) => updateFormField("KASIR", value)}
             />
@@ -311,18 +316,18 @@ export default function KasKeluarPanel({ dbRows = [], request, period, onReload,
               rows="2"
               value={formState.KETERANGAN}
               onChange={(event) => updateFormField("KETERANGAN", event.target.value)}
-              placeholder="Catatan transaksi kas keluar"
+              placeholder="Catatan transaksi pengeluaran"
             />
           </div>
         </div>
 
         <div className="flex sm:justify-end">
           <button
-            className="inline-flex justify-center items-center gap-2 rounded-2xl bg-brand-yellow px-5 py-3 text-xs font-black uppercase tracking-[0.3em] text-brand-green-dark shadow-lg shadow-brand-yellow/30 transition hover:bg-yellow-400 disabled:opacity-60 w-full sm:w-auto"
+            className="inline-flex justify-center items-center gap-2 rounded-2xl bg-brand-green px-5 py-3 text-xs font-black uppercase tracking-[0.3em] text-white shadow-lg shadow-brand-green/20 transition hover:bg-emerald-700 disabled:opacity-60 w-full sm:w-auto"
             type="submit"
             disabled={submitLoading}
           >
-            Simpan Kas Keluar
+            Simpan Pengeluaran
           </button>
         </div>
       </form>

@@ -124,7 +124,14 @@ export default function App() {
   }
 
   if (!isLoggedIn) {
-    return <LoginPage hasApiUrl={Boolean(apiUrl)} loading={loading} error={error} onLogin={handleLogin} />;
+    return (
+      <LoginPage 
+        hasApiUrl={Boolean(apiUrl)} 
+        loading={loading} 
+        error={error} 
+        onLogin={handleLogin} 
+      />
+    );
   }
 
   return (

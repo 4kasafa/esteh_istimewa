@@ -10,13 +10,19 @@ import {
   LogOut,
   Mail,
   Settings,
+  Store,
   UserRound,
+  Users,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 const ICON_MAP = {
   dashboard: LayoutDashboard,
   laporan: FileText,
+  pemasukan: ArrowDownCircle,
+  pengeluaran: ArrowUpCircle,
+  karyawan: Users,
+  cabang: Store,
   kasMasuk: ArrowDownCircle,
   kasKeluar: ArrowUpCircle,
   setting: Settings,
@@ -69,19 +75,19 @@ export default function Sidebar({
         <div className="mb-8">
           <div className={`${showLabel ? "flex items-start justify-between gap-3" : "flex flex-col items-center gap-3"}`}>
             <div className={`flex items-center ${showLabel ? "gap-3" : "justify-center"}`}>
-              <div className="h-10 w-10 rounded-xl bg-brand-yellow overflow-hidden shadow-lg flex items-center justify-center font-black transition-transform hover:scale-110 active:scale-95 duration-300">
-                <img src="/Appic.svg" alt="Logo" className="w-full h-full object-cover" />
+              <div className="h-10 w-10 rounded-xl bg-emerald-500/20 border border-emerald-400/30 overflow-hidden shadow-lg flex items-center justify-center font-black transition-transform hover:scale-110 active:scale-95 duration-300 p-0.5">
+                <img src="/Appic.svg" alt="Logo" className="w-full h-full object-contain" />
               </div>
               {showLabel && (
                 <div>
-                  <h1 className="text-xl font-black tracking-tight text-white leading-none mb-1">Es teh Lay</h1>
+                  <h1 className="text-xl font-black tracking-tight text-white leading-none mb-1">Es Teh Istimewa</h1>
                   <p className="text-[10px] tracking-[0.18em] text-white/45">App By Kasafa</p>
                 </div>
               )}
             </div>
 
             <button
-              className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-white/10 text-brand-yellow hover:bg-white/20"
+              className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-white/10 text-emerald-400 hover:bg-white/20 hover:text-white transition-colors"
               onClick={onToggle}
               title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
             >
@@ -101,7 +107,7 @@ export default function Sidebar({
                 className={`
                   group relative w-full rounded-2xl px-3 py-3 text-sm font-bold transition-all
                   flex items-center ${showLabel ? "gap-3 justify-start" : "justify-center"}
-                  ${isActive ? "bg-brand-yellow text-brand-green-dark shadow-lg shadow-yellow-500/20" : "text-white/70 hover:text-white hover:bg-white/8"}
+                  ${isActive ? "bg-emerald-600 text-white shadow-lg shadow-black/25" : "text-white/70 hover:text-white hover:bg-white/8"}
                 `}
                 onClick={() => onChangeMenu(item.key)}
                 title={item.label}
@@ -124,15 +130,15 @@ export default function Sidebar({
               <h4 className="mb-3 text-xs font-black uppercase tracking-widest text-white/70">Info Akun</h4>
               <div className="space-y-2 text-xs text-white">
                 <div className="flex items-center gap-2">
-                  <UserRound size={14} className="text-brand-yellow" />
+                  <UserRound size={14} className="text-emerald-400" />
                   <span className="truncate font-bold">{user?.nama || "-"}</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Mail size={14} className="text-brand-yellow" />
+                  <Mail size={14} className="text-emerald-400" />
                   <span className="truncate">{user?.email || "-"}</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <BadgeCheck size={14} className="text-brand-yellow" />
+                  <BadgeCheck size={14} className="text-emerald-400" />
                   <span className="uppercase">{user?.role || "-"}</span>
                 </div>
               </div>
@@ -152,7 +158,7 @@ export default function Sidebar({
             title="Info Akun"
           >
             <div className={`flex items-center ${showLabel ? "gap-3" : "justify-center"}`}>
-              <div className="h-9 w-9 rounded-xl bg-white/10 flex items-center justify-center text-brand-yellow">
+              <div className="h-9 w-9 rounded-xl bg-white/10 flex items-center justify-center text-emerald-400">
                 <UserRound size={18} />
               </div>
               {showLabel && (

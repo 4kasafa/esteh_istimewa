@@ -16,8 +16,8 @@
     </filter>
   </defs>
 
-  <!-- Background Kuning Brand (Superellipse Style) -->
-  <path d="M128 48H384C456 48 464 56 464 128V384C464 456 456 464 384 464H128C56 464 48 456 48 384V128C48 56 56 48 128 48Z" fill="#F6C945"/>
+  <!-- Background Putih Bersih Brand (Superellipse Style) -->
+  <path d="M128 48H384C456 48 464 56 464 128V384C464 456 456 464 384 464H128C56 464 48 456 48 384V128C48 56 56 48 128 48Z" fill="#FFFFFF" stroke="#DCFCE7" stroke-width="12"/>
 
   <!-- Grup Daun dengan Bayangan -->
   <g filter="url(#shadow)">

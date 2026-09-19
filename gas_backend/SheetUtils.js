@@ -16,12 +16,25 @@ function getPayload_(e) {
   return Object.assign({}, safeParam, json);
 }
 
-function getOrCreateSheet_() {
-  if (!APP_CONFIG.SPREADSHEET_ID || APP_CONFIG.SPREADSHEET_ID === "REPLACE_WITH_SPREADSHEET_ID") {
+function getActiveOrBoundSpreadsheet_() {
+  if (APP_CONFIG.SPREADSHEET_ID && APP_CONFIG.SPREADSHEET_ID !== "REPLACE_WITH_SPREADSHEET_ID") {
+    try {
+      return SpreadsheetApp.openById(APP_CONFIG.SPREADSHEET_ID);
+    } catch (e) {
+      const active = SpreadsheetApp.getActiveSpreadsheet();
+      if (active) return active;
+      throw e;
+    }
+  }
+  const active = SpreadsheetApp.getActiveSpreadsheet();
+  if (!active) {
     throw new Error("Please set APP_CONFIG.SPREADSHEET_ID in Config.js");
   }
+  return active;
+}
 
-  const ss = SpreadsheetApp.openById(APP_CONFIG.SPREADSHEET_ID);
+function getOrCreateSheet_() {
+  const ss = getActiveOrBoundSpreadsheet_();
   let sheet = ss.getSheetByName(APP_CONFIG.SHEET_NAME);
 
   if (!sheet) {
@@ -32,11 +45,7 @@ function getOrCreateSheet_() {
 }
 
 function getRequiredSheet_(sheetName) {
-  if (!APP_CONFIG.SPREADSHEET_ID || APP_CONFIG.SPREADSHEET_ID === "REPLACE_WITH_SPREADSHEET_ID") {
-    throw new Error("Please set APP_CONFIG.SPREADSHEET_ID in Config.js");
-  }
-
-  const ss = SpreadsheetApp.openById(APP_CONFIG.SPREADSHEET_ID);
+  const ss = getActiveOrBoundSpreadsheet_();
   const sheet = ss.getSheetByName(sheetName);
   if (!sheet) {
     throw new Error("Sheet '" + sheetName + "' not found.");
@@ -166,4 +175,68 @@ function toHeaderMap_(headers) {
     out[normalizeKey_(header)] = index;
   });
   return out;
+}
+
+function setupNewSpreadsheet() {
+  let ss;
+  if (APP_CONFIG.SPREADSHEET_ID && APP_CONFIG.SPREADSHEET_ID !== "REPLACE_WITH_SPREADSHEET_ID") {
+    try {
+      ss = SpreadsheetApp.openById(APP_CONFIG.SPREADSHEET_ID);
+    } catch (e) {
+      ss = SpreadsheetApp.getActiveSpreadsheet();
+    }
+  } else {
+    ss = SpreadsheetApp.getActiveSpreadsheet();
+  }
+
+  if (!ss) {
+    throw new Error("Spreadsheet tidak ditemukan. Pastikan APP_CONFIG.SPREADSHEET_ID sudah benar.");
+  }
+
+  // 1. Rincian
+  const rincianName = APP_CONFIG.SHEET_NAME || "Rincian";
+  let rincian = ss.getSheetByName(rincianName);
+  if (!rincian) {
+    rincian = ss.insertSheet(rincianName);
+  }
+  ensureHeaders_(rincian);
+
+  // 2. User
+  let userSheet = ss.getSheetByName("User");
+  if (!userSheet) {
+    userSheet = ss.insertSheet("User");
+  }
+  if (userSheet.getLastRow() === 0) {
+    userSheet.getRange(1, 1, 1, 4).setValues([["Email", "Sandi", "Role", "Nama"]]);
+    userSheet.getRange(2, 1, 1, 4).setValues([["admin@esteh.com", "admin123", "admin", "Admin Esteh"]]);
+  }
+
+  // 3. Sessions
+  let sessionSheet = ss.getSheetByName("Sessions");
+  if (!sessionSheet) {
+    sessionSheet = ss.insertSheet("Sessions");
+  }
+  if (sessionSheet.getLastRow() === 0) {
+    sessionSheet.getRange(1, 1, 1, 7).setValues([["token", "email", "role", "createAt", "expireAt", "laporan", "status"]]);
+  }
+
+  // 4. Database
+  const dbName = APP_CONFIG.DATABASE_SHEET_NAME || "Database";
+  let dbSheet = ss.getSheetByName(dbName);
+  if (!dbSheet) {
+    dbSheet = ss.insertSheet(dbName);
+  }
+  if (dbSheet.getLastRow() === 0) {
+    const dbHeaders = [
+      "TIME STAMP INPUT", "SHIFT", "ARUS DANA", "KASIR", "KETERANGAN",
+      "PENGELUARAN", "UNAG MASUK", "TOTAL NOTA", "UANG KELUAR"
+    ];
+    dbSheet.getRange(1, 1, 1, dbHeaders.length).setValues([dbHeaders]);
+  }
+
+  if (typeof setupSessionCleanupTrigger_ === "function") {
+    setupSessionCleanupTrigger_();
+  }
+
+  Logger.log("Inisialisasi Spreadsheet Berhasil!");
 }

@@ -23,7 +23,9 @@ export default function SettingPanel({
 
   useEffect(() => {
     const checkPWA = () => {
-      const isStandalone = window.matchMedia("(display-mode: standalone)").matches;
+      const isStandalone = typeof window !== "undefined" && typeof window.matchMedia === "function" 
+        ? window.matchMedia("(display-mode: standalone)").matches 
+        : false;
       setIsPWA(isStandalone);
     };
     checkPWA();
@@ -98,7 +100,7 @@ export default function SettingPanel({
   const handleSendReport = () => {
     if (!reportMessage.trim()) return;
     const encoded = encodeURIComponent(
-      `*LAPOR ERROR - EsTehLay App*\n\nUser: ${user?.nama} (${user?.email})\n\nPesan:\n${reportMessage}`
+      `*LAPOR ERROR - Es Teh Istimewa App*\n\nUser: ${user?.nama} (${user?.email})\n\nPesan:\n${reportMessage}`
     );
     window.open(`https://wa.me/${DEV_CONTACT}?text=${encoded}`, "_blank");
   };
@@ -108,7 +110,7 @@ export default function SettingPanel({
       <SubPageLayout title="Info Akun" onBack={() => setActiveSub("main")}>
         <div className="space-y-6">
           <div className="flex flex-col items-center py-6">
-            <div className="h-24 w-24 rounded-3xl bg-brand-yellow/20 flex items-center justify-center text-brand-yellow mb-4 border-2 border-brand-yellow/30">
+            <div className="h-24 w-24 rounded-3xl bg-emerald-50 flex items-center justify-center text-brand-green mb-4 border-2 border-emerald-200">
               <UserRound size={48} />
             </div>
             <h4 className="text-xl font-black text-brand-green-dark">{user?.nama || "User"}</h4>
@@ -139,10 +141,10 @@ export default function SettingPanel({
     return (
       <SubPageLayout title="Instal Aplikasi" onBack={() => setActiveSub("main")}>
         <div className="space-y-6 text-brand-green-dark">
-          <div className="bg-brand-yellow/10 p-4 rounded-2xl border border-brand-yellow/30 flex gap-3">
-            <Download className="text-brand-yellow shrink-0" size={20} />
-            <p className="text-sm font-bold leading-relaxed">
-              Tekan tombol download di bawah untuk menginstal aplikasi EsTehLay langsung ke HP kamu.
+          <div className="bg-emerald-50 p-4 rounded-2xl border border-emerald-200 flex gap-3">
+            <Download className="text-emerald-600 shrink-0" size={20} />
+            <p className="text-sm font-bold leading-relaxed text-brand-green-dark">
+              Tekan tombol download di bawah untuk menginstal aplikasi Es Teh Istimewa langsung ke HP kamu.
             </p>
           </div>
 
@@ -201,17 +203,17 @@ export default function SettingPanel({
       <SubPageLayout title="Tentang Aplikasi" onBack={() => setActiveSub("main")}>
         <div className="space-y-6 text-center">
           <div className="flex justify-center py-4">
-            <div className="h-20 w-20 rounded-3xl bg-brand-green-dark overflow-hidden shadow-xl flex items-center justify-center transition-transform hover:rotate-6 duration-300">
-              <img src="/Appic.svg" alt="Logo" className="w-full h-full object-cover" />
+            <div className="h-20 w-20 rounded-3xl bg-brand-green-dark overflow-hidden shadow-xl flex items-center justify-center transition-transform hover:rotate-6 duration-300 p-2 border border-emerald-500/20">
+              <img src="/Appic.svg" alt="Logo" className="w-full h-full object-contain" />
             </div>
           </div>
           <div className="space-y-2">
-            <h4 className="text-2xl font-black text-brand-green-dark">EsTehLay App</h4>
+            <h4 className="text-2xl font-black text-brand-green-dark">Es Teh Istimewa App</h4>
             <p className="text-xs font-black tracking-[0.2em] text-brand-muted opacity-50 uppercase">Versi 1.0.0 Stable</p>
           </div>
           
           <div className="bg-brand-bg/50 p-6 rounded-3xl border border-brand-green/5 text-sm leading-relaxed text-brand-muted font-bold text-left">
-            Dashboard operasional <span className="text-brand-green">Es teh Lay</span> dirancang untuk memudahkan input dan monitoring transaksi harian outlet secara real-time.
+            Dashboard operasional <span className="text-brand-green">Es Teh Istimewa</span> dirancang untuk memudahkan input dan monitoring transaksi harian outlet secara real-time.
           </div>
 
           <div className="pt-4 text-[10px] font-black text-brand-muted/40 uppercase tracking-widest">
@@ -271,7 +273,7 @@ function SubPageLayout({ title, onBack, children }) {
 function Step({ num, title, desc }) {
   return (
     <div className="flex gap-4">
-      <div className="h-8 w-8 rounded-full bg-brand-green-dark text-brand-yellow shrink-0 flex items-center justify-center font-black text-sm">
+      <div className="h-8 w-8 rounded-full bg-brand-green text-white shrink-0 flex items-center justify-center font-black text-sm shadow-md shadow-brand-green/20">
         {num}
       </div>
       <div className="space-y-1">

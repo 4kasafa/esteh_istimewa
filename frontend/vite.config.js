@@ -12,11 +12,11 @@ export default defineConfig({
       registerType: 'autoUpdate',
       injectRegister: 'auto',
       manifest: {
-        name: 'Esteh Lay',
-        short_name: 'Esteh Lay',
-        description: 'Ringkasan keuangan sederhana untuk pemilik usaha kecil.',
-        theme_color: '#f4d03f',
-        background_color: '#ffffff',
+        name: 'Es Teh Istimewa',
+        short_name: 'Es Teh Istimewa',
+        description: 'Dashboard kasir & ringkasan operasional Es Teh Istimewa.',
+        theme_color: '#15803d',
+        background_color: '#f8faf8',
         display: 'standalone',
         start_url: '/',
         icons: [

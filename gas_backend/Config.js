@@ -1,6 +1,6 @@
 const APP_CONFIG = {
   // Isi dengan Spreadsheet ID yang sudah ada.
-  SPREADSHEET_ID: "1xRueQWq6ObkI6erdasaM_eL56dm8WIj76Sb1ZHP-uB8",
+  SPREADSHEET_ID: "1QLEe3-x8iQwHeBjf8m8Kkb7Yx9g2tAilwGOAjWIZJ0k",
   SHEET_NAME: "Rincian",
   DATABASE_SHEET_NAME: "Database",
   HEADER_ROW: 1,

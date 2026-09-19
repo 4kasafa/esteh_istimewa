@@ -15,7 +15,7 @@ import {
   Wallet,
   X,
 } from "lucide-react";
-import { toCurrency, toPeriodValue } from "../../utils/formatters";
+import { parseLooseNumber, toCurrency, toPeriodValue } from "../../utils/formatters";
 import { filterRows } from "../../utils/dashboard";
 import {
   applyReportFilters,
@@ -38,7 +38,8 @@ function getDefaultFilter() {
   };
 }
 
-function StatCard({ label, value, hint, icon: Icon }) {
+function StatCard({ label, value, hint, icon }) {
+  const Icon = icon;
   return (
     <div className="rounded-3xl border border-brand-green/10 bg-white p-4 sm:p-5 card-shadow h-full">
       <div className="flex items-start justify-between gap-3">
@@ -48,7 +49,7 @@ function StatCard({ label, value, hint, icon: Icon }) {
           <p className="mt-2 text-[10px] sm:text-[11px] font-semibold text-brand-muted leading-snug wrap-break-word">{hint}</p>
         </div>
         <div className="shrink-0 rounded-xl bg-brand-green/10 p-2.5 text-brand-green">
-          <Icon size={18} />
+          {Icon && <Icon size={18} />}
         </div>
       </div>
     </div>
@@ -63,6 +64,9 @@ function ReportTable({
   onToggleRow,
   onEditRow,
   onAddReport,
+  onEditTodayReport,
+  hasTodayReport = false,
+  isAdmin = true,
   onFilterClick,
   filterDisabled,
   showAddButton = true,
@@ -75,7 +79,6 @@ function ReportTable({
   const columns = useMemo(() => {
     if (!rows.length) return [];
     const blacklist = [
-      "TOTAL NOTA",
       "STOK AWAL GELAS",
       "STOK AKHIR GELAS",
       "GELAS MASUK",
@@ -100,15 +103,25 @@ function ReportTable({
   const pageRows = rows.slice(startIndex, startIndex + pageSize);
 
   function rowValue(item, column) {
-    const value = item.row[column];
-    return String(value === undefined || value === null || value === "" ? "-" : value);
+    const rawVal = item.row[column];
+    if (column === "TOTAL NOTA" || column === "UANG MASUK" || column === "UNAG MASUK") {
+      const num = parseLooseNumber(rawVal) || ((Number(item.row["GELAS LAKU"]) || 0) * 4000);
+      return num > 0 ? toCurrency(num) : "Rp 0";
+    }
+    if (column === "PENGELUARAN" || column === "UANG KELUAR") {
+      const num = parseLooseNumber(rawVal);
+      return num > 0 ? toCurrency(num) : "Rp 0";
+    }
+    return String(rawVal === undefined || rawVal === null || rawVal === "" ? "-" : rawVal);
   }
 
   return (
     <div className="bg-white rounded-4xl border border-brand-green/5 card-shadow overflow-hidden flex flex-col h-full min-h-0">
       <div className="p-4 border-b border-brand-bg flex flex-col gap-3">
         <div>
-          <h3 className="text-lg font-extrabold text-brand-green-dark">Rincian Laporan</h3>
+          <h3 className="text-lg font-extrabold text-brand-green-dark">
+            {isAdmin ? "Rincian Laporan" : "Laporan Hari Ini"}
+          </h3>
           <p className="text-xs text-brand-muted font-medium">Menampilkan {rows.length} entri data</p>
         </div>
 
@@ -151,23 +164,50 @@ function ReportTable({
               </button>
             </div>
           </div>
-        ) : showAddButton ? (
-          <button
-            className="inline-flex w-full sm:w-auto items-center justify-center gap-1.5 rounded-2xl bg-brand-green px-3 py-2 text-xs font-black text-white hover:bg-brand-green-dark transition-colors"
-            onClick={onAddReport}
-            title="Tambah laporan"
-          >
-            <Plus size={14} />
-            <span>Tambah Laporan</span>
-          </button>
+        ) : (rows.length > 0 || hasTodayReport) ? (
+          <div>
+            {hasTodayReport ? (
+              <button
+                className="inline-flex w-full sm:w-auto items-center justify-center gap-1.5 rounded-2xl bg-amber-600 px-4 py-2.5 text-xs font-black text-white hover:bg-amber-700 transition-colors shadow-xs"
+                onClick={onEditTodayReport}
+                title="Edit laporan hari ini"
+              >
+                <Pencil size={14} />
+                <span>Edit Laporan Hari Ini</span>
+              </button>
+            ) : (
+              <button
+                className="inline-flex w-full sm:w-auto items-center justify-center gap-1.5 rounded-2xl bg-brand-green px-4 py-2.5 text-xs font-black text-white hover:bg-brand-green-dark transition-colors shadow-xs"
+                onClick={onAddReport}
+                title="Buat laporan hari ini"
+              >
+                <Plus size={14} />
+                <span>Buat Laporan Hari Ini</span>
+              </button>
+            )}
+          </div>
         ) : null}
       </div>
 
       <div className="flex-1 min-h-0 overflow-auto no-scrollbar">
         {rows.length === 0 ? (
           <div className="py-20 text-center space-y-3">
-            <div className="text-4xl opacity-20">📂</div>
-            <p className="text-sm font-bold text-brand-muted">Tidak ada data ditemukan</p>
+            <div className="text-4xl opacity-30">{isAdmin ? "📂" : "📝"}</div>
+            <p className="text-sm font-bold text-brand-muted">
+              {isAdmin ? "Tidak ada data ditemukan" : "Belum ada laporan hari ini"}
+            </p>
+            {!isAdmin && !hasTodayReport && (
+              <div className="pt-2">
+                <button
+                  className="inline-flex items-center gap-2 rounded-2xl bg-brand-green px-4 py-2.5 text-xs font-black text-white hover:bg-brand-green-dark transition-colors shadow-lg shadow-brand-green/20"
+                  onClick={onAddReport}
+                  title="Buat laporan hari ini"
+                >
+                  <Plus size={16} />
+                  <span>Buat Laporan Hari Ini</span>
+                </button>
+              </div>
+            )}
           </div>
         ) : (
           <>
@@ -205,8 +245,8 @@ function ReportTable({
 
                     <div className="grid grid-cols-2 gap-1.5">
                       {[
-                        ["Gelas M/L/R", `${row["GELAS MASUK"] ?? 0}/${row["GELAS LAKU"] ?? 0}/${row["GELAS RUSAK"] ?? 0}`],
-                        ["Es Depo/Beli", `${row["ESBATU DEPO"] ?? 0}/${row["ESBATU BELI"] ?? 0}`],
+                        ["Gelas Laku", `${row["GELAS LAKU"] ?? 0} Cup`],
+                        ["Gelas A/S/R", `${row["GELAS AWAL"] ?? row["GELAS MASUK"] ?? 0}/${row["GELAS SISA"] ?? 0}/${row["GELAS RUSAK"] ?? 0}`],
                       ].map(([label, value]) => (
                         <div key={`${item.id}-${label}`} className="rounded-lg border border-brand-green/10 bg-white px-2 py-1.5">
                           <p className="text-[8px] font-black uppercase tracking-wider text-brand-muted leading-tight">{label}</p>
@@ -217,8 +257,8 @@ function ReportTable({
 
                     <div className="grid grid-cols-2 gap-1.5">
                       {[
-                        ["Teh", row.TEH ?? 0],
-                        ["Gula", row.GULA ?? 0],
+                        ["Es Depo/Beli", `${row["ESBATU DEPO"] ?? row["ES BATU DEPO"] ?? 0}/${row["ESBATU BELI"] ?? row["ES BATU BELI"] ?? 0}`],
+                        ["Teh / Gula", `${row.TEH ?? 0} / ${row.GULA ?? 0}`],
                       ].map(([label, value]) => (
                         <div key={`${item.id}-${label}`} className="rounded-lg border border-brand-green/10 bg-white px-2 py-1.5">
                           <p className="text-[8px] font-black uppercase tracking-wider text-brand-muted leading-tight">{label}</p>
@@ -230,9 +270,22 @@ function ReportTable({
                     <div className="rounded-lg border border-brand-green/20 bg-brand-green/8 px-2.5 py-2 space-y-2">
                       <div className="flex items-center justify-between gap-3">
                         <div className="min-w-0">
-                          <p className="text-[9px] font-black uppercase tracking-wider text-brand-muted">Uang Masuk</p>
-                          <p className="text-[13px] font-black text-brand-green-dark wrap-break-word leading-tight">{row["UNAG MASUK"] ?? "-"}</p>
-                          <p className="text-[9px] font-semibold text-brand-muted">Pengeluaran: {row.PENGELUARAN ?? "-"}</p>
+                          <p className="text-[9px] font-black uppercase tracking-wider text-brand-muted">Total Penjualan</p>
+                          <p className="text-[13px] font-black text-brand-green-dark wrap-break-word leading-tight">
+                            {toCurrency(
+                              parseLooseNumber(
+                                row["TOTAL NOTA"] ||
+                                row["UANG MASUK"] ||
+                                row["UNAG MASUK"] ||
+                                ((Number(row["GELAS LAKU"]) || 0) * 4000)
+                              )
+                            )}
+                          </p>
+                          <div className="flex flex-wrap items-center gap-x-2 text-[9px] font-semibold text-brand-muted mt-0.5">
+                            <span>Kas Masuk: {toCurrency(parseLooseNumber(row["UANG MASUK"] || row["UNAG MASUK"] || row["TOTAL NOTA"] || ((Number(row["GELAS LAKU"]) || 0) * 4000)))}</span>
+                            <span>•</span>
+                            <span>Pengeluaran: {toCurrency(parseLooseNumber(row.PENGELUARAN || row["UANG KELUAR"] || 0))}</span>
+                          </div>
                         </div>
                         <button
                           className="inline-flex items-center text-brand-muted hover:text-brand-green-dark transition-colors shrink-0"
@@ -390,6 +443,7 @@ export default function ReportPanel({
   onRefreshAll,
   onEditRow,
   onAddReport,
+  todayReport = null,
 }) {
   const [search, setSearch] = useState("");
   const [isFilterOpen, setIsFilterOpen] = useState(false);
@@ -399,18 +453,36 @@ export default function ReportPanel({
   const [submittingFilter, setSubmittingFilter] = useState(false);
 
   const normalizedRows = useMemo(() => sanitizeReportRows(reportRows), [reportRows]);
+
+  // Untuk staff, batasi hanya pada data laporan hari ini
+  const scopedRows = useMemo(() => {
+    if (isAdmin) return normalizedRows;
+    const now = new Date();
+    return normalizedRows.filter((item) => (
+      item.timestamp.getFullYear() === now.getFullYear()
+      && item.timestamp.getMonth() === now.getMonth()
+      && item.timestamp.getDate() === now.getDate()
+    ));
+  }, [isAdmin, normalizedRows]);
+
   const hasTodayReport = useMemo(() => {
+    if (todayReport) return true;
     const now = new Date();
     return normalizedRows.some((item) => (
       item.timestamp.getFullYear() === now.getFullYear()
       && item.timestamp.getMonth() === now.getMonth()
       && item.timestamp.getDate() === now.getDate()
     ));
-  }, [normalizedRows]);
+  }, [normalizedRows, todayReport]);
+
   const arusDanaOptions = useMemo(() => getReportArusDanaOptions(normalizedRows), [normalizedRows]);
   const kasirOptions = useMemo(() => getReportKasirOptions(normalizedRows), [normalizedRows]);
 
-  const filteredRows = useMemo(() => applyReportFilters(normalizedRows, appliedFilter), [appliedFilter, normalizedRows]);
+  const filteredRows = useMemo(() => {
+    if (!isAdmin) return scopedRows;
+    return applyReportFilters(scopedRows, appliedFilter);
+  }, [appliedFilter, isAdmin, scopedRows]);
+
   const stats = useMemo(() => buildReportStats(filteredRows), [filteredRows]);
   const tableRows = useMemo(() => buildReportTableData(filteredRows), [filteredRows]);
   const tableRowsBySearch = useMemo(() => {
@@ -424,6 +496,18 @@ export default function ReportPanel({
     const allowedIds = new Set(matched.map((item) => item._id));
     return tableRows.filter((item) => allowedIds.has(item.id));
   }, [search, tableRows]);
+
+  function handleEditTodayReport() {
+    if (todayReport) {
+      onEditRow?.({ row: todayReport });
+      return;
+    }
+    if (tableRows.length > 0) {
+      onEditRow?.(tableRows[0]);
+      return;
+    }
+    onAddReport?.();
+  }
 
   function toggleRow(id) {
     setExpandedRowIds((prev) => {
@@ -537,14 +621,14 @@ export default function ReportPanel({
               </select>
             </div>
             <div>
-              <label className="text-[10px] font-black uppercase tracking-widest text-brand-muted">Kasir</label>
+              <label className="text-[10px] font-black uppercase tracking-widest text-brand-muted">Staff</label>
               <select
                 value={draftFilter.kasir}
                 onChange={(event) => setDraftFilter((prev) => ({ ...prev, kasir: event.target.value }))}
                 className="mt-2 w-full rounded-xl border border-brand-green/15 bg-brand-bg px-3 py-2 text-sm font-bold text-brand-green-dark"
               >
                 {kasirOptions.map((option) => (
-                  <option key={option} value={option}>{option === "semua" ? "Semua Kasir" : option}</option>
+                  <option key={option} value={option}>{option === "semua" ? "Semua Staff" : option}</option>
                 ))}
               </select>
             </div>
@@ -579,7 +663,12 @@ export default function ReportPanel({
     <div className={panelClassName}>
       {isAdmin && (
         <div className="grid grid-cols-2 lg:grid-cols-4 xl:grid-cols-7 gap-3 sm:gap-4">
-          <StatCard label="Gelas" value={stats.gelasTotal} hint={`Laku: ${stats.gelasLaku} | Rusak: ${stats.gelasRusak}`} icon={Beaker} />
+          <StatCard
+            label="Gelas Laku"
+            value={stats.gelasLaku}
+            hint={stats.gelasAwal ? `Awal: ${stats.gelasAwal} | Sisa: ${stats.gelasSisa} | Rusak: ${stats.gelasRusak}` : `Laku: ${stats.gelasLaku} | Rusak: ${stats.gelasRusak}`}
+            icon={Beaker}
+          />
           <StatCard label="Es Batu" value={stats.esBatuTotal} hint={`Depo: ${stats.esBatuDepo} | Beli: ${stats.esBatuBeli}`} icon={Snowflake} />
           <StatCard label="Gula" value={stats.gula} hint="Total pemakaian gula" icon={Candy} />
           <StatCard label="Teh" value={stats.teh} hint="Total pemakaian teh" icon={Leaf} />
@@ -598,6 +687,9 @@ export default function ReportPanel({
           onToggleRow={toggleRow}
           onEditRow={onEditRow}
           onAddReport={onAddReport}
+          onEditTodayReport={handleEditTodayReport}
+          hasTodayReport={hasTodayReport}
+          isAdmin={isAdmin}
           onFilterClick={() => {
             setDraftFilter(appliedFilter);
             setIsFilterOpen(true);

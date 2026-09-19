@@ -4,19 +4,20 @@
 @theme {
   --font-sans: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
   
-  --color-brand-bg: #F9FAF4;
-  --color-brand-green: #2B9348;
-  --color-brand-green-dark: #1B3A1E;
-  --color-brand-yellow: #F6C945;
-  --color-brand-text: #1B3A1E;
-  --color-brand-muted: #5B6F4D;
+  --color-brand-bg: #F8FAF8;
+  --color-brand-green: #16A34A;
+  --color-brand-green-dark: #14381C;
+  --color-brand-leaf: #22C55E;
+  --color-brand-yellow: #22C55E;
+  --color-brand-text: #14381C;
+  --color-brand-muted: #4B664F;
 }
 
 :root {
-  --bg: #F9FAF4;
+  --bg: #F8FAF8;
   --card: #ffffff;
-  --primary: #2B9348;
-  --text: #1B3A1E;
+  --primary: #16A34A;
+  --text: #14381C;
 }
 
 body {
@@ -32,7 +33,7 @@ body {
 }
 
 .card-shadow {
-  box-shadow: 0 20px 40px -12px rgba(1, 255, 48, 0.08);
+  box-shadow: 0 20px 40px -12px rgba(22, 163, 74, 0.08);
 }
 
 /* Hide scrollbar for Chrome, Safari and Opera */

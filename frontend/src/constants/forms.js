@@ -3,9 +3,11 @@ export const REPORT_FORM_DEFAULT = {
   SHIFT: "Pagi",
   "ARUS DANA": "",
   KASIR: "",
+  "GELAS AWAL": "0",
+  "GELAS SISA": "0",
+  "GELAS RUSAK": "0",
   "GELAS LAKU": "0",
   "GELAS MASUK": "0",
-  "GELAS RUSAK": "0",
   "ES BATU DEPO": "0",
   "ES BATU BELI": "0",
   TEH: "0",
@@ -40,5 +42,6 @@ export const DENOMINATIONS_DATA = [
 ];
 
 export const SHIFT_OPTIONS = ["Pagi", "Siang", "Sore", "Malam"];
-export const KASIR_OPTIONS = ["Abu Arfan", "Fajar", "Arief Rahman", "imam Solihin", "Arya Ahman", "Ardi", "Irfan", "Imam Hardani", "Aliansyah", "Syamsudin", "Abdul"];
-export const BRANCH_OPTIONS = ["SDF", "SELUMIT", "KAMPUNG SATU", "KAMPUNG BUGIS", "SEBENGKOK", "JUWATA", "Setoran Bank BRI", "TESTING"];
+export const STAFF_OPTIONS = ["Joko", "Abu Arfan", "Fajar", "Arief Rahman", "imam Solihin", "Arya Ahman", "Ardi", "Irfan", "Imam Hardani", "Aliansyah", "Syamsudin", "Abdul"];
+export const KASIR_OPTIONS = STAFF_OPTIONS;
+export const BRANCH_OPTIONS = ["cabang_01", "cabang_02"];

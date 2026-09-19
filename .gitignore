@@ -1,0 +1,24 @@
+# Dependencies
+node_modules/
+frontend/node_modules/
+demo/frontend/node_modules/
+
+# Production Build
+dist/
+frontend/dist/
+demo/frontend/dist/
+
+# Environment Variables
+.env
+.env.local
+frontend/.env
+frontend/.env.local
+
+# IDE & OS files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Clasp auth (jika ada token pribadi)
+.clasprc.json
