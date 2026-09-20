@@ -51,7 +51,7 @@ VITE_GAS_API_URL=https://script.google.com/macros/s/<DEPLOYMENT_ID>/exec
 
 ### User Roles
 - **Admin**: Full access to KPI charts, database list, and monthly filtering.
-- **Kasir (Cashier)**: Restricted access to inputting daily reports and viewing their own transaction history.
+- **Staff**: Restricted access to inputting daily reports and viewing their own transaction history.
 
 ### Testing
 - Smoke tests are located alongside components (e.g., `App.smoke.test.jsx`).

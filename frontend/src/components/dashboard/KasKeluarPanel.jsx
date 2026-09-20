@@ -7,32 +7,24 @@ import DataTable from "./DataTable";
 import { mapApiErrorMessage } from "../../utils/errors";
 import { filterRows } from "../../utils/dashboard";
 import { parseTimestamp, toFormattedTimestamp, toPeriodValue } from "../../utils/formatters";
-import { BRANCH_OPTIONS, SHIFT_OPTIONS, STAFF_OPTIONS } from "../../constants/forms";
 
 const MONTH_LABEL_FORMATTER = new Intl.DateTimeFormat("id-ID", {
   month: "short",
   year: "numeric",
 });
 
-const ARUS_DANA_TARGET = "setoran bank bri";
-
-function buildEmptyForm(userName = "") {
+function buildEmptyForm(userName = "", defaultBranch = "") {
   return {
     "TIMESTAMP INPUT": toFormattedTimestamp(),
-    SHIFT: SHIFT_OPTIONS[0] || "",
-    "ARUS DANA": BRANCH_OPTIONS[0] || "",
-    KASIR: userName || STAFF_OPTIONS[0] || "",
+    "ARUS DANA": defaultBranch || "",
+    STAFF: userName || "",
     "UANG KELUAR": "",
     KETERANGAN: "",
   };
 }
 
-function normalizeArusDana(value) {
-  return String(value || "").trim().toLowerCase();
-}
-
 const HIDDEN_COLUMNS = new Set([
-  "input kasir",
+  "input staff",
   "pengeluaran",
   "uang masuk",
   "status selisih",
@@ -65,12 +57,21 @@ function extractTimestamp(row) {
   return parseTimestamp(row["TIMESTAMP INPUT"] || row["TIME STAMP INPUT"] || row.TIMESTAMP || row.timestamp);
 }
 
-export default function KasKeluarPanel({ dbRows = [], request, period, onReload, user }) {
+export default function KasKeluarPanel({ dbRows = [], request, period, branches = [], staff = [], onReload, user }) {
   const currentPeriod = toPeriodValue();
   const [mode, setMode] = useState("view");
   const [searchValue, setSearchValue] = useState("");
   const [selectedMonth, setSelectedMonth] = useState(currentPeriod);
-  const [formState, setFormState] = useState(() => buildEmptyForm(user?.nama || ""));
+
+  const branchList = useMemo(() => {
+    return branches.length > 0 ? branches : [user?.cabang || "Cabang Utama"];
+  }, [branches, user?.cabang]);
+
+  const staffList = useMemo(() => {
+    return staff.length > 0 ? staff : [user?.nama || "Staff"];
+  }, [staff, user?.nama]);
+
+  const [formState, setFormState] = useState(() => buildEmptyForm(user?.nama || "", branchList[0]));
   const [formError, setFormError] = useState("");
   const [formSuccess, setFormSuccess] = useState("");
   const [submitLoading, setSubmitLoading] = useState(false);
@@ -81,9 +82,10 @@ export default function KasKeluarPanel({ dbRows = [], request, period, onReload,
   useEffect(() => {
     setFormState((prev) => ({
       ...prev,
-      KASIR: user?.nama || prev.KASIR,
+      STAFF: user?.nama || prev.STAFF || "",
+      "ARUS DANA": prev["ARUS DANA"] || branchList[0] || "",
     }));
-  }, [user?.nama]);
+  }, [branchList, user?.nama]);
 
   const setoranRows = useMemo(() => {
     return (dbRows || [])
@@ -93,9 +95,8 @@ export default function KasKeluarPanel({ dbRows = [], request, period, onReload,
       })
       .filter((item) => {
         if (!item.timestamp) return false;
-        const arus = normalizeArusDana(item.row["ARUS DANA"]);
         const nominal = Number(item.row["UANG KELUAR"] || 0);
-        return arus === ARUS_DANA_TARGET || nominal > 0;
+        return nominal > 0;
       });
   }, [dbRows]);
 
@@ -166,7 +167,7 @@ export default function KasKeluarPanel({ dbRows = [], request, period, onReload,
           "TIMESTAMP INPUT": timestampText,
           SHIFT: formState.SHIFT,
           "ARUS DANA": formState["ARUS DANA"],
-          KASIR: formState.KASIR,
+          STAFF: formState.STAFF || user?.nama || "Staff",
           KETERANGAN: formState.KETERANGAN,
           "UANG KELUAR": nominalValue,
         },
@@ -269,29 +270,21 @@ export default function KasKeluarPanel({ dbRows = [], request, period, onReload,
           />
         </div>
 
-        <div className="grid gap-4 md:grid-cols-3">
+        <div className="grid gap-4 md:grid-cols-2">
           <div>
-            <label className="text-[10px] font-black uppercase tracking-[0.32em] text-brand-muted mb-2 block">Arus Dana</label>
+            <label className="text-[10px] font-black uppercase tracking-[0.32em] text-brand-muted mb-2 block">Cabang</label>
             <CustomSelect
-              options={BRANCH_OPTIONS}
+              options={branchList}
               value={formState["ARUS DANA"]}
               onChange={(value) => updateFormField("ARUS DANA", value)}
             />
           </div>
           <div>
-            <label className="text-[10px] font-black uppercase tracking-[0.32em] text-brand-muted mb-2 block">Shift</label>
+            <label className="text-[10px] font-black uppercase tracking-[0.32em] text-brand-muted mb-2 block">Staff Bertugas</label>
             <CustomSelect
-              options={SHIFT_OPTIONS}
-              value={formState.SHIFT}
-              onChange={(value) => updateFormField("SHIFT", value)}
-            />
-          </div>
-          <div>
-            <label className="text-[10px] font-black uppercase tracking-[0.32em] text-brand-muted mb-2 block">Staff</label>
-            <CustomSelect
-              options={STAFF_OPTIONS}
-              value={formState.KASIR}
-              onChange={(value) => updateFormField("KASIR", value)}
+              options={staffList}
+              value={formState.STAFF}
+              onChange={(value) => updateFormField("STAFF", value)}
             />
           </div>
         </div>

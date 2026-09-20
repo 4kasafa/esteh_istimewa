@@ -2,7 +2,7 @@
 
 Dashboard frontend untuk integrasi Google Apps Script backend (`gas_backend`) dengan fitur:
 
-- Login admin/kasir
+- Login admin/staff
 - Overview KPI + chart
 - List data `read` dan `read_database`
 - Input laporan (`create`)

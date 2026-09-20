@@ -14,7 +14,7 @@ export default defineConfig({
       manifest: {
         name: 'Es Teh Istimewa',
         short_name: 'Es Teh Istimewa',
-        description: 'Dashboard kasir & ringkasan operasional Es Teh Istimewa.',
+        description: 'Dashboard staff & ringkasan operasional Es Teh Istimewa.',
         theme_color: '#15803d',
         background_color: '#f8faf8',
         display: 'standalone',

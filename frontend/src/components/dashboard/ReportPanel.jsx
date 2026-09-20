@@ -1,28 +1,24 @@
 import { Fragment, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import {
-  Beaker,
-  Candy,
   ChevronDown,
   ChevronUp,
+  Coffee,
   Pencil,
   Plus,
   Funnel,
-  Leaf,
-  Snowflake,
   TrendingDown,
   TrendingUp,
-  Wallet,
   X,
 } from "lucide-react";
 import { parseLooseNumber, toCurrency, toPeriodValue } from "../../utils/formatters";
 import { filterRows } from "../../utils/dashboard";
 import {
   applyReportFilters,
-  buildReportStats,
   buildReportTableData,
+  buildTransactionList,
   getReportArusDanaOptions,
-  getReportKasirOptions,
+  getReportStaffOptions,
   sanitizeReportRows,
 } from "../../utils/reports";
 
@@ -34,24 +30,130 @@ function getDefaultFilter() {
     period: toPeriodValue(),
     date: "",
     arusDana: "semua",
-    kasir: "semua",
+    staff: "semua",
   };
 }
 
-function StatCard({ label, value, hint, icon }) {
-  const Icon = icon;
+// Smart Row Mobile — gaya e-wallet / banking
+function SmartRowMobile({ item, expanded, onToggle, onEdit }) {
+  const row = item.row;
+
+  const omset = parseLooseNumber(
+    row["TOTAL PENJUALAN"] ||
+    row["TOTAL NOTA"] ||
+    row["UANG MASUK"] ||
+    row["UNAG MASUK"] ||
+    (parseLooseNumber(row["UANG SETORAN"]) + parseLooseNumber(row["TOTAL PENGELUARAN"] || row.PENGELUARAN || row["UANG KELUAR"]))
+  );
+  const setoran = parseLooseNumber(row["UANG SETORAN"] || 0);
+  const pengeluaran = parseLooseNumber(row["TOTAL PENGELUARAN"] || row.PENGELUARAN || row["UANG KELUAR"] || 0);
+  const gelasLaku = row["GELAS LAKU"] ?? row["GELAS TERPAKAI"] ?? 0;
+  const cabang = row.CABANG || row["ARUS DANA"] || "-";
+  const staff = row.STAFF || "-";
+  const shift = row.SHIFT ?? "-";
+
+  // Timestamp ringkas
+  const tsRaw = row["TIME STAMP INPUT"] || row["TIMESTAMP INPUT"] || "";
+  const tsShort = tsRaw ? String(tsRaw).slice(0, 16).replace("T", " ") : "-";
+
+  // Bahan baku (non-gelas, untuk expand)
+  const bahanEntries = Object.entries(row).filter(([k]) => {
+    const kl = k.toLowerCase();
+    return (
+      (kl === "teh" || kl === "gula" || kl.includes("es batu") || kl === "esbatu depo" || kl === "esbatu beli" || kl === "es batu depo" || kl === "es batu beli") &&
+      row[k] !== undefined && row[k] !== "" && row[k] !== "0" && row[k] !== 0
+    );
+  });
+
   return (
-    <div className="rounded-3xl border border-brand-green/10 bg-white p-4 sm:p-5 card-shadow h-full">
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0 flex-1">
-          <p className="text-[10px] sm:text-[11px] font-black uppercase tracking-wider text-brand-muted wrap-break-word">{label}</p>
-          <h3 className="mt-2 text-wrap sm:text-2xl font-black tracking-tight text-brand-green-dark">{value}</h3>
-          <p className="mt-2 text-[10px] sm:text-[11px] font-semibold text-brand-muted leading-snug wrap-break-word">{hint}</p>
+    <div className="rounded-xl border border-brand-green/10 bg-white overflow-hidden transition-all duration-200 hover:border-brand-green/25 hover:shadow-sm hover:shadow-brand-green/8">
+      {/* Baris utama */}
+      <div className="flex items-center gap-3 px-3 py-2.5">
+        {/* Kiri: Info cabang + staff + waktu */}
+        <div className="flex-1 min-w-0">
+          <p className="text-[11px] font-black text-brand-green-dark truncate">{cabang}</p>
+          <p className="text-[10px] text-brand-muted font-semibold truncate">
+            {staff} · Shift {shift} · {tsShort}
+          </p>
         </div>
-        <div className="shrink-0 rounded-xl bg-brand-green/10 p-2.5 text-brand-green">
-          {Icon && <Icon size={18} />}
+
+        {/* Kanan: Omset + Cup + Edit */}
+        <div className="flex items-center gap-2 shrink-0">
+          <div className="text-right">
+            <p className="text-xs font-black text-brand-green-dark">{toCurrency(omset)}</p>
+            <p className="text-[10px] font-bold text-brand-muted">{gelasLaku} Cup</p>
+          </div>
+
+          <button
+            className="p-1.5 rounded-lg text-brand-muted hover:text-brand-green-dark hover:bg-brand-bg transition-colors"
+            onClick={() => onEdit?.(item)}
+            title="Edit laporan"
+            aria-label="Edit laporan"
+          >
+            <Pencil size={13} />
+          </button>
+
+          <button
+            className="p-1.5 rounded-lg text-brand-muted hover:text-brand-green-dark hover:bg-brand-bg transition-colors"
+            onClick={() => onToggle(item.id)}
+            title="Lihat rincian"
+            aria-label="Toggle rincian"
+          >
+            {expanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+          </button>
         </div>
       </div>
+
+      {/* Detail accordion: Rincian Kas + Bahan */}
+      {expanded && (
+        <div className="border-t border-brand-bg px-3 py-2.5 space-y-2 bg-brand-bg/30">
+          {/* Rincian Kas */}
+          <div className="grid grid-cols-2 gap-2">
+            <div className="rounded-lg bg-white border border-brand-green/10 px-2.5 py-2">
+              <div className="flex items-center gap-1 mb-0.5">
+                <TrendingUp size={10} className="text-brand-green" />
+                <p className="text-[9px] font-black uppercase tracking-wider text-brand-muted">Setoran</p>
+              </div>
+              <p className="text-[11px] font-black text-brand-green-dark">{toCurrency(setoran)}</p>
+            </div>
+            <div className="rounded-lg bg-white border border-brand-green/10 px-2.5 py-2">
+              <div className="flex items-center gap-1 mb-0.5">
+                <TrendingDown size={10} className="text-amber-600" />
+                <p className="text-[9px] font-black uppercase tracking-wider text-brand-muted">Pengeluaran</p>
+              </div>
+              <p className="text-[11px] font-black text-amber-700">{toCurrency(pengeluaran)}</p>
+            </div>
+          </div>
+
+          {/* Stok Gelas */}
+          <div className="rounded-lg bg-white border border-brand-green/10 px-2.5 py-2">
+            <div className="flex items-center gap-1 mb-1">
+              <Coffee size={10} className="text-brand-green" />
+              <p className="text-[9px] font-black uppercase tracking-wider text-brand-muted">Gelas</p>
+            </div>
+            <div className="flex items-center gap-3 text-[10px] font-bold text-brand-green-dark/80">
+              <span>Awal: {row["GELAS AWAL"] ?? row["GELAS MASUK"] ?? 0}</span>
+              <span>Sisa: {row["GELAS SISA"] ?? 0}</span>
+              {row["GELAS RUSAK"] > 0 && <span>Rusak: {row["GELAS RUSAK"]}</span>}
+              <span className="font-black text-brand-green">Laku: {gelasLaku}</span>
+            </div>
+          </div>
+
+          {/* Bahan Baku (jika ada) */}
+          {bahanEntries.length > 0 && (
+            <div className="rounded-lg bg-white border border-brand-green/10 px-2.5 py-2">
+              <p className="text-[9px] font-black uppercase tracking-wider text-brand-muted mb-1">Bahan Baku</p>
+              <div className="flex flex-wrap gap-x-3 gap-y-0.5">
+                {bahanEntries.map(([k, v]) => (
+                  <span key={k} className="text-[10px] font-bold text-brand-green-dark/80">
+                    {k}: {v}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -104,11 +206,19 @@ function ReportTable({
 
   function rowValue(item, column) {
     const rawVal = item.row[column];
-    if (column === "TOTAL NOTA" || column === "UANG MASUK" || column === "UNAG MASUK") {
-      const num = parseLooseNumber(rawVal) || ((Number(item.row["GELAS LAKU"]) || 0) * 4000);
+    if (column === "TOTAL NOTA" || column === "UANG MASUK" || column === "UNAG MASUK" || column === "TOTAL PENJUALAN") {
+      const explicit = parseLooseNumber(rawVal);
+      if (explicit > 0) return toCurrency(explicit);
+      const setoran = parseLooseNumber(item.row["UANG SETORAN"]);
+      const pengeluaran = parseLooseNumber(item.row["TOTAL PENGELUARAN"] || item.row.PENGELUARAN || item.row["UANG KELUAR"]);
+      const total = setoran + pengeluaran;
+      return total > 0 ? toCurrency(total) : "Rp 0";
+    }
+    if (column === "UANG SETORAN") {
+      const num = parseLooseNumber(rawVal);
       return num > 0 ? toCurrency(num) : "Rp 0";
     }
-    if (column === "PENGELUARAN" || column === "UANG KELUAR") {
+    if (column === "PENGELUARAN" || column === "UANG KELUAR" || column === "TOTAL PENGELUARAN") {
       const num = parseLooseNumber(rawVal);
       return num > 0 ? toCurrency(num) : "Rp 0";
     }
@@ -117,82 +227,81 @@ function ReportTable({
 
   return (
     <div className="bg-white rounded-4xl border border-brand-green/5 card-shadow overflow-hidden flex flex-col h-full min-h-0">
-      <div className="p-4 border-b border-brand-bg flex flex-col gap-3">
-        <div>
-          <h3 className="text-lg font-extrabold text-brand-green-dark">
-            {isAdmin ? "Rincian Laporan" : "Laporan Hari Ini"}
-          </h3>
-          <p className="text-xs text-brand-muted font-medium">Menampilkan {rows.length} entri data</p>
-        </div>
-
-        {showControls ? (
-          <div className="flex flex-col sm:flex-row gap-2">
-            {showAddButton && (
-              <div className="flex justify-center">
-                <button
-                  className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 rounded-2xl bg-brand-green px-3 py-2 text-xs font-black text-white hover:bg-brand-green-dark transition-colors"
-                  onClick={onAddReport}
-                  title="Tambah laporan"
-                >
-                  <Plus size={14} />
-                  <span>Tambah Laporan</span>
-                </button>
-              </div>
-            )}
-            <div className="flex flex-wrap items-center gap-2">
-              <div className="relative group flex-1 min-w-0">
-                <input
-                  className="w-full sm:w-lg pl-10 pr-4 py-2 bg-brand-bg border border-brand-green/15 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-brand-green/20 transition-all placeholder:text-brand-muted/40"
-                  placeholder="Cari laporan..."
-                  value={search}
-                  onChange={(event) => onSearchChange(event.target.value)}
-                />
-                <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-brand-muted opacity-40">
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                  </svg>
-                </div>
-              </div>
-              <button
-                className="inline-flex items-center justify-center gap-1.5 min-w-fit rounded-2xl border border-brand-green/15 bg-brand-bg px-3 py-2 text-xs font-black text-brand-green-dark hover:bg-brand-green/10 disabled:opacity-50"
-                onClick={onFilterClick}
-                disabled={filterDisabled}
-                title="Filter Data"
-              >
-                <Funnel size={14} />
-                <span className="hidden sm:inline">Filter</span>
-              </button>
-            </div>
-          </div>
-        ) : (rows.length > 0 || hasTodayReport) ? (
+      <div className="p-3 sm:p-4 border-b border-brand-bg flex flex-col gap-2.5">
+        <div className="flex items-center justify-between gap-2">
           <div>
-            {hasTodayReport ? (
+            <h3 className="text-sm sm:text-base font-extrabold text-brand-green-dark">
+              {isAdmin ? "Rincian Laporan" : "Laporan Hari Ini"}
+            </h3>
+            <p className="text-[10px] text-brand-muted font-medium">Menampilkan {rows.length} entri data</p>
+          </div>
+
+          {showControls && showAddButton && (
+            <button
+              className="inline-flex items-center gap-1 rounded-xl bg-brand-green px-2.5 py-1.5 text-[11px] font-black text-white hover:bg-brand-green-dark transition-colors"
+              onClick={onAddReport}
+              title="Tambah laporan"
+            >
+              <Plus size={13} />
+              <span>Tambah</span>
+            </button>
+          )}
+
+          {!showControls && (rows.length > 0 || hasTodayReport) && (
+            hasTodayReport ? (
               <button
-                className="inline-flex w-full sm:w-auto items-center justify-center gap-1.5 rounded-2xl bg-amber-600 px-4 py-2.5 text-xs font-black text-white hover:bg-amber-700 transition-colors shadow-xs"
+                className="inline-flex items-center gap-1 rounded-xl bg-amber-600 px-2.5 py-1.5 text-[11px] font-black text-white hover:bg-amber-700 transition-colors"
                 onClick={onEditTodayReport}
                 title="Edit laporan hari ini"
               >
-                <Pencil size={14} />
+                <Pencil size={13} />
                 <span>Edit Laporan Hari Ini</span>
               </button>
             ) : (
               <button
-                className="inline-flex w-full sm:w-auto items-center justify-center gap-1.5 rounded-2xl bg-brand-green px-4 py-2.5 text-xs font-black text-white hover:bg-brand-green-dark transition-colors shadow-xs"
+                className="inline-flex items-center gap-1 rounded-xl bg-brand-green px-2.5 py-1.5 text-[11px] font-black text-white hover:bg-brand-green-dark transition-colors"
                 onClick={onAddReport}
                 title="Buat laporan hari ini"
               >
-                <Plus size={14} />
+                <Plus size={13} />
                 <span>Buat Laporan Hari Ini</span>
               </button>
-            )}
+            )
+          )}
+        </div>
+
+        {showControls && (
+          <div className="flex items-center gap-2">
+            <div className="relative flex-1 min-w-0">
+              <input
+                className="w-full pl-9 pr-3 py-2 bg-brand-bg border border-brand-green/15 rounded-xl text-xs sm:text-sm font-bold focus:ring-2 focus:ring-brand-green/20 transition-all placeholder:text-brand-muted/40"
+                placeholder="Cari laporan..."
+                value={search}
+                onChange={(event) => onSearchChange(event.target.value)}
+              />
+              <div className="absolute left-3 top-1/2 -translate-y-1/2 text-brand-muted opacity-40">
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+              </div>
+            </div>
+            <button
+              className="inline-flex items-center gap-1 rounded-xl border border-brand-green/15 bg-brand-bg px-2.5 py-2 text-xs font-black text-brand-green-dark hover:bg-brand-green/10 disabled:opacity-50"
+              onClick={onFilterClick}
+              disabled={filterDisabled}
+              title="Filter Data"
+            >
+              <Funnel size={13} />
+              <span className="hidden sm:inline text-[11px]">Filter</span>
+            </button>
           </div>
-        ) : null}
+        )}
       </div>
 
       <div className="flex-1 min-h-0 overflow-auto no-scrollbar">
         {rows.length === 0 ? (
-          <div className="py-20 text-center space-y-3">
-            <div className="text-4xl opacity-30">{isAdmin ? "📂" : "📝"}</div>
+          <div className="py-16 text-center space-y-3">
+            <div className="text-3xl opacity-30">{isAdmin ? "📂" : "📝"}</div>
             <p className="text-sm font-bold text-brand-muted">
               {isAdmin ? "Tidak ada data ditemukan" : "Belum ada laporan hari ini"}
             </p>
@@ -211,179 +320,53 @@ function ReportTable({
           </div>
         ) : (
           <>
-            <div className="md:hidden space-y-2.5 p-2.5 max-h-[56vh] overflow-y-auto no-scrollbar">
-              {pageRows.map((item, rowIndex) => {
-                const expanded = expandedRowIds.has(item.id);
-                const row = item.row;
-                return (
-                  <div key={`m-${startIndex + rowIndex}`} className="rounded-xl border border-brand-green/10 bg-brand-bg/30 p-2.5 space-y-2 transition-all duration-200 hover:border-brand-green/30 hover:bg-brand-bg/60 hover:shadow-md hover:shadow-brand-green/10">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <p className="text-[9px] font-black uppercase tracking-wider text-brand-muted">No Transaksi</p>
-                        <p className="text-[11px] font-black text-brand-green-dark wrap-break-word leading-tight">{row["NO TRANSAKSI"] || "-"}</p>
-                      </div>
-                      <button
-                        className="inline-flex items-center text-brand-muted hover:text-brand-green-dark transition-colors shrink-0"
-                        onClick={() => onEditRow?.(item)}
-                        title="Edit laporan"
-                        aria-label="Edit laporan"
-                      >
-                        <Pencil size={15} />
-                      </button>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-1.5">
-                      <div className="rounded-lg bg-white border border-brand-green/10 px-2 py-1.5">
-                        <p className="text-[9px] font-black uppercase tracking-wider text-brand-muted">Shift / Kasir</p>
-                        <p className="text-[11px] font-black text-brand-green-dark wrap-break-word">{row.SHIFT ?? "-"} / {row.KASIR ?? "-"}</p>
-                      </div>
-                      <div className="rounded-lg bg-white border border-brand-green/10 px-2 py-1.5">
-                        <p className="text-[9px] font-black uppercase tracking-wider text-brand-muted">Arus Dana</p>
-                        <p className="text-[11px] font-black text-brand-green-dark wrap-break-word">{row["ARUS DANA"] ?? "-"}</p>
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-1.5">
-                      {[
-                        ["Gelas Laku", `${row["GELAS LAKU"] ?? 0} Cup`],
-                        ["Gelas A/S/R", `${row["GELAS AWAL"] ?? row["GELAS MASUK"] ?? 0}/${row["GELAS SISA"] ?? 0}/${row["GELAS RUSAK"] ?? 0}`],
-                      ].map(([label, value]) => (
-                        <div key={`${item.id}-${label}`} className="rounded-lg border border-brand-green/10 bg-white px-2 py-1.5">
-                          <p className="text-[8px] font-black uppercase tracking-wider text-brand-muted leading-tight">{label}</p>
-                          <p className="mt-0.5 text-[10px] font-black text-brand-green-dark wrap-break-word leading-tight">{value}</p>
-                        </div>
-                      ))}
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-1.5">
-                      {[
-                        ["Es Depo/Beli", `${row["ESBATU DEPO"] ?? row["ES BATU DEPO"] ?? 0}/${row["ESBATU BELI"] ?? row["ES BATU BELI"] ?? 0}`],
-                        ["Teh / Gula", `${row.TEH ?? 0} / ${row.GULA ?? 0}`],
-                      ].map(([label, value]) => (
-                        <div key={`${item.id}-${label}`} className="rounded-lg border border-brand-green/10 bg-white px-2 py-1.5">
-                          <p className="text-[8px] font-black uppercase tracking-wider text-brand-muted leading-tight">{label}</p>
-                          <p className="mt-0.5 text-[10px] font-black text-brand-green-dark wrap-break-word leading-tight">{value}</p>
-                        </div>
-                      ))}
-                    </div>
-
-                    <div className="rounded-lg border border-brand-green/20 bg-brand-green/8 px-2.5 py-2 space-y-2">
-                      <div className="flex items-center justify-between gap-3">
-                        <div className="min-w-0">
-                          <p className="text-[9px] font-black uppercase tracking-wider text-brand-muted">Total Penjualan</p>
-                          <p className="text-[13px] font-black text-brand-green-dark wrap-break-word leading-tight">
-                            {toCurrency(
-                              parseLooseNumber(
-                                row["TOTAL NOTA"] ||
-                                row["UANG MASUK"] ||
-                                row["UNAG MASUK"] ||
-                                ((Number(row["GELAS LAKU"]) || 0) * 4000)
-                              )
-                            )}
-                          </p>
-                          <div className="flex flex-wrap items-center gap-x-2 text-[9px] font-semibold text-brand-muted mt-0.5">
-                            <span>Kas Masuk: {toCurrency(parseLooseNumber(row["UANG MASUK"] || row["UNAG MASUK"] || row["TOTAL NOTA"] || ((Number(row["GELAS LAKU"]) || 0) * 4000)))}</span>
-                            <span>•</span>
-                            <span>Pengeluaran: {toCurrency(parseLooseNumber(row.PENGELUARAN || row["UANG KELUAR"] || 0))}</span>
-                          </div>
-                        </div>
-                        <button
-                          className="inline-flex items-center text-brand-muted hover:text-brand-green-dark transition-colors shrink-0"
-                          onClick={() => onToggleRow(item.id)}
-                          title="Toggle denominasi"
-                          aria-label="Toggle denominasi"
-                        >
-                          {expanded ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
-                        </button>
-                      </div>
-                      {expanded && (
-                        <div className=" p-2">
-                          {item.denomination.length ? (
-                            <div className="grid grid-cols-2 gap-2">
-                              {item.denomination.map((denom) => (
-                                <div key={`${item.id}-${denom.label}`} className="rounded-lg bg-white px-2 py-1.5">
-                                  <p className="text-[10px] font-black text-brand-muted">{denom.label}</p>
-                                  <p className="text-[11px] font-black text-brand-green-dark">{denom.value}</p>
-                                </div>
-                              ))}
-                            </div>
-                          ) : (
-                            <p className="text-[11px] font-semibold text-brand-muted">Tidak ada denominasi terisi.</p>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
+            {/* Mobile: Smart Row E-Wallet Style */}
+            <div className="md:hidden space-y-1.5 p-2.5 max-h-[60vh] overflow-y-auto no-scrollbar">
+              {pageRows.map((item, rowIndex) => (
+                <SmartRowMobile
+                  key={`m-${startIndex + rowIndex}`}
+                  item={item}
+                  expanded={expandedRowIds.has(item.id)}
+                  onToggle={onToggleRow}
+                  onEdit={onEditRow}
+                />
+              ))}
             </div>
 
+            {/* Desktop: Tabel (tidak berubah) */}
             <table className="hidden md:table w-full text-left border-collapse">
               <thead>
                 <tr className="bg-brand-bg sticky top-0 z-10">
-                  <th className="w-20 px-4 py-3 text-[10px] font-black text-brand-muted uppercase tracking-[0.15em] border-b border-brand-bg">Edit</th>
+                  <th className="w-16 px-3 py-3 text-[10px] font-black text-brand-muted uppercase tracking-[0.15em] border-b border-brand-bg">Edit</th>
                   {columns.map((column) => (
-                    <th key={column} className="px-4 py-3 text-[10px] font-black text-brand-muted uppercase tracking-[0.15em] border-b border-brand-bg">
+                    <th key={column} className="px-3 py-3 text-[10px] font-black text-brand-muted uppercase tracking-[0.15em] border-b border-brand-bg">
                       {column}
                     </th>
                   ))}
-                  <th className="w-20 px-4 py-3 text-[10px] font-black text-brand-muted uppercase tracking-[0.15em] border-b border-brand-bg">Denom</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-brand-bg">
-                {pageRows.map((item, rowIndex) => {
-                  const expanded = expandedRowIds.has(item.id);
-                  return (
-                    <Fragment key={`group-${item.id}-${rowIndex}`}>
-                      <tr key={`r-${item.id}-${rowIndex}`} className="transition-all duration-200 hover:bg-brand-bg/50 hover:shadow-[inset_0_0_0_1px_rgba(43,147,72,0.12)]">
-                        <td className="px-4 py-2.5 text-xs font-bold text-brand-green-dark/80">
-                          <button
-                            className="inline-flex items-center text-brand-muted hover:text-brand-green-dark transition-colors"
-                            onClick={() => onEditRow?.(item)}
-                            title="Edit laporan"
-                            aria-label="Edit laporan"
-                          >
-                            <Pencil size={15} />
-                          </button>
+                {pageRows.map((item, rowIndex) => (
+                  <Fragment key={`group-${item.id}-${rowIndex}`}>
+                    <tr className="transition-all duration-200 hover:bg-brand-bg/50">
+                      <td className="px-3 py-2 text-xs font-bold text-brand-green-dark/80">
+                        <button
+                          className="inline-flex items-center text-brand-muted hover:text-brand-green-dark transition-colors"
+                          onClick={() => onEditRow?.(item)}
+                          title="Edit laporan"
+                          aria-label="Edit laporan"
+                        >
+                          <Pencil size={14} />
+                        </button>
+                      </td>
+                      {columns.map((column) => (
+                        <td key={`${item.id}-${column}`} className="px-3 py-2.5 text-[11px] font-bold text-brand-green-dark/80 whitespace-nowrap">
+                          {rowValue(item, column)}
                         </td>
-                        {columns.map((column) => (
-                          <td key={`${item.id}-${column}`} className="px-4 py-2.5 text-[11px] font-bold text-brand-green-dark/80 whitespace-nowrap">
-                            {rowValue(item, column)}
-                          </td>
-                        ))}
-                        <td className="px-4 py-2.5 text-xs font-bold text-brand-green-dark/80">
-                          <button
-                            className="inline-flex items-center text-brand-muted hover:text-brand-green-dark transition-colors"
-                            onClick={() => onToggleRow(item.id)}
-                            title="Toggle denominasi"
-                            aria-label="Toggle denominasi"
-                          >
-                            {expanded ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
-                          </button>
-                        </td>
-                      </tr>
-                      {expanded && (
-                        <tr key={`denom-${item.id}-${rowIndex}`} className="bg-brand-bg/20">
-                          <td className="px-4 py-3 text-[11px] font-black text-brand-green-dark">Denominasi</td>
-                          <td className="px-4 py-3" colSpan={Math.max(columns.length + 1, 2)}>
-                            {item.denomination.length ? (
-                              <div className="flex flex-wrap gap-2">
-                                {item.denomination.map((denom) => (
-                                  <div key={`${item.id}-${denom.label}`} className="rounded-lg border border-brand-green/10 bg-white px-2.5 py-1.5">
-                                    <span className="text-[10px] font-black text-brand-muted">{denom.label}</span>
-                                    <span className="ml-2 text-[11px] font-black text-brand-green-dark">{denom.value}</span>
-                                  </div>
-                                ))}
-                              </div>
-                            ) : (
-                              <p className="text-xs font-semibold text-brand-muted">Tidak ada denominasi terisi.</p>
-                            )}
-                          </td>
-                        </tr>
-                      )}
-                    </Fragment>
-                  );
-                })}
+                      ))}
+                    </tr>
+                  </Fragment>
+                ))}
               </tbody>
             </table>
           </>
@@ -391,8 +374,8 @@ function ReportTable({
       </div>
 
       {rows.length > 0 && showFooter && (
-        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-brand-bg px-4 py-3">
-          <div className="flex items-center gap-2 text-xs font-bold text-brand-muted">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-t border-brand-bg px-3 py-2.5">
+          <div className="flex items-center gap-1.5 text-xs font-bold text-brand-muted">
             <span>Rows:</span>
             <select
               className="rounded-lg border border-brand-green/15 bg-white px-2 py-1 text-xs font-bold text-brand-green-dark"
@@ -409,20 +392,270 @@ function ReportTable({
           </div>
 
           <div className="text-xs font-bold text-brand-muted">
-            {startIndex + 1}-{Math.min(startIndex + pageRows.length, rows.length)} dari {rows.length}
+            {startIndex + 1}-{Math.min(startIndex + pageRows.length, rows.length)} / {rows.length}
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5">
             <button
-              className="rounded-lg border border-brand-green/15 px-3 py-1.5 text-xs font-black text-brand-green-dark disabled:opacity-40"
+              className="rounded-lg border border-brand-green/15 px-2.5 py-1 text-xs font-black text-brand-green-dark disabled:opacity-40"
               onClick={() => setPage((prev) => Math.max(prev - 1, 1))}
               disabled={safePage <= 1}
             >
               Prev
             </button>
-            <span className="text-xs font-black text-brand-muted">Page {safePage}/{totalPages}</span>
+            <span className="text-xs font-black text-brand-muted">{safePage}/{totalPages}</span>
             <button
-              className="rounded-lg border border-brand-green/15 px-3 py-1.5 text-xs font-black text-brand-green-dark disabled:opacity-40"
+              className="rounded-lg border border-brand-green/15 px-2.5 py-1 text-xs font-black text-brand-green-dark disabled:opacity-40"
+              onClick={() => setPage((prev) => Math.min(prev + 1, totalPages))}
+              disabled={safePage >= totalPages}
+            >
+              Next
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+const TRANSACTION_COLUMNS = [
+  { key: "type", label: "Jenis" },
+  { key: "timestamp", label: "Tanggal" },
+  { key: "arusDana", label: "Cabang" },
+  { key: "staff", label: "Staff" },
+  { key: "keterangan", label: "Keterangan" },
+  { key: "nominal", label: "Nominal" },
+];
+
+function TransactionTable({
+  rows,
+  search,
+  onSearchChange,
+  onEditRow,
+  onAddReport,
+  isAdmin,
+  onFilterClick,
+  filterDisabled,
+  showControls = true,
+}) {
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(PAGE_SIZE_OPTIONS[0]);
+
+  const totalPages = Math.max(Math.ceil(rows.length / pageSize), 1);
+  const safePage = Math.min(page, totalPages);
+  const startIndex = (safePage - 1) * pageSize;
+  const pageRows = rows.slice(startIndex, startIndex + pageSize);
+
+  function formatTimestamp(ts) {
+    if (!(ts instanceof Date) || Number.isNaN(ts.getTime())) return "-";
+    const dd = String(ts.getDate()).padStart(2, "0");
+    const mm = String(ts.getMonth() + 1).padStart(2, "0");
+    const yyyy = ts.getFullYear();
+    const hh = String(ts.getHours()).padStart(2, "0");
+    const mi = String(ts.getMinutes()).padStart(2, "0");
+    return `${dd}-${mm}-${yyyy} ${hh}.${mi}`;
+  }
+
+  return (
+    <div className="bg-white rounded-4xl border border-brand-green/5 card-shadow overflow-hidden flex flex-col h-full min-h-0">
+      <div className="p-3 sm:p-4 border-b border-brand-bg flex flex-col gap-2.5">
+        <div className="flex items-center justify-between gap-2">
+          <div>
+            <h3 className="text-sm sm:text-base font-extrabold text-brand-green-dark">Semua Transaksi</h3>
+            <p className="text-[10px] text-brand-muted font-medium">Menampilkan {rows.length} entri transaksi</p>
+          </div>
+          {isAdmin && (
+            <button
+              className="inline-flex items-center gap-1 rounded-xl bg-brand-green px-2.5 py-1.5 text-[11px] font-black text-white hover:bg-brand-green-dark transition-colors"
+              onClick={onAddReport}
+              title="Tambah laporan"
+            >
+              <Plus size={13} />
+              <span>Tambah</span>
+            </button>
+          )}
+        </div>
+
+        {showControls && (
+          <div className="flex items-center gap-2">
+            <div className="relative flex-1 min-w-0">
+              <input
+                className="w-full pl-9 pr-3 py-2 bg-brand-bg border border-brand-green/15 rounded-xl text-xs sm:text-sm font-bold focus:ring-2 focus:ring-brand-green/20 transition-all placeholder:text-brand-muted/40"
+                placeholder="Cari transaksi..."
+                value={search}
+                onChange={(event) => onSearchChange(event.target.value)}
+              />
+              <div className="absolute left-3 top-1/2 -translate-y-1/2 text-brand-muted opacity-40">
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+              </div>
+            </div>
+            <button
+              className="inline-flex items-center gap-1 rounded-xl border border-brand-green/15 bg-brand-bg px-2.5 py-2 text-xs font-black text-brand-green-dark hover:bg-brand-green/10 disabled:opacity-50"
+              onClick={onFilterClick}
+              disabled={filterDisabled}
+              title="Filter Data"
+            >
+              <Funnel size={13} />
+              <span className="hidden sm:inline text-[11px]">Filter</span>
+            </button>
+          </div>
+        )}
+      </div>
+
+      <div className="flex-1 min-h-0 overflow-auto no-scrollbar">
+        {rows.length === 0 ? (
+          <div className="py-16 text-center space-y-3">
+            <div className="text-3xl opacity-30">&#x1F4CB;</div>
+            <p className="text-sm font-bold text-brand-muted">Tidak ada data transaksi ditemukan</p>
+          </div>
+        ) : (
+          <>
+            {/* Mobile cards */}
+            <div className="md:hidden space-y-1.5 p-2.5 max-h-[60vh] overflow-y-auto no-scrollbar">
+              {pageRows.map((item, rowIndex) => (
+                <div
+                  key={`mt-${startIndex + rowIndex}`}
+                  className="rounded-xl border border-brand-green/10 bg-white overflow-hidden transition-all duration-200 hover:border-brand-green/25 hover:shadow-sm"
+                >
+                  <div className="flex items-center gap-3 px-3 py-2.5">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-0.5">
+                        <span
+                          className={`inline-flex items-center rounded-md px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider ${
+                            item.type === "PEMASUKAN"
+                              ? "bg-brand-green/12 text-brand-green-dark"
+                              : "bg-amber-50 text-amber-700"
+                          }`}
+                        >
+                          {item.type === "PEMASUKAN" ? "Masuk" : "Keluar"}
+                        </span>
+                        <span className="text-[10px] text-brand-muted font-semibold">{formatTimestamp(item.timestamp)}</span>
+                      </div>
+                      <p className="text-[11px] font-black text-brand-green-dark truncate">{item.keterangan}</p>
+                      <p className="text-[10px] text-brand-muted font-semibold truncate">{item.arusDana} &middot; {item.staff}</p>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <p
+                        className={`text-xs font-black ${
+                          item.type === "PEMASUKAN" ? "text-brand-green-dark" : "text-amber-700"
+                        }`}
+                      >
+                        {item.type === "PEMASUKAN" ? "+" : "-"} {toCurrency(item.nominal)}
+                      </p>
+                      {item.type === "PEMASUKAN" && (
+                        <button
+                          className="p-1.5 rounded-lg text-brand-muted hover:text-brand-green-dark hover:bg-brand-bg transition-colors"
+                          onClick={() => onEditRow?.(item)}
+                          title="Edit laporan"
+                        >
+                          <Pencil size={13} />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Desktop table */}
+            <table className="hidden md:table w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-brand-bg sticky top-0 z-10">
+                  {isAdmin && (
+                    <th className="w-16 px-3 py-3 text-[10px] font-black text-brand-muted uppercase tracking-[0.15em] border-b border-brand-bg">Edit</th>
+                  )}
+                  {TRANSACTION_COLUMNS.map((col) => (
+                    <th key={col.key} className="px-3 py-3 text-[10px] font-black text-brand-muted uppercase tracking-[0.15em] border-b border-brand-bg">
+                      {col.label}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-brand-bg">
+                {pageRows.map((item, rowIndex) => (
+                  <tr key={`tr-${startIndex + rowIndex}`} className="transition-all duration-200 hover:bg-brand-bg/50">
+                    {isAdmin && (
+                      <td className="px-3 py-2 text-xs font-bold text-brand-green-dark/80">
+                        {item.type === "PEMASUKAN" ? (
+                          <button
+                            className="inline-flex items-center text-brand-muted hover:text-brand-green-dark transition-colors"
+                            onClick={() => onEditRow?.(item)}
+                            title="Edit laporan"
+                          >
+                            <Pencil size={14} />
+                          </button>
+                        ) : null}
+                      </td>
+                    )}
+                    <td className="px-3 py-2.5 text-[11px] font-bold whitespace-nowrap">
+                      <span
+                        className={`inline-flex rounded-md px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider ${
+                          item.type === "PEMASUKAN"
+                            ? "bg-brand-green/12 text-brand-green-dark"
+                            : "bg-amber-50 text-amber-700"
+                        }`}
+                      >
+                        {item.type === "PEMASUKAN" ? "PEMASUKAN" : "PENGELUARAN"}
+                      </span>
+                    </td>
+                    <td className="px-3 py-2.5 text-[11px] font-bold text-brand-green-dark/80 whitespace-nowrap">
+                      {formatTimestamp(item.timestamp)}
+                    </td>
+                    <td className="px-3 py-2.5 text-[11px] font-bold text-brand-green-dark/80 whitespace-nowrap">
+                      <span className="inline-flex rounded-lg border border-brand-green/15 bg-brand-green/8 px-2.5 py-1 text-[11px] font-black">
+                        {item.arusDana}
+                      </span>
+                    </td>
+                    <td className="px-3 py-2.5 text-[11px] font-bold text-brand-green-dark/80 whitespace-nowrap">{item.staff}</td>
+                    <td className="px-3 py-2.5 text-[11px] font-bold text-brand-green-dark/80 max-w-[200px] truncate">{item.keterangan}</td>
+                    <td className="px-3 py-2.5 text-[11px] font-black whitespace-nowrap">
+                      <span className={item.type === "PEMASUKAN" ? "text-brand-green-dark" : "text-amber-700"}>
+                        {item.type === "PEMASUKAN" ? "+" : "-"} {toCurrency(item.nominal)}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </>
+        )}
+      </div>
+
+      {rows.length > 0 && (
+        <div className="flex flex-wrap items-center justify-between gap-2 border-t border-brand-bg px-3 py-2.5">
+          <div className="flex items-center gap-1.5 text-xs font-bold text-brand-muted">
+            <span>Rows:</span>
+            <select
+              className="rounded-lg border border-brand-green/15 bg-white px-2 py-1 text-xs font-bold text-brand-green-dark"
+              value={pageSize}
+              onChange={(event) => {
+                setPageSize(Number(event.target.value));
+                setPage(1);
+              }}
+            >
+              {PAGE_SIZE_OPTIONS.map((size) => (
+                <option key={size} value={size}>{size}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="text-xs font-bold text-brand-muted">
+            {startIndex + 1}-{Math.min(startIndex + pageRows.length, rows.length)} / {rows.length}
+          </div>
+
+          <div className="flex items-center gap-1.5">
+            <button
+              className="rounded-lg border border-brand-green/15 px-2.5 py-1 text-xs font-black text-brand-green-dark disabled:opacity-40"
+              onClick={() => setPage((prev) => Math.max(prev - 1, 1))}
+              disabled={safePage <= 1}
+            >
+              Prev
+            </button>
+            <span className="text-xs font-black text-brand-muted">{safePage}/{totalPages}</span>
+            <button
+              className="rounded-lg border border-brand-green/15 px-2.5 py-1 text-xs font-black text-brand-green-dark disabled:opacity-40"
               onClick={() => setPage((prev) => Math.min(prev + 1, totalPages))}
               disabled={safePage >= totalPages}
             >
@@ -437,6 +670,7 @@ function ReportTable({
 
 export default function ReportPanel({
   reportRows,
+  dbRows = [],
   loading,
   isAdmin,
   onRefreshMonthly,
@@ -446,6 +680,7 @@ export default function ReportPanel({
   todayReport = null,
 }) {
   const [search, setSearch] = useState("");
+  const [transactionSearch, setTransactionSearch] = useState("");
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [expandedRowIds, setExpandedRowIds] = useState(() => new Set());
   const [appliedFilter, setAppliedFilter] = useState(() => getDefaultFilter());
@@ -453,6 +688,11 @@ export default function ReportPanel({
   const [submittingFilter, setSubmittingFilter] = useState(false);
 
   const normalizedRows = useMemo(() => sanitizeReportRows(reportRows), [reportRows]);
+
+  const transactionRows = useMemo(() => {
+    if (!isAdmin) return [];
+    return buildTransactionList(reportRows, dbRows);
+  }, [isAdmin, reportRows, dbRows]);
 
   // Untuk staff, batasi hanya pada data laporan hari ini
   const scopedRows = useMemo(() => {
@@ -476,26 +716,34 @@ export default function ReportPanel({
   }, [normalizedRows, todayReport]);
 
   const arusDanaOptions = useMemo(() => getReportArusDanaOptions(normalizedRows), [normalizedRows]);
-  const kasirOptions = useMemo(() => getReportKasirOptions(normalizedRows), [normalizedRows]);
+  const staffOptions = useMemo(() => getReportStaffOptions(normalizedRows), [normalizedRows]);
 
   const filteredRows = useMemo(() => {
     if (!isAdmin) return scopedRows;
     return applyReportFilters(scopedRows, appliedFilter);
   }, [appliedFilter, isAdmin, scopedRows]);
 
-  const stats = useMemo(() => buildReportStats(filteredRows), [filteredRows]);
+  const filteredTransactions = useMemo(() => {
+    if (!isAdmin) return [];
+    return applyReportFilters(transactionRows, appliedFilter);
+  }, [appliedFilter, isAdmin, transactionRows]);
+
   const tableRows = useMemo(() => buildReportTableData(filteredRows), [filteredRows]);
   const tableRowsBySearch = useMemo(() => {
     if (!search.trim()) return tableRows;
     const queryRows = tableRows.map((item) => ({
       ...item.row,
       _id: item.id,
-      _denom: item.denomination.map((denom) => `${denom.label}:${denom.value}`).join(" "),
     }));
     const matched = filterRows(queryRows, search);
     const allowedIds = new Set(matched.map((item) => item._id));
     return tableRows.filter((item) => allowedIds.has(item.id));
   }, [search, tableRows]);
+
+  const transactionsBySearch = useMemo(() => {
+    if (!transactionSearch.trim()) return filteredTransactions;
+    return filterRows(filteredTransactions, transactionSearch);
+  }, [transactionSearch, filteredTransactions]);
 
   function handleEditTodayReport() {
     if (todayReport) {
@@ -553,15 +801,15 @@ export default function ReportPanel({
       <div className="relative w-full max-w-xl max-h-[90vh] overflow-y-auto rounded-3xl border border-brand-green/10 bg-white p-5 sm:p-6 shadow-2xl shadow-brand-green-dark/20">
         <div className="mb-4 flex items-start justify-between gap-3">
           <div>
-            <h3 className="text-lg font-black text-brand-green-dark">Filter Laporan</h3>
-            <p className="text-xs font-semibold text-brand-muted">Filter rentang waktu, arus dana, dan kasir.</p>
+            <h3 className="text-base font-black text-brand-green-dark">Filter Laporan</h3>
+            <p className="text-xs font-semibold text-brand-muted">Rentang waktu, cabang, dan staff.</p>
           </div>
           <button
             className="rounded-xl border border-brand-green/15 p-2 text-brand-muted hover:bg-brand-bg"
             onClick={() => setIsFilterOpen(false)}
             title="Tutup"
           >
-            <X size={16} />
+            <X size={15} />
           </button>
         </div>
 
@@ -572,8 +820,8 @@ export default function ReportPanel({
               {[
                 { key: "month", label: "Bulan Ini" },
                 { key: "today", label: "Hari Ini" },
-                { key: "last7", label: "7 Hari Terakhir" },
-                { key: "date", label: "Pilih Tanggal" },
+                { key: "last7", label: "7 Hari" },
+                { key: "date", label: "Tanggal Tertentu" },
               ].map((item) => (
                 <button
                   key={item.key}
@@ -609,7 +857,7 @@ export default function ReportPanel({
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="text-[10px] font-black uppercase tracking-widest text-brand-muted">Cabang / Arus Dana</label>
+              <label className="text-[10px] font-black uppercase tracking-widest text-brand-muted">Cabang</label>
               <select
                 value={draftFilter.arusDana}
                 onChange={(event) => setDraftFilter((prev) => ({ ...prev, arusDana: event.target.value }))}
@@ -623,11 +871,11 @@ export default function ReportPanel({
             <div>
               <label className="text-[10px] font-black uppercase tracking-widest text-brand-muted">Staff</label>
               <select
-                value={draftFilter.kasir}
-                onChange={(event) => setDraftFilter((prev) => ({ ...prev, kasir: event.target.value }))}
+                value={draftFilter.staff || "semua"}
+                onChange={(event) => setDraftFilter((prev) => ({ ...prev, staff: event.target.value }))}
                 className="mt-2 w-full rounded-xl border border-brand-green/15 bg-brand-bg px-3 py-2 text-sm font-bold text-brand-green-dark"
               >
-                {kasirOptions.map((option) => (
+                {staffOptions.map((option) => (
                   <option key={option} value={option}>{option === "semua" ? "Semua Staff" : option}</option>
                 ))}
               </select>
@@ -635,7 +883,7 @@ export default function ReportPanel({
           </div>
         </div>
 
-        <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+        <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
           <button
             className="rounded-xl border border-brand-green/15 bg-white px-4 py-2.5 text-sm font-black text-brand-green-dark hover:bg-brand-bg disabled:opacity-50"
             onClick={resetFilter}
@@ -656,49 +904,49 @@ export default function ReportPanel({
   ) : null;
 
   const panelClassName = isAdmin
-    ? "flex flex-col min-h-0 gap-4 sm:gap-6 xl:gap-3"
+    ? "flex flex-col min-h-0 gap-3 sm:gap-4"
     : "grid grid-rows-[1fr] min-h-0 h-[calc(100dvh-7.5rem)]";
 
   return (
     <div className={panelClassName}>
-      {isAdmin && (
-        <div className="grid grid-cols-2 lg:grid-cols-4 xl:grid-cols-7 gap-3 sm:gap-4">
-          <StatCard
-            label="Gelas Laku"
-            value={stats.gelasLaku}
-            hint={stats.gelasAwal ? `Awal: ${stats.gelasAwal} | Sisa: ${stats.gelasSisa} | Rusak: ${stats.gelasRusak}` : `Laku: ${stats.gelasLaku} | Rusak: ${stats.gelasRusak}`}
-            icon={Beaker}
-          />
-          <StatCard label="Es Batu" value={stats.esBatuTotal} hint={`Depo: ${stats.esBatuDepo} | Beli: ${stats.esBatuBeli}`} icon={Snowflake} />
-          <StatCard label="Gula" value={stats.gula} hint="Total pemakaian gula" icon={Candy} />
-          <StatCard label="Teh" value={stats.teh} hint="Total pemakaian teh" icon={Leaf} />
-          <StatCard label="Uang Lebih" value={toCurrency(stats.uangLebih)} hint="Total uang lebih dari setoran" icon={TrendingUp} />
-          <StatCard label="Uang Kurang" value={toCurrency(stats.uangKurang)} hint="Total uang kurang dari setoran" icon={TrendingDown} />
-          <StatCard label="Pengeluaran" value={toCurrency(stats.pengeluaran)} hint="Total pengeluaran" icon={Wallet} />
-        </div>
-      )}
-
       <div className="flex-1 min-h-0 overflow-auto no-scrollbar">
-        <ReportTable
-          rows={tableRowsBySearch}
-          search={search}
-          onSearchChange={setSearch}
-          expandedRowIds={expandedRowIds}
-          onToggleRow={toggleRow}
-          onEditRow={onEditRow}
-          onAddReport={onAddReport}
-          onEditTodayReport={handleEditTodayReport}
-          hasTodayReport={hasTodayReport}
-          isAdmin={isAdmin}
-          onFilterClick={() => {
-            setDraftFilter(appliedFilter);
-            setIsFilterOpen(true);
-          }}
-          filterDisabled={loading || submittingFilter}
-          showAddButton={isAdmin || !hasTodayReport}
-          showControls={isAdmin}
-          showFooter={isAdmin}
-        />
+        {isAdmin ? (
+          <TransactionTable
+            rows={transactionsBySearch}
+            search={transactionSearch}
+            onSearchChange={setTransactionSearch}
+            onEditRow={onEditRow}
+            onAddReport={onAddReport}
+            isAdmin={isAdmin}
+            onFilterClick={() => {
+              setDraftFilter(appliedFilter);
+              setIsFilterOpen(true);
+            }}
+            filterDisabled={loading || submittingFilter}
+            showControls={true}
+          />
+        ) : (
+          <ReportTable
+            rows={tableRowsBySearch}
+            search={search}
+            onSearchChange={setSearch}
+            expandedRowIds={expandedRowIds}
+            onToggleRow={toggleRow}
+            onEditRow={onEditRow}
+            onAddReport={onAddReport}
+            onEditTodayReport={handleEditTodayReport}
+            hasTodayReport={hasTodayReport}
+            isAdmin={isAdmin}
+            onFilterClick={() => {
+              setDraftFilter(appliedFilter);
+              setIsFilterOpen(true);
+            }}
+            filterDisabled={loading || submittingFilter}
+            showAddButton={isAdmin || !hasTodayReport}
+            showControls={isAdmin}
+            showFooter={isAdmin}
+          />
+        )}
       </div>
 
       {typeof document !== "undefined" ? createPortal(filterModal, document.body) : null}

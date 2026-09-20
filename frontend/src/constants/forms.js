@@ -1,31 +1,39 @@
 export const REPORT_FORM_DEFAULT = {
+  "ID TRANSAKSI": "",
   "NO TRANSAKSI": "",
-  SHIFT: "Pagi",
+  TANGGAL: "",
+  "WAKTU INPUT": "",
+  CABANG: "",
   "ARUS DANA": "",
-  KASIR: "",
-  "GELAS AWAL": "0",
-  "GELAS SISA": "0",
-  "GELAS RUSAK": "0",
-  "GELAS LAKU": "0",
-  "GELAS MASUK": "0",
+  STAFF: "",
+  "UANG SETORAN": "",
+  "TOTAL PENGELUARAN": 0,
+  "TOTAL PENJUALAN": 0,
+  "RINCIAN PENGELUARAN": "",
+  pengeluaranList: [],
+  stokBahan: {},
+  // Backward compatibility fields
+  "GELAS AWAL": "",
+  "GELAS SISA": "",
+  "GELAS RUSAK": "",
+  "GELAS LAKU": 0,
   "ES BATU DEPO": "0",
   "ES BATU BELI": "0",
   TEH: "0",
   GULA: "0",
-  PENGELUARAN: "0",
+  PENGELUARAN: 0,
+  "TOTAL NOTA": 0,
+  "UANG MASUK": 0,
+  "UNAG MASUK": 0,
+  SELISIH: 0,
   KETERANGAN: "",
-  "Rp 100.000": "0",
-  "Rp 75.000": "0",
-  "Rp 50.000": "0",
-  "Rp 20.000": "0",
-  "Rp 10.000": "0",
-  "Rp 5.000": "0",
-  "Rp 2.000": "0",
-  "Rp 1.000": "0",
-  "Rp 500": "0",
-  "Rp 200": "0",
-  "Rp 100": "0",
 };
+
+export const DEFAULT_BAHAN_BAKU = [];
+export const DEFAULT_TIPE_PENGELUARAN = [];
+export const STAFF_OPTIONS = [];
+export const BRANCH_OPTIONS = [];
+export const SHIFT_OPTIONS = [];
 
 export const DENOMINATIONS_DATA = [
   { label: "Rp 100.000", value: 100000 },
@@ -40,8 +48,3 @@ export const DENOMINATIONS_DATA = [
   { label: "Rp 200", value: 200 },
   { label: "Rp 100", value: 100 },
 ];
-
-export const SHIFT_OPTIONS = ["Pagi", "Siang", "Sore", "Malam"];
-export const STAFF_OPTIONS = ["Joko", "Abu Arfan", "Fajar", "Arief Rahman", "imam Solihin", "Arya Ahman", "Ardi", "Irfan", "Imam Hardani", "Aliansyah", "Syamsudin", "Abdul"];
-export const KASIR_OPTIONS = STAFF_OPTIONS;
-export const BRANCH_OPTIONS = ["cabang_01", "cabang_02"];

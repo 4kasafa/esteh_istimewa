@@ -1,13 +1,12 @@
 import { useState } from "react";
 import { UserPlus, X } from "lucide-react";
-import { BRANCH_OPTIONS } from "../../constants/forms";
 
-export default function AddKaryawanModal({ open, onClose, onSave, branches = BRANCH_OPTIONS }) {
+export default function AddKaryawanModal({ open, onClose, onSave, branches = [] }) {
   const [form, setForm] = useState(() => ({
     nama: "",
-    nik: "EST-03001",
+    nik: "",
     role: "Staff",
-    cabang: branches[0] || "cabang_01",
+    cabang: branches[0] || "",
     shift: "Pagi",
     telepon: "",
     email: "",
@@ -32,7 +31,7 @@ export default function AddKaryawanModal({ open, onClose, onSave, branches = BRA
 
     const newKaryawan = {
       id: `EMP-${Date.now()}`,
-      nik: form.nik.trim() || "EST-03001",
+      nik: form.nik.trim() || `EMP-${Date.now().toString().slice(-4)}`,
       nama: form.nama.trim(),
       role: form.role,
       cabang: form.cabang,
@@ -127,10 +126,7 @@ export default function AddKaryawanModal({ open, onClose, onSave, branches = BRA
                 className="w-full rounded-xl border border-brand-green/15 bg-brand-bg/50 px-3.5 py-2.5 text-xs font-bold text-brand-green-dark focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-green/20 transition"
               >
                 <option value="Staff">Staff</option>
-                <option value="Kasir">Kasir</option>
-                <option value="Supervisor">Supervisor</option>
-                <option value="Barista">Barista</option>
-                <option value="Manager">Manager</option>
+                <option value="Admin">Admin</option>
               </select>
             </div>
 
@@ -193,7 +189,7 @@ export default function AddKaryawanModal({ open, onClose, onSave, branches = BRA
                 className="w-full rounded-xl border border-brand-green/15 bg-brand-bg/50 px-3.5 py-2.5 text-xs font-bold text-brand-green-dark focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-green/20 transition"
               >
                 <option value="Aktif">Aktif</option>
-                <option value="Nonaktif">Nonaktif</option>
+                <option value="Non Aktif">Non Aktif</option>
               </select>
             </div>
 

@@ -1,7 +1,6 @@
 import { useCallback, useMemo, useState } from "react";
 import { gasRequest } from "../services/gasApi";
 import { isAuthErrorMessage, mapApiErrorMessage } from "../utils/errors";
-import { clearTodayStaffReports } from "../services/mockData";
 
 function loadStoredUser() {
   try {
@@ -42,9 +41,6 @@ export function useAuthSession(apiUrl) {
   const logout = useCallback(async (force = false) => {
     const tokenAtLogout = token;
 
-    // Reset laporan simulasi hari ini saat logout
-    clearTodayStaffReports();
-
     setToken("");
     setUser(null);
     setError("");
@@ -70,13 +66,8 @@ export function useAuthSession(apiUrl) {
       return;
     }
 
-    if (String(token).startsWith("bypass-")) {
-      setIsValidating(false);
-      return;
-    }
-
     try {
-      await request({ action: "read", limit: 1 });
+      await request({ action: "read_reports", limit: 1 });
     } catch (err) {
       if (isAuthErrorMessage(err.message)) {
         await logout(true);
@@ -86,40 +77,15 @@ export function useAuthSession(apiUrl) {
     }
   }, [logout, request, token]);
 
-  const loginBypass = useCallback((role = "admin") => {
-    const isTargetAdmin = String(role).toLowerCase() === "admin";
-    const targetRole = isTargetAdmin ? "admin" : "staff";
-    const mockUser = {
-      id: isTargetAdmin ? "BYPASS-ADM" : "BYPASS-STAFF",
-      nama: isTargetAdmin ? "Admin Istimewa (Bypass)" : "Staff Istimewa (Bypass)",
-      email: isTargetAdmin ? "admin@estehistimewa.com" : "staff@estehistimewa.com",
-      role: targetRole,
-      lastTodayReport: "",
-    };
-    const mockToken = `bypass-${targetRole}`;
-
-    setToken(mockToken);
-    setUser(mockUser);
-    setError("");
-
-    try {
-      localStorage.setItem("gas_token", mockToken);
-      localStorage.setItem("gas_user", JSON.stringify(mockUser));
-    } catch (err) {
-      console.error("Storage error:", err);
-    }
-  }, []);
-
   const login = useCallback(async (credentials) => {
     setLoading(true);
     setError("");
 
     const username = String(credentials?.username || credentials?.email || "").trim();
-    const email = credentials?.email || (username.includes("@") ? username : `${username}@estehistimewa.com`);
     const password = String(credentials?.password || "").trim();
 
     try {
-      const loginData = await request({ action: "login", username, email, password }, "");
+      const loginData = await request({ action: "login", username, password }, "");
       if (!loginData?.token || !loginData?.user) {
         throw new Error("Format data login tidak valid.");
       }
@@ -163,7 +129,6 @@ export function useAuthSession(apiUrl) {
     error,
     request,
     login,
-    loginBypass,
     logout,
     validateSession,
     clearAuthError,

@@ -1,13 +1,9 @@
 import { mapApiErrorMessage } from "../utils/errors";
-import { handleMockRequest } from "./mockData";
 
 export async function gasRequest({ apiUrl, body, token = "" }) {
-  if (token && String(token).startsWith("bypass-")) {
-    return handleMockRequest(body);
-  }
-
-  if (!apiUrl) {
-    return handleMockRequest(body);
+  const targetUrl = apiUrl || import.meta.env.VITE_GAS_API_URL;
+  if (!targetUrl) {
+    throw new Error("URL Google Apps Script (VITE_GAS_API_URL) belum dikonfigurasi.");
   }
 
   const payload = {
@@ -17,29 +13,28 @@ export async function gasRequest({ apiUrl, body, token = "" }) {
 
   let response;
   try {
-    response = await fetch(apiUrl, {
+    response = await fetch(targetUrl, {
       method: "POST",
       headers: { "Content-Type": "text/plain;charset=utf-8" },
       body: JSON.stringify(payload),
     });
-  } catch {
-    // Backend sedang bermasalah/offline, otomatis beralih ke sistem fungsional mock lokal
-    return handleMockRequest(body);
+  } catch (err) {
+    throw new Error(mapApiErrorMessage(err?.message, "Gagal terhubung ke backend Google Apps Script."));
   }
 
   let json;
   try {
     json = await response.json();
   } catch {
-    return handleMockRequest(body);
+    throw new Error("Respons dari backend bukan JSON yang valid.");
   }
 
   if (!json || typeof json !== "object" || typeof json.success !== "boolean") {
-    return handleMockRequest(body);
+    throw new Error("Format respons dari backend tidak valid.");
   }
 
   if (!json.success) {
-    throw new Error(mapApiErrorMessage(json.message, "Request gagal."));
+    throw new Error(mapApiErrorMessage(json.message, "Permintaan gagal diproses."));
   }
 
   return json.data;

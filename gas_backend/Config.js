@@ -1,65 +1,48 @@
 const APP_CONFIG = {
-  // Isi dengan Spreadsheet ID yang sudah ada.
+  // Spreadsheet ID Master Utama (Google Sheets)
   SPREADSHEET_ID: "1QLEe3-x8iQwHeBjf8m8Kkb7Yx9g2tAilwGOAjWIZJ0k",
-  SHEET_NAME: "Rincian",
-  DATABASE_SHEET_NAME: "Database",
+  
+  TIMEZONE: "Asia/Jakarta",
   HEADER_ROW: 1,
-  ID_COLUMN_INDEX: 1, // kolom A
   SESSION_RETENTION_DAYS: 7,
-  SESSION_CLEANUP_INTERVAL_DAYS: 7,
-  SESSION_CLEANUP_HOUR: 1,
-  DEFAULT_HEADERS: [
-    "NO TRANSAKSI",
-    "SHIFT",
-    "ARUS DANA",
-    "KASIR",
-    "STOK AWAL GELAS",
-    "GELAS MASUK",
-    "GELAS LAKU",
-    "GELAS RUSAK",
-    "STOK AKHIR GELAS",
-    "Rp 100.000",
-    "Rp 75.000",
-    "Rp 50.000",
-    "Rp 20.000",
-    "Rp 10.000",
-    "Rp 5.000",
-    "Rp 2.000",
-    "Rp 1.000",
-    "Rp 500",
-    "Rp 200",
-    "Rp 100",
-    "TOTAL NOTA",
-    "PENGELUARAN",
-    "UNAG MASUK",
-    "ES BATU DEPO",
-    "ES BATU BELI",
-    "TEH",
-    "GULA",
+  CACHE_TTL_SECONDS: 21600, // 6 jam (maksimal CacheService di Google Apps Script)
+  CACHE_PREFIX: "esteh_sess_",
+  CACHE_USER_PREFIX: "esteh_user_",
+
+  // Tab Master di Master Spreadsheet
+  MASTER_TABS: {
+    USER: "User",
+    CABANG: "Cabang",
+    BAHAN_BAKU: "Bahan_Baku",
+    TIPE_PENGELUARAN: "Tipe_Pengeluaran",
+    SUMBER_PEMASUKAN: "Sumber_Pemasukan",
+    LIST_FILE_BULANAN: "List_File_Bulanan",
+    SESSIONS: "Sessions"
+  },
+
+  // Tab di Spreadsheet Bulanan
+  MONTHLY_TABS: {
+    TRANSAKSI: "Transaksi",
+    PENGELUARAN: "Pengeluaran",
+    REKAPITULASI: "Rekapitulasi",
+    LOG_APLIKASI: "Log_Aplikasi"
+  },
+
+  // Default Master Data untuk Inisialisasi (Setup.js)
+  // Tab User: ID, NAMA / USERNAME, NO. TELEPON, PASSWORD, ROLE, STATUS
+  // Hanya 1 akun Admin bawaan untuk akses awal sistem, tanpa data dummy staff
+  DEFAULT_USERS: [
+    ["USR-001", "Admin", "-", "admin", "Admin", "Aktif"]
   ],
-  NUMERIC_HEADERS: [
-    "STOK AWAL GELAS",
-    "GELAS MASUK",
-    "GELAS LAKU",
-    "GELAS RUSAK",
-    "STOK AKHIR GELAS",
-    "Rp 100.000",
-    "Rp 75.000",
-    "Rp 50.000",
-    "Rp 20.000",
-    "Rp 10.000",
-    "Rp 5.000",
-    "Rp 2.000",
-    "Rp 1.000",
-    "Rp 500",
-    "Rp 200",
-    "Rp 100",
-    "TOTAL NOTA",
-    "PENGELUARAN",
-    "UNAG MASUK",
-    "ES BATU DEPO",
-    "ES BATU BELI",
-    "TEH",
-    "GULA",
-  ],
+
+  DEFAULT_CABANG: [],
+
+  // Bahan Baku: ID_BAHAN, NAMA_BAHAN, SATUAN (Tanpa data dummy)
+  DEFAULT_BAHAN_BAKU: [],
+
+  // Tipe Pengeluaran: ID_TIPE, NAMA_TIPE (Tanpa data dummy)
+  DEFAULT_TIPE_PENGELUARAN: [],
+
+  // Sumber Pemasukan: ID_SUMBER, NAMA_SUMBER, STATUS (Tanpa data dummy)
+  DEFAULT_SUMBER_PEMASUKAN: []
 };

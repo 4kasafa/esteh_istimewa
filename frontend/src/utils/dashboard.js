@@ -1,17 +1,22 @@
 import { parseLooseNumber, parseTimestamp, toPeriodValue, toShortIndonesianDay } from "./formatters";
 
-const EXCLUDED_ARUS_DANA = "setoran bank bri";
-
 function getArusDana(row) {
-  return String(row["ARUS DANA"] || row.ARUS_DANA || "Tanpa Area").trim() || "Tanpa Area";
+  return String(row.CABANG || row["ARUS DANA"] || row.ARUS_DANA || "Tanpa Area").trim() || "Tanpa Area";
 }
 
 function getAmount(row) {
-  return parseLooseNumber(row["UANG MASUK"] || row["UNAG MASUK"] || row["TOTAL NOTA"]);
+  const explicit = parseLooseNumber(row["TOTAL PENJUALAN"] || row["UANG MASUK"] || row["UNAG MASUK"] || row["TOTAL NOTA"]);
+  if (explicit > 0) return explicit;
+  const setoran = parseLooseNumber(row["UANG SETORAN"]);
+  const pengeluaran = parseLooseNumber(row["TOTAL PENGELUARAN"] || row.PENGELUARAN);
+  return setoran + pengeluaran;
 }
 
 function getTimestamp(row) {
-  return parseTimestamp(row["TIME STAMP INPUT"] || row["TIMESTAMP INPUT"] || row["NO TRANSAKSI"]);
+  const tsStr = row.TANGGAL
+    ? (row.TANGGAL + " " + (row["WAKTU INPUT"] || "00:00:00"))
+    : (row["TIME STAMP INPUT"] || row["TIMESTAMP INPUT"] || row["NO TRANSAKSI"] || row["ID TRANSAKSI"]);
+  return parseTimestamp(tsStr) || new Date();
 }
 
 function dateKey(date) {
@@ -48,10 +53,54 @@ export function filterRows(rows, keyword) {
 export function buildKpi(reportRows, dbRows) {
   const totalTransaksi = reportRows.length;
   const totalUangMasuk = dbRows.reduce((sum, row) => sum + getAmount(row), 0);
-  const totalPengeluaran = dbRows.reduce((sum, row) => sum + parseLooseNumber(row.PENGELUARAN), 0);
+  const totalPengeluaran = dbRows.reduce((sum, row) => sum + parseLooseNumber(row["TOTAL PENGELUARAN"] || row.PENGELUARAN), 0);
   const selisihLebih = dbRows.filter((row) => String(row["STATUS SELISIH"] || "").toUpperCase() === "LEBIH").length;
 
   return { totalTransaksi, totalUangMasuk, totalPengeluaran, selisihLebih };
+}
+
+export function buildExecutiveKpi(rows) {
+  let totalSales = 0;
+  let totalExpenses = 0;
+  let totalDeposit = 0;
+  let totalCups = 0;
+
+  const branchSales = new Map();
+  const daySet = new Set();
+
+  rows.forEach((item) => {
+    const raw = item.raw || item;
+    const amount = getAmount(raw);
+    const expense = parseLooseNumber(raw["TOTAL PENGELUARAN"] || raw.PENGELUARAN);
+    const deposit = parseLooseNumber(raw["UANG SETORAN"] || (amount - expense));
+    const cups = parseLooseNumber(raw["GELAS TERPAKAI"] || raw["GELAS LAKU"] || raw["GELAS CUP TERPAKAI"] || raw["GELAS CUP_TERPAKAI"]);
+
+    totalSales += amount;
+    totalExpenses += expense;
+    totalDeposit += deposit;
+    totalCups += cups;
+
+    const b = getArusDana(raw);
+    branchSales.set(b, (branchSales.get(b) || 0) + amount);
+
+    const dt = item.timestamp || getTimestamp(raw);
+    if (dt) daySet.add(dateKey(dt));
+  });
+
+  const sortedBranches = Array.from(branchSales.entries()).sort((a, b) => b[1] - a[1]);
+  const topBranch = sortedBranches[0]?.[0] || "-";
+  const topBranchSales = sortedBranches[0]?.[1] || 0;
+  const avgDaily = daySet.size ? totalSales / daySet.size : totalSales;
+
+  return {
+    totalSales,
+    totalExpenses,
+    totalDeposit,
+    totalCups,
+    topBranch,
+    topBranchSales,
+    avgDaily,
+  };
 }
 
 export function buildTrendData(dbRows) {
@@ -91,8 +140,7 @@ export function sanitizeDatabaseRows(rows) {
         amount: getAmount(raw),
       };
     })
-    .filter((item) => item.timestamp)
-    .filter((item) => item.arusDana.toLowerCase() !== EXCLUDED_ARUS_DANA);
+    .filter((item) => item.timestamp);
 }
 
 export function getArusDanaOptions(rows) {
@@ -120,7 +168,7 @@ export function applyDashboardFilters(rows, { range = "month", period = toPeriod
       if (dt.getFullYear() !== monthRef.year || dt.getMonth() !== monthRef.month) return false;
     }
 
-    if (arusDana !== "semua" && item.arusDana !== arusDana) return false;
+    if (arusDana !== "semua" && item.arusDana.toLowerCase() !== arusDana.toLowerCase()) return false;
     return true;
   });
 
@@ -143,7 +191,7 @@ export function buildDashboardCards(rows) {
   const topBranchSales = sortedBranches[0]?.[1] || 0;
 
   const daySet = new Set(rows.map((item) => dateKey(item.timestamp)));
-  const avgDaily = daySet.size ? totalSales / daySet.size : 0;
+  const avgDaily = daySet.size ? totalSales / daySet.size : totalSales;
 
   return {
     totalSales,
@@ -226,35 +274,27 @@ export function buildAreaPerformance(rows) {
   }));
 }
 
-function detectSelisihStatus(row) {
-  const statusText = String(row["STATUS SELISIH"] || "").trim().toLowerCase();
-  if (statusText.includes("lebih")) return "lebih";
-  if (statusText.includes("kurang")) return "kurang";
-
-  const value = parseLooseNumber(row.SELISIH);
-  if (value > 0) return "lebih";
-  if (value < 0) return "kurang";
-  return "";
-}
-
 export function buildDashboardTableRows(rawRows) {
   const hiddenColumns = new Set([
-    "INPUT KASIR",
-    "KASIR INPUT",
+    "KASIR",
+    "INPUT STAFF",
+    "STAFF INPUT",
     "STATUS SELISIH",
+    "SELISIH",
     "SALDO AKHIR",
-    "UANG KELUAR",
-    "PENGELUARAN",
   ]);
 
   return rawRows.map((row) => {
     const source = { ...row };
-    const status = detectSelisihStatus(source);
 
     if (source["TIME STAMP INPUT"]) {
       source["TIME STAMP INPUT"] = toShortIndonesianDay(source["TIME STAMP INPUT"]);
     } else if (source["TIMESTAMP INPUT"]) {
       source["TIMESTAMP INPUT"] = toShortIndonesianDay(source["TIMESTAMP INPUT"]);
+    }
+
+    if (source.STAFF) {
+      source.STAFF = String(source.STAFF).trim();
     }
 
     const keys = Object.keys(source).filter((key) => !hiddenColumns.has(key.toUpperCase()));
@@ -268,7 +308,6 @@ export function buildDashboardTableRows(rawRows) {
     keys.forEach((key) => {
       ordered[key] = source[key];
     });
-    ordered._selisih_status = status;
     return ordered;
   });
 }

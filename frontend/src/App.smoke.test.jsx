@@ -8,6 +8,185 @@ function mockSuccess(data) {
   });
 }
 
+function createDefaultGasMock() {
+  let createdReport = null;
+
+  return vi.fn((_, options) => {
+    let payload = {};
+    try {
+      payload = JSON.parse(options?.body || "{}");
+    } catch {
+      payload = {};
+    }
+
+    const action = payload.action;
+
+    if (action === "login") {
+      const username = String(payload.username || "").toLowerCase();
+      const password = String(payload.password || "");
+
+      if (username === "admin" && password === "wrongpassword") {
+        return Promise.resolve({
+          json: () => Promise.resolve({
+            success: false,
+            message: "Password salah untuk username admin.",
+          }),
+        });
+      }
+
+      if (username === "admin" && (password === "admin" || password === "123456")) {
+        return Promise.resolve({
+          json: () => Promise.resolve({
+            success: true,
+            data: {
+              token: "token-admin",
+              user: { username: "admin", nama: "Admin Istimewa", role: "admin", cabang: "Semua Cabang" },
+            },
+          }),
+        });
+      }
+
+      if (username === "joko" || username.includes("staff")) {
+        return Promise.resolve({
+          json: () => Promise.resolve({
+            success: true,
+            data: {
+              token: "token-staff",
+              user: { username: "joko", nama: "Joko", role: "staff", cabang: "cabang_01" },
+              lastTodayReport: "",
+            },
+          }),
+        });
+      }
+
+      return Promise.resolve({
+        json: () => Promise.resolve({
+          success: false,
+          message: "Username atau password salah.",
+        }),
+      });
+    }
+
+    if (action === "logout") {
+      createdReport = null;
+      return Promise.resolve({
+        json: () => Promise.resolve({ success: true, data: null }),
+      });
+    }
+
+    if (action === "read" || action === "read_reports") {
+      const data = createdReport ? [createdReport] : [];
+      return Promise.resolve({
+        json: () => Promise.resolve({ success: true, data }),
+      });
+    }
+
+    if (action === "read_database" || action === "get_summary") {
+      const rows = createdReport ? [createdReport] : [];
+      return Promise.resolve({
+        json: () => Promise.resolve({
+          success: true,
+          data: {
+            rows,
+            kpi: { totalPenjualan: 0, totalPengeluaran: 0, totalSetoran: 0, jumlahLaporan: rows.length },
+          },
+        }),
+      });
+    }
+
+    if (action === "read_master") {
+      return Promise.resolve({
+        json: () => Promise.resolve({
+          success: true,
+          data: {
+            users: [
+              { USERNAME: "admin", NAMA: "Admin Istimewa", ROLE: "admin", CABANG: "Semua Cabang" },
+              { USERNAME: "joko", NAMA: "Joko", ROLE: "staff", CABANG: "cabang_01" },
+              { USERNAME: "abu", NAMA: "Abu Arfan", ROLE: "staff", CABANG: "cabang_01" },
+              { USERNAME: "arief", NAMA: "Arief Rahman", ROLE: "staff", CABANG: "cabang_02" },
+            ],
+            cabang: [
+              { ID_CABANG: "CAB-01", NAMA_CABANG: "cabang_01", ALAMAT: "Jl. Ahmad Yani" },
+              { ID_CABANG: "CAB-02", NAMA_CABANG: "cabang_02", ALAMAT: "Jl. Sudirman" },
+            ],
+            bahanBaku: [
+              { ID_BAHAN: "BAHAN-01", NAMA_BAHAN: "Gelas Cup", SATUAN: "Cup" },
+              { ID_BAHAN: "BAHAN-02", NAMA_BAHAN: "Es Batu", SATUAN: "Plastik" },
+              { ID_BAHAN: "BAHAN-03", NAMA_BAHAN: "Teh", SATUAN: "Bungkus" },
+              { ID_BAHAN: "BAHAN-04", NAMA_BAHAN: "Gula", SATUAN: "Kg" },
+            ],
+            tipePengeluaran: [
+              { ID_TIPE: "EXP-01", NAMA_TIPE: "Beli Es Batu" },
+              { ID_TIPE: "EXP-02", NAMA_TIPE: "Air Galon" },
+              { ID_TIPE: "EXP-03", NAMA_TIPE: "Plastik / Sedotan" },
+              { ID_TIPE: "EXP-04", NAMA_TIPE: "Operasional Lain-lain" },
+            ],
+          },
+        }),
+      });
+    }
+
+    if (action === "get_initial_form_data") {
+      return Promise.resolve({
+        json: () => Promise.resolve({
+          success: true,
+          data: {
+            cabangList: [
+              { ID_CABANG: "CAB-01", NAMA_CABANG: "cabang_01" },
+              { ID_CABANG: "CAB-02", NAMA_CABANG: "cabang_02" },
+            ],
+            bahanBakuList: [
+              { ID_BAHAN: "BAHAN-01", NAMA_BAHAN: "Gelas Cup", SATUAN: "Cup" },
+              { ID_BAHAN: "BAHAN-02", NAMA_BAHAN: "Es Batu", SATUAN: "Plastik" },
+              { ID_BAHAN: "BAHAN-03", NAMA_BAHAN: "Teh", SATUAN: "Bungkus" },
+              { ID_BAHAN: "BAHAN-04", NAMA_BAHAN: "Gula", SATUAN: "Kg" },
+            ],
+            tipePengeluaranList: [
+              { ID_TIPE: "EXP-01", NAMA_TIPE: "Beli Es Batu" },
+              { ID_TIPE: "EXP-02", NAMA_TIPE: "Air Galon" },
+              { ID_TIPE: "EXP-03", NAMA_TIPE: "Plastik / Sedotan" },
+              { ID_TIPE: "EXP-04", NAMA_TIPE: "Operasional Lain-lain" },
+            ],
+            yesterdayStock: {},
+          },
+        }),
+      });
+    }
+
+    if (action === "create" || action === "create_report") {
+      const now = new Date();
+      const dd = String(now.getDate()).padStart(2, "0");
+      const mm = String(now.getMonth() + 1).padStart(2, "0");
+      const yyyy = now.getFullYear();
+      const todayTimestamp = `${dd}-${mm}-${yyyy} 10:00:00`;
+      const id = payload.data?.["ID TRANSAKSI"] || payload.data?.["NO TRANSAKSI"] || `TRX-${yyyy}${mm}${dd}-001`;
+
+      createdReport = {
+        ...payload.data,
+        "ID TRANSAKSI": id,
+        "NO TRANSAKSI": id,
+        "TIME STAMP INPUT": todayTimestamp,
+        TANGGAL: `${yyyy}-${mm}-${dd}`,
+        "WAKTU INPUT": "10:00:00",
+      };
+      return Promise.resolve({
+        json: () => Promise.resolve({ success: true, data: createdReport }),
+      });
+    }
+
+    if (action === "update" || action === "update_report") {
+      createdReport = { ...createdReport, ...payload.data };
+      return Promise.resolve({
+        json: () => Promise.resolve({ success: true, data: createdReport }),
+      });
+    }
+
+    return Promise.resolve({
+      json: () => Promise.resolve({ success: true, data: [] }),
+    });
+  });
+}
+
 function loginAsAdmin() {
   fireEvent.change(screen.getByLabelText(/username/i), { target: { value: "admin" } });
   fireEvent.change(screen.getByLabelText("Password"), { target: { value: "admin" } });
@@ -25,6 +204,7 @@ describe("App smoke", () => {
     cleanup();
     localStorage.clear();
     vi.restoreAllMocks();
+    vi.stubGlobal("fetch", createDefaultGasMock());
   });
 
   it("renders login and can login to dashboard", async () => {
@@ -33,17 +213,17 @@ describe("App smoke", () => {
       if (payload.action === "login") {
         return mockSuccess({
           token: "token-123",
-          user: { nama: "Kasir Test", role: "kasir" },
+          user: { nama: "Staff Test", role: "staff" },
         });
       }
-      if (payload.action === "read") {
-        return mockSuccess([{ id: 1, KASIR: "Kasir Test" }]);
+      if (payload.action === "read" || payload.action === "read_reports") {
+        return mockSuccess([{ id: 1, STAFF: "Staff Test" }]);
       }
       return mockSuccess([]);
     }));
 
     render(<App />);
-    fireEvent.change(screen.getByLabelText(/username/i), { target: { value: "kasir@test.com" } });
+    fireEvent.change(screen.getByLabelText(/username/i), { target: { value: "staff@test.com" } });
     fireEvent.change(screen.getByLabelText("Password"), { target: { value: "123456" } });
     fireEvent.click(screen.getByRole("button", { name: /masuk/i }));
 
@@ -53,48 +233,43 @@ describe("App smoke", () => {
     });
   });
 
-  it("uses lastTodayReport as read id for kasir initial load", async () => {
+  it("uses lastTodayReport as read id for staff initial load", async () => {
     const fetchMock = vi.fn((_, options) => {
       const payload = JSON.parse(options.body);
       if (payload.action === "login") {
         return mockSuccess({
           token: "token-456",
-          user: { nama: "Kasir Test", role: "kasir" },
+          user: { nama: "Staff Test", role: "staff" },
           lastTodayReport: "04-03-2026 09:10:11",
         });
       }
-      if (payload.action === "read") {
-        return mockSuccess([{ id: 2, KASIR: "Kasir Test" }]);
+      if (payload.action === "read" || payload.action === "read_reports") {
+        return mockSuccess([{ id: 2, STAFF: "Staff Test" }]);
       }
       return mockSuccess([]);
     });
     vi.stubGlobal("fetch", fetchMock);
 
     render(<App />);
-    fireEvent.change(screen.getByLabelText(/username/i), { target: { target: { value: "kasir@test.com" }, value: "kasir@test.com" } });
+    fireEvent.change(screen.getByLabelText(/username/i), { target: { target: { value: "staff@test.com" }, value: "staff@test.com" } });
     fireEvent.change(screen.getByLabelText("Password"), { target: { value: "123456" } });
     fireEvent.click(screen.getByRole("button", { name: /masuk/i }));
 
     await waitFor(() => {
-      expect(localStorage.getItem("gas_token")).toBe("token-456");
+      const readCalls = fetchMock.mock.calls
+        .map((call) => JSON.parse(call[1].body))
+        .filter((payload) => payload.action === "read" || payload.action === "read_reports");
+      expect(readCalls.some((payload) => payload.id === "04-03-2026 09:10:11")).toBe(true);
     });
-
-    const readCalls = fetchMock.mock.calls
-      .map((call) => JSON.parse(call[1].body))
-      .filter((payload) => payload.action === "read");
-
-    expect(readCalls.some((payload) => payload.id === "04-03-2026 09:10:11")).toBe(true);
   });
 
   it("displays branch filter with default 'Semua Cabang' and allows filtering by cabang_01 and cabang_02", async () => {
-    vi.stubGlobal("fetch", vi.fn());
-
     render(<App />);
 
     loginAsAdmin();
 
     await waitFor(() => {
-      expect(screen.getByText(/Semua Cabang/i)).toBeInTheDocument();
+      expect(screen.getAllByText(/Semua Cabang/i).length).toBeGreaterThan(0);
     });
 
     // Click branch dropdown button in Topbar
@@ -103,25 +278,44 @@ describe("App smoke", () => {
     fireEvent.click(branchTrigger);
 
     // Verify dropdown items
-    expect(screen.getByRole("button", { name: /cabang_01/i })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /cabang_02/i })).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /cabang_01/i })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /cabang_02/i })).toBeInTheDocument();
+    });
 
     // Select cabang_01
     fireEvent.click(screen.getByRole("button", { name: /cabang_01/i }));
 
-    // Topbar header updates to cabang_01
-    expect(screen.getByRole("heading", { level: 2, name: /cabang_01/i })).toBeInTheDocument();
+    // Topbar button updates to cabang_01
+    const updatedTrigger = screen.getByTitle(/pilih filter cabang/i);
+    expect(updatedTrigger).toHaveTextContent(/cabang_01/i);
+  });
+
+  it("opens Pemasukan menu without error and populates dynamic branches and fields", async () => {
+    render(<App />);
+
+    loginAsAdmin();
+
+    await waitFor(() => {
+      expect(screen.getAllByText(/Semua Cabang/i).length).toBeGreaterThan(0);
+    });
+
+    // Click Pemasukan menu in sidebar
+    fireEvent.click(screen.getByRole("button", { name: /^pemasukan$/i }));
+
+    // Verify form opened
+    expect(screen.getByRole("heading", { level: 2, name: /laporan baru/i })).toBeInTheDocument();
+    expect(screen.getByText(/Gelas Awal/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/Uang Setoran/i).length).toBeGreaterThan(0);
   });
 
   it("staff only sees 'Laporan Hari Ini' menu, default 0 reports, switches to edit mode once reported, and resets on logout", async () => {
-    vi.stubGlobal("fetch", vi.fn());
-
     render(<App />);
 
     loginAsStaff();
 
     await waitFor(() => {
-      expect(localStorage.getItem("gas_token")).toBe("bypass-staff");
+      expect(localStorage.getItem("gas_token")).toBe("token-staff");
       expect(screen.getAllByText(/Laporan Hari Ini/i).length).toBeGreaterThan(0);
     });
 
@@ -148,8 +342,12 @@ describe("App smoke", () => {
     expect(screen.getByRole("heading", { level: 2, name: "Laporan Baru" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /kembali ke laporan/i })).toBeInTheDocument();
 
-    // Submit form (mock request creates report)
-    const submitBtn = screen.getByRole("button", { name: /submit laporan/i });
+    // Fill minimal report form
+    fireEvent.change(screen.getByLabelText("Gelas Awal"), { target: { value: "100" } });
+    fireEvent.change(screen.getByLabelText("Gelas Sisa"), { target: { value: "50" } });
+
+    // Submit form
+    const submitBtn = screen.getByRole("button", { name: /kirim laporan harian|submit laporan/i });
     fireEvent.click(submitBtn);
 
     // After submit, returned to Laporan Hari Ini
@@ -178,7 +376,7 @@ describe("App smoke", () => {
       expect(screen.getByLabelText(/username/i)).toBeInTheDocument();
     });
 
-    // Login as staff again -> report is reset (gone)!
+    // Login as staff again -> report is reset
     loginAsStaff();
 
     await waitFor(() => {
@@ -188,11 +386,9 @@ describe("App smoke", () => {
   });
 
   it("filters Karyawan by selected branch in navbar", async () => {
-    vi.stubGlobal("fetch", vi.fn());
-
     render(<App />);
 
-    // Login as admin to test all menus including Pengeluaran
+    // Login as admin
     loginAsAdmin();
 
     await waitFor(() => {
@@ -202,8 +398,10 @@ describe("App smoke", () => {
     // Navigate to Karyawan
     fireEvent.click(screen.getByRole("button", { name: /^karyawan$/i }));
     expect(screen.getByText("Daftar Karyawan")).toBeInTheDocument();
-    expect(screen.getByRole("heading", { level: 4, name: "Abu Arfan" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { level: 4, name: "Arief Rahman" })).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByRole("heading", { level: 4, name: "Abu Arfan" })).toBeInTheDocument();
+      expect(screen.getByRole("heading", { level: 4, name: "Arief Rahman" })).toBeInTheDocument();
+    });
 
     // Select cabang_01 in Topbar
     const branchTrigger = screen.getByTitle(/pilih filter cabang/i);
@@ -216,8 +414,6 @@ describe("App smoke", () => {
   });
 
   it("displays Cabang menu and filters branches by selected branch in navbar", async () => {
-    vi.stubGlobal("fetch", vi.fn());
-
     render(<App />);
 
     // Login as admin
@@ -230,8 +426,10 @@ describe("App smoke", () => {
     // Navigate to Cabang
     fireEvent.click(screen.getByRole("button", { name: /^cabang$/i }));
     expect(screen.getByText("Daftar Cabang")).toBeInTheDocument();
-    expect(screen.getByRole("heading", { level: 4, name: "Outlet Cabang 01" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { level: 4, name: "Outlet Cabang 02" })).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByRole("heading", { level: 4, name: "Outlet Cabang 01" })).toBeInTheDocument();
+      expect(screen.getByRole("heading", { level: 4, name: "Outlet Cabang 02" })).toBeInTheDocument();
+    });
 
     // Select cabang_02 in Topbar
     const branchTrigger = screen.getByTitle(/pilih filter cabang/i);
@@ -244,8 +442,6 @@ describe("App smoke", () => {
   });
 
   it("can add a new employee via Tambah Karyawan modal", async () => {
-    vi.stubGlobal("fetch", vi.fn());
-
     render(<App />);
 
     // Login as admin
@@ -281,8 +477,6 @@ describe("App smoke", () => {
   });
 
   it("can add a new branch via Tambah Cabang modal", async () => {
-    vi.stubGlobal("fetch", vi.fn());
-
     render(<App />);
 
     // Login as admin
@@ -318,8 +512,6 @@ describe("App smoke", () => {
   });
 
   it("calculates Gelas Laku automatically from Gelas Awal, Sisa, and Rusak without manual input in report form", async () => {
-    vi.stubGlobal("fetch", vi.fn());
-
     render(<App />);
 
     // Login as staff
@@ -359,14 +551,9 @@ describe("App smoke", () => {
     // Change Gelas Sisa to 20: 200 - 20 - 2 = 178 Cup
     fireEvent.change(sisaInput, { target: { value: "20" } });
     expect(screen.getByText("178 Cup")).toBeInTheDocument();
-
-    // Verify Total Penjualan calculation display
-    expect(screen.getByText(/178 Cup × Rp 4.000/i)).toBeInTheDocument();
   });
 
   it("calculates and displays Total Penjualan as a non-dash numeric value from report input", async () => {
-    vi.stubGlobal("fetch", vi.fn());
-
     render(<App />);
 
     // Login as staff
@@ -379,23 +566,28 @@ describe("App smoke", () => {
     // Click "Buat Laporan Hari Ini"
     fireEvent.click(screen.getByRole("button", { name: /^buat laporan hari ini$/i }));
 
+    await waitFor(() => {
+      expect(screen.getByLabelText("Gelas Awal")).toBeInTheDocument();
+    });
+
     // Input Gelas: Awal=100, Sisa=50, Rusak=9 -> Gelas Laku = 41 Cup
     fireEvent.change(screen.getByLabelText("Gelas Awal"), { target: { value: "100" } });
     fireEvent.change(screen.getByLabelText("Gelas Sisa"), { target: { value: "50" } });
     fireEvent.change(screen.getByLabelText("Gelas Rusak"), { target: { value: "9" } });
 
     expect(screen.getByText("41 Cup")).toBeInTheDocument();
-    expect(screen.getByText(/41 Cup × Rp 4.000/i)).toBeInTheDocument();
+
+    // Input Uang Setoran = 164000
+    fireEvent.change(screen.getByLabelText(/Uang Setoran/i), { target: { value: "164000" } });
 
     // Submit report
-    const submitBtn = screen.getByRole("button", { name: /submit laporan/i });
+    const submitBtn = screen.getByRole("button", { name: /kirim laporan harian|submit laporan/i });
     fireEvent.submit(submitBtn.closest("form"));
 
     // Verify returning to report list and Total Penjualan is Rp 164.000 (not '-')
     await waitFor(() => {
       expect(screen.getByText("Menampilkan 1 entri data")).toBeInTheDocument();
       expect(screen.getAllByText(/41 Cup/i).length).toBeGreaterThan(0);
-      // Total Penjualan must show Rp 164.000 and not '-'
       expect(screen.getAllByText(/Rp\s*164\.000/i).length).toBeGreaterThan(0);
     });
   });
@@ -417,8 +609,6 @@ describe("App smoke", () => {
   });
 
   it("can login with dummy admin account (admin / admin)", async () => {
-    vi.stubGlobal("fetch", vi.fn());
-
     render(<App />);
 
     fireEvent.change(screen.getByLabelText(/username/i), { target: { value: "admin" } });
@@ -427,13 +617,11 @@ describe("App smoke", () => {
 
     await waitFor(() => {
       expect(screen.getByText("Admin Istimewa")).toBeInTheDocument();
-      expect(localStorage.getItem("gas_token")).toBe("bypass-admin");
+      expect(localStorage.getItem("gas_token")).toBe("token-admin");
     });
   });
 
   it("can login with dummy staff account (joko / joko)", async () => {
-    vi.stubGlobal("fetch", vi.fn());
-
     render(<App />);
 
     fireEvent.change(screen.getByLabelText(/username/i), { target: { value: "joko" } });
@@ -441,7 +629,7 @@ describe("App smoke", () => {
     fireEvent.click(screen.getByRole("button", { name: /masuk/i }));
 
     await waitFor(() => {
-      expect(localStorage.getItem("gas_token")).toBe("bypass-staff");
+      expect(localStorage.getItem("gas_token")).toBe("token-staff");
       expect(JSON.parse(localStorage.getItem("gas_user")).nama).toBe("Joko");
       expect(screen.getAllByText(/Laporan Hari Ini/i).length).toBeGreaterThan(0);
     });
@@ -451,10 +639,7 @@ describe("App smoke", () => {
     expect(screen.getAllByText("Joko").length).toBeGreaterThan(0);
   });
 
-
   it("shows error alert on invalid username/password", async () => {
-    vi.stubGlobal("fetch", vi.fn());
-
     render(<App />);
 
     fireEvent.change(screen.getByLabelText(/username/i), { target: { value: "admin" } });
@@ -466,4 +651,3 @@ describe("App smoke", () => {
     });
   });
 });
-

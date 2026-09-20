@@ -28,6 +28,7 @@ export default function App() {
   const {
     reportRows,
     dbRows,
+    masterData,
     loading: dataLoading,
     message: dataMessage,
     error: dataError,
@@ -143,6 +144,7 @@ export default function App() {
       error={error}
       reportRows={reportRows}
       dbRows={dbRows}
+      masterData={masterData}
       onRefreshMonthly={(period) => loadData({ monthly: isAdmin, period })}
       onRefreshAll={() => loadData({ monthly: false })}
       onCreateReport={createReport}

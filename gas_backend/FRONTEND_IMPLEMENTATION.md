@@ -71,12 +71,12 @@ export async function login(email, password) {
 }
 ```
 
-Catatan login role `kasir`:
+Catatan login role `staff`:
 
 - Backend mengirim `lastTodayReport` berupa string dari kolom `laporan` di tab `Sessions`.
 - Nilai hanya dikirim jika tanggal laporan sama dengan hari ini; jika tidak ada maka `null`.
 
-Contoh response login kasir:
+Contoh response login staff:
 
 ```json
 {
@@ -84,13 +84,13 @@ Contoh response login kasir:
   "message": "Login success",
   "data": {
     "token": "...",
-    "expiresAt": "04-03-2026 23:59:59",
+    "expiresAt": "2026-03-04 23:59:59",
     "user": {
-      "email": "kasir@contoh.com",
-      "nama": "Kasir 1",
-      "role": "kasir"
+      "username": "joko",
+      "nama": "Joko",
+      "role": "staff"
     },
-    "lastTodayReport": "04-03-2026 09:10:11"
+    "lastTodayReport": "TRX-20260304-cabang_01"
   }
 }
 ```
@@ -178,7 +178,7 @@ const created = await apiRequest(
     data: {
       SHIFT: "Pagi",
       "ARUS DANA": "KAMPUNG SATU",
-      KASIR: "Abdul",
+      STAFF: "Abdul",
       "GELAS MASUK": 120,
       "GELAS LAKU": 100,
       "GELAS RUSAK": 0,
@@ -200,7 +200,7 @@ const createdDb = await apiRequest(
       "TIMESTAMP INPUT":"Minggu, 1 Maret 2026 22.22.26",
       SHIFT: "Sore",
       "ARUS DANA": "KAMPUNG DUA",
-      KASIR: "Admin",
+      STAFF: "Admin",
       KETERANGAN: "Input manual admin",
       "UANG KELUAR": 100000,
     },
@@ -239,7 +239,7 @@ Tangani pesan backend langsung untuk UX:
 - `Missing Bearer token`
 - `Session not found or revoked`
 - `Token expired`
-- `Forbidden action for kasir`
+- `Forbidden action for staff`
 - `Monthly filter is admin-only`
 - `Data not found`
 

@@ -3,7 +3,7 @@ const ERROR_MAP = [
   { match: /session not found|session.*revoked|token expired/i, message: "Session habis. Silakan login ulang." },
   { match: /forbidden action|admin-only|forbidden role/i, message: "Akses ditolak. Fitur ini khusus admin." },
   { match: /failed to fetch|network|koneksi internet/i, message: "Gagal terhubung ke server. Cek koneksi dan deploy GAS." },
-  { match: /invalid json|response.*json|response.*valid/i, message: "Response server tidak valid. Coba beberapa saat lagi." },
+  { match: /invalid json|bukan json|tidak valid|response.*json/i, message: "Server sedang sinkronisasi data. Silakan coba klik MASUK sekali lagi." },
 ];
 
 export function mapApiErrorMessage(rawMessage, fallback = "Terjadi kesalahan. Silakan coba lagi.") {

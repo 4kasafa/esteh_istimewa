@@ -1,412 +1,61 @@
-# Gas Backend API (Google Apps Script)
+# Gas Backend API (Google Apps Script) - Es Teh Istimewa
 
-Backend ini menyediakan API transaksi kasir berbasis Google Apps Script + Google Spreadsheet.
+Backend ini menyediakan API modular berbasis Google Apps Script dengan arsitektur **Master Spreadsheet Terpusat + File Transaksi Bulanan Terpisah Otomatis di Google Drive**.
 
-Target utama dokumentasi ini: frontend bisa integrasi cepat tanpa perlu baca source code.
+## 1. Arsitektur Google Drive & Google Sheets
 
-## Ringkasan
-
-- Runtime: Google Apps Script (V8)
-- Data store: Google Spreadsheet
-- Auth: token session per login
-- Role:
-  - `admin`: akses penuh
-  - `kasir`: create/read/update terbatas
-- Format response konsisten:
-
-```json
-{
-  "success": true,
-  "message": "...",
-  "data": {}
-}
+```
+Folder Google Drive Proyek:
+ ├── [FILE 1] Master_Esteh (Spreadsheet Master Utama)
+ │    ├── User                  (Akun login: ID, NAMA / USERNAME, NO. TELEPON, PASSWORD, ROLE [Admin/Staff], STATUS [Aktif/Non Aktif])
+ │    ├── Cabang                (Daftar seluruh cabang/outlet aktif: ID_CABANG, NAMA_CABANG, ALAMAT, STATUS)
+ │    ├── Bahan_Baku            (Master bahan baku: ID_BAHAN, NAMA_BAHAN, SATUAN)
+ │    ├── Tipe_Pengeluaran      (Master kategori biaya: ID_TIPE, NAMA_TIPE)
+ │    ├── Sumber_Pemasukan      (Daftar sumber pemasukan: ID_SUMBER, NAMA_SUMBER, STATUS)
+ │    ├── List_File_Bulanan     (Katalog ID file spreadsheet bulanan yang otomatis dibuat sistem)
+ │    └── Sessions              (Manajemen token autentikasi & sesi login aktif)
+ │
+ ├── [FILE 2] Esteh - Laporan Bulanan 2026-03 (Otomatis dibuat oleh GAS di folder yang sama)
+ │    ├── Transaksi             (Pemasukan setoran & penjualan harian staff, 1 baris per laporan)
+ │    ├── Pengeluaran           (Itemized rincian pengeluaran operasional per transaksi)
+ │    ├── Rekapitulasi          (Formula SUMIFS per cabang & SUMIF pengeluaran bulan tersebut)
+ │    └── Log_Aplikasi          (Catatan aktivitas input & modifikasi sistem)
+ │
+ └── [FILE 3] Esteh - Laporan Bulanan YYYY-MM (Otomatis dibuat saat memasuki bulan baru)
 ```
 
-## Struktur File (Refactor)
-
-- `Code.js`: route utama + flow request (`doGet`, `doPost`, handler inti)
-- `Auth.js`: login/logout, validasi token, role permission, session helper
-- `DatabaseService.js`: sinkronisasi dan baca tab `Database`
-- `CalculationService.js`: kalkulasi otomatis (`stok`, `nota`, `uang masuk`)
-- `CommonUtils.js`: util umum (sanitize, parse number/date, json response)
-- `SheetUtils.js`: util spreadsheet/payload/header mapping
-- `Config.js`: konfigurasi Spreadsheet dan header
-- `appsscript.json`: Apps Script manifest
-
-## Konfigurasi
-
-Edit `Config.js`:
-
-- `SPREADSHEET_ID`
-- `SHEET_NAME` (default `Rincian`)
-- `DATABASE_SHEET_NAME` (default `Database`)
-- `HEADER_ROW` (default `1`)
-- `ID_COLUMN_INDEX` (default `1`)
-
-## Kebutuhan Sheet
-
-### 1) `Rincian`
-
-- Dibuat otomatis jika belum ada.
-- Header default diambil dari `APP_CONFIG.DEFAULT_HEADERS` jika header kosong.
-- ID data ada di kolom sesuai `ID_COLUMN_INDEX` (umumnya `NO TRANSAKSI`).
-
-### 2) `User`
-
-Header wajib:
-
-- `Email`
-- `Sandi`
-- `Role`
-- `Nama`
-
-### 3) `Sessions`
-
-Header wajib:
-
-- `token`
-- `email`
-- `role`
-- `createAt`
-- `expireAt`
-- `laporan`
-- `status`
-
-### 4) `Database`
-
-Minimal wajib:
-
-- `TIME STAMP INPUT`
-- `SHIFT`
-- `ARUS DANA`
-- `KASIR`
-
-Kolom kompatibel yang akan diisi jika tersedia:
-
-- `KETERANGAN`
-- `PENGELUARAN`
-- `UANG MASUK` / `UNAG MASUK`
-- `TOTAL NOTA` / `UANG LAKU` / `INPUT KASIR`
-- `UANG KELUAR`
-
-Catatan penting:
-
-- Kolom formula seperti `SELISIH` / `STATUS SELISIH` tidak diisi manual oleh backend.
-- Backend menjaga agar tidak bentrok dengan `ARRAYFORMULA`.
-
-## Base URL
-
-Setelah deploy Web App, kamu akan dapat URL seperti:
-
-`https://script.google.com/macros/s/<DEPLOYMENT_ID>/exec`
-
-Gunakan URL ini sebagai base API frontend.
-
-## Autentikasi
-
-### Login
-
-`POST` dengan body:
-
-```json
-{
-  "action": "login",
-  "email": "admin@contoh.com",
-  "password": "rahasia"
-}
-```
-
-Response sukses:
-
-```json
-{
-  "success": true,
-  "message": "Login success",
-  "data": {
-    "token": "...",
-    "expiresAt": "01-03-2026 23:59:59",
-    "user": {
-      "email": "admin@contoh.com",
-      "nama": "Admin",
-      "role": "admin"
-    }
-  }
-}
-```
-
-Khusus role `kasir`, response login juga menyertakan laporan terakhir hari ini (jika ada):
-
-```json
-{
-  "success": true,
-  "message": "Login success",
-  "data": {
-    "token": "...",
-    "expiresAt": "01-03-2026 23:59:59",
-    "user": {
-      "email": "kasir@contoh.com",
-      "nama": "Kasir 1",
-      "role": "kasir"
-    },
-    "lastTodayReport": {
-      "NO TRANSAKSI": "01-03-2026 22:22:26",
-      "SHIFT": "Pagi",
-      "ARUS DANA": "KAMPUNG SATU"
-    }
-  }
-}
-```
-
-### Kirim token ke request lain
-
-Bisa salah satu:
-
-- `authorization: "Bearer <token>"`
-- `Authorization: "Bearer <token>"`
-- `token: "<token>"`
-
-## Endpoint API
-
-### 1) `create`
-
-- Method: `POST`
-- Auth: wajib
-- Role: `admin`, `kasir`
-- Efek:
-  - insert ke `Rincian`
-  - sinkron ke `Database`
-  - kalkulasi otomatis dijalankan
-
-Contoh:
-
-```json
-{
-  "action": "create",
-  "authorization": "Bearer <token>",
-  "data": {
-    "SHIFT": "Pagi",
-    "ARUS DANA": "KAMPUNG SATU",
-    "KASIR": "Abdul",
-    "GELAS MASUK": 120,
-    "GELAS LAKU": 100,
-    "GELAS RUSAK": 0,
-    "Rp 100.000": 1,
-    "Rp 50.000": 2,
-    "Rp 20.000": 3,
-    "Rp 10.000": 4,
-    "Rp 5.000": 1
-  }
-}
-```
-
-### 2) `read`
-
-- Method: `POST` (disarankan), `GET` juga didukung
-- Auth: wajib
-- Role: `admin`, `kasir`
-- Query/body:
-  - tanpa `id` => list
-  - dengan `id` => detail
-  - dengan `id` format `MM-yyyy` / `yyyy-MM` => list bulanan (admin only, tanpa query filter tambahan)
-  - filter bulanan (admin only) berdasarkan kolom ID timestamp (`NO TRANSAKSI`):
-    - opsi 1: `month` + `year` (contoh: `month=3&year=2026`)
-    - opsi 2: `period` format `yyyy-MM` atau `MM-yyyy` (contoh: `period=2026-03`)
-
-Contoh POST (list):
-
-```json
-{
-  "action": "read",
-  "authorization": "Bearer <token>"
-}
-```
-
-Contoh POST (bulanan):
-
-```json
-{
-  "action": "read",
-  "authorization": "Bearer <admin_token>",
-  "period": "2026-03"
-}
-```
-
-Contoh POST (bulanan via `id` lama):
-
-```json
-{
-  "action": "read",
-  "authorization": "Bearer <admin_token>",
-  "id": "03-2026"
-}
-```
-
-### 3) `read_database`
-
-- Method: `POST` (disarankan), `GET` juga didukung
-- Auth: wajib
-- Role: `admin` only
-- Query/body:
-  - tanpa `id` => list data tab `Database`
-  - dengan `id` => detail by `TIME STAMP INPUT`
-  - dengan `id` format `MM-yyyy` / `yyyy-MM` => list bulanan (admin only)
-  - filter bulanan berdasarkan `TIME STAMP INPUT`:
-    - opsi 1: `month` + `year`
-    - opsi 2: `period` format `yyyy-MM` atau `MM-yyyy`
-
-Contoh POST (list):
-
-```json
-{
-  "action": "read_database",
-  "authorization": "Bearer <token>"
-}
-```
-
-Contoh POST (bulanan):
-
-```json
-{
-  "action": "read_database",
-  "authorization": "Bearer <admin_token>",
-  "month": 3,
-  "year": 2026
-}
-```
-
-Contoh POST (bulanan via `id`):
-
-```json
-{
-  "action": "read_database",
-  "authorization": "Bearer <admin_token>",
-  "id": "2026-03"
-}
-```
-
-### 4) `update`
-
-- Method: `POST`
-- Auth: wajib
-- Role: `admin`, `kasir` (kasir terbatas data miliknya)
-- Field wajib: `id`
-- Efek:
-  - update `Rincian`
-  - sinkron patch ke `Database` (hanya kolom terkait, tidak overwrite full row)
-
-Contoh:
-
-```json
-{
-  "action": "update",
-  "authorization": "Bearer <token>",
-  "id": "Minggu, 2026 Maret 01 12.48.78",
-  "data": {
-    "GELAS LAKU": 110
-  }
-}
-```
-
-### 5) `logout`
-
-- Method: `POST`
-- Auth: wajib
-- Efek: session di-revoke
-
-```json
-{
-  "action": "logout",
-  "authorization": "Bearer <token>"
-}
-```
-
-## Aturan Bisnis Utama
-
-- Kasir hanya boleh 1 laporan per hari.
-- Login ulang di hari yang sama akan mewarisi referensi laporan hari itu di session baru.
-- `UANG KELUAR` hanya untuk admin (kasir tidak boleh isi > 0).
-- Input kosong (`""`) dianggap tidak mengubah field.
-- Data pada sheet `Sessions` dibersihkan otomatis via trigger Apps Script setiap 7 hari jam 01:00.
-- Jalankan fungsi `setupSessionCleanupTrigger_()` sekali (manual dari editor Apps Script) setelah deploy/update script.
-- Retensi data dan jadwal bisa diatur lewat `APP_CONFIG.SESSION_RETENTION_DAYS`, `APP_CONFIG.SESSION_CLEANUP_INTERVAL_DAYS`, `APP_CONFIG.SESSION_CLEANUP_HOUR`.
-- Beberapa field dihitung otomatis, termasuk:
-  - `STOK AWAL GELAS` (dari laporan terakhir `ARUS DANA` sama)
-  - `STOK AKHIR GELAS`
-  - `TOTAL NOTA` (`GELAS LAKU * 3000`)
-  - `UNAG/UANG MASUK` (total denominasi)
-
-## Frontend Quick Start
-
-Contoh helper `fetch`:
-
-```js
-const API_URL = "https://script.google.com/macros/s/<DEPLOYMENT_ID>/exec";
-
-async function apiRequest(body, token) {
-  const payload = {
-    ...body,
-    ...(token ? { authorization: `Bearer ${token}` } : {}),
-  };
-
-  const res = await fetch(API_URL, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
-
-  const json = await res.json();
-  if (!json.success) throw new Error(json.message || "Request failed");
-  return json.data;
-}
-```
-
-Contoh login + read:
-
-```js
-const loginData = await apiRequest({
-  action: "login",
-  email: "admin@contoh.com",
-  password: "rahasia",
-});
-
-const token = loginData.token;
-
-const listRincian = await apiRequest({ action: "read" }, token);
-const listDatabase = await apiRequest({ action: "read_database" }, token);
-```
-
-## Error Handling Frontend
-
-Gunakan pola:
-
-1. Cek HTTP/network error.
-2. Parse JSON.
-3. Cek `success === true`.
-4. Tampilkan `message` saat gagal.
-
-Error umum:
-
-- `Missing Bearer token`
-- `Session not found or revoked`
-- `Token expired`
-- `Forbidden action for kasir`
-- `Field 'id' is required`
-- `Data not found`
-
-## Deploy
-
-1. `clasp login`
-2. `clasp push`
-3. Deploy Web App di Apps Script
-4. Pakai URL deploy sebagai API URL frontend
-
-Pastikan `.claspignore` sudah meng-include file berikut:
-
-- `Code.js`
-- `Config.js`
-- `Auth.js`
-- `DatabaseService.js`
-- `CalculationService.js`
-- `CommonUtils.js`
-- `SheetUtils.js`
-- `appsscript.json`
+## 2. Struktur Modul Backend
+
+- `Config.js`: Konfigurasi SPREADSHEET_ID master, zona waktu Asia/Jakarta, session TTL, default master data.
+- `ResponseHelper.js`: Helper format JSON response seragam (`{ success, data, message, timestamp }`), sanitizer, parser angka/tanggal.
+- `SheetRepository.js`: Gateway I/O Master Spreadsheet & pembuat File Bulanan otomatis di Google Drive dengan formula Rekapitulasi otomatis.
+- `AuthService.js`: Autentikasi Username & Password, Session token UUID di tab Sessions, role guard (admin / staff).
+- `MasterService.js`: CRUD data master (User, Cabang, Bahan Baku, Tipe Pengeluaran, Sumber Pemasukan) dengan auto-sync & proteksi paste multi-baris.
+- `TransactionService.js`: Handler form data staff, simpan/edit laporan harian, kalkulasi Penjualan = Setoran + Pengeluaran, sinkronisasi tab Pengeluaran, bahan baku dinamis, dan pencatatan Log_Aplikasi.
+- `SummaryService.js`: Agregasi ringkasan omset, pengeluaran, setoran, dan pemakaian bahan untuk Dashboard Owner.
+- `Setup.js`: Fungsi 1-klik `setupMasterSpreadsheet()` untuk menginisialisasi 7 tab Master sekaligus beserta data validasi dropdown.
+- `Code.js`: Router utama `doGet` dan `doPost`.
+
+## 3. Rumus & Logika Finansial
+
+- **`Uang Setoran`**: Uang tunai fisik yang disetor saat tutup shift/toko.
+- **`Pengeluaran Hari Itu`**: Total belanja operasional outlet (mendukung multiple item tercatat di tab Pengeluaran).
+- **`Hasil Penjualan Hari Itu (Omset)`** = `Uang Setoran` + `Total Pengeluaran`.
+- **`Stok Bahan Baku`**: `Terpakai = Stok Awal - Stok Sisa`.
+- **`Hasil Bersih (Rekapitulasi)`** = `Total Pemasukan` - `Total Pengeluaran`.
+
+## 4. Daftar Endpoint API (POST JSON)
+
+| Action | Keterangan | Payload Utama |
+|---|---|---|
+| `login` | Autentikasi user | `{ action: "login", username, password }` |
+| `logout` | Revoke sesi aktif | `{ action: "logout" }` |
+| `get_initial_form_data` | Ambil data form staff & sisa stok kemarin | `{ action: "get_initial_form_data", cabang }` |
+| `create_report` / `create` | Simpan laporan harian ke spreadsheet bulanan | `{ action: "create_report", data: { cabang, tanggal, uangSetoran, pengeluaranList, stokBahan, keterangan } }` |
+| `update_report` / `update` | Perbarui laporan harian | `{ action: "update_report", id, data: { ... } }` |
+| `read_reports` / `read` | Baca daftar transaksi laporan periode tertentu | `{ action: "read_reports", period: "YYYY-MM", cabang, id }` |
+| `get_summary` / `read_database` | Ambil KPI & agregasi untuk Dashboard Owner | `{ action: "get_summary", period: "YYYY-MM", cabang }` |
+| `read_master` | Baca seluruh entitas master (Admin only) | `{ action: "read_master" }` |
+| `update_master` | Tambah/Edit/Hapus data master (Admin only) | `{ action: "update_master", target, operation, data }` |
+| `refresh_rekap` | Regenerasi formula tab Rekapitulasi bulanan | `{ action: "refresh_rekap", period: "YYYY-MM" }` |
+| `setup` | Inisialisasi tab Master Spreadsheet awal | `{ action: "setup" }` |

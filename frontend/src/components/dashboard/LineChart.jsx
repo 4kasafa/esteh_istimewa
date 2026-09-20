@@ -84,7 +84,7 @@ export default function LineChart({ data }) {
             <svg
               ref={svgRef}
               viewBox={`0 0 ${width} ${height}`}
-              className="w-full h-52 sm:h-56 xl:h-44 2xl:h-52 touch-none"
+              className="w-full h-36 sm:h-48 xl:h-40 2xl:h-48 touch-none"
               onPointerDown={handlePointerDown}
               onPointerMove={handlePointerMove}
               onPointerLeave={() => {

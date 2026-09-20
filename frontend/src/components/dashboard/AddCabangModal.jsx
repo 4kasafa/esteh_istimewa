@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Store, X } from "lucide-react";
 
-export default function AddCabangModal({ open, onClose, onSave, nextBranchIndex = 3 }) {
+export default function AddCabangModal({ open, onClose, onSave, nextBranchIndex = 1 }) {
   const defaultKode = `cabang_${String(nextBranchIndex).padStart(2, "0")}`;
   const defaultNama = `Outlet Cabang ${String(nextBranchIndex).padStart(2, "0")}`;
 
@@ -11,9 +11,9 @@ export default function AddCabangModal({ open, onClose, onSave, nextBranchIndex 
     alamat: "",
     penanggungJawab: "",
     telepon: "",
-    jamOperasional: "08:00 - 22:00 WITA",
+    jamOperasional: "08:00 - 22:00",
     status: "Aktif",
-    kapasitas: "500 Cup / Hari",
+    kapasitas: "",
   });
   const [error, setError] = useState("");
 
@@ -43,11 +43,11 @@ export default function AddCabangModal({ open, onClose, onSave, nextBranchIndex 
       alamat: form.alamat.trim() || "Alamat belum diatur",
       penanggungJawab: form.penanggungJawab.trim() || "-",
       telepon: form.telepon.trim() || "-",
-      jamOperasional: form.jamOperasional.trim() || "08:00 - 22:00 WITA",
+      jamOperasional: form.jamOperasional.trim() || "08:00 - 22:00",
       status: form.status,
       jumlahStaff: 0,
       tanggalBuka: todayStr,
-      kapasitas: form.kapasitas.trim() || "500 Cup / Hari",
+      kapasitas: form.kapasitas.trim() || "-",
       fasilitas: ["Take Away", "QRIS Payment"],
     };
 
@@ -136,9 +136,8 @@ export default function AddCabangModal({ open, onClose, onSave, nextBranchIndex 
                 onChange={(e) => setForm((prev) => ({ ...prev, status: e.target.value }))}
                 className="w-full rounded-xl border border-brand-green/15 bg-brand-bg/50 px-3.5 py-2.5 text-xs font-bold text-brand-green-dark focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-green/20 transition"
               >
-                <option value="Aktif">Aktif (Buka)</option>
-                <option value="Persiapan">Persiapan (Coming Soon)</option>
-                <option value="Tutup">Tutup Sementara</option>
+                <option value="Aktif">Aktif</option>
+                <option value="Non Aktif">Non Aktif</option>
               </select>
             </div>
 
@@ -149,7 +148,7 @@ export default function AddCabangModal({ open, onClose, onSave, nextBranchIndex 
               </label>
               <textarea
                 rows={2}
-                placeholder="Jl. Pattimura No. 45, Tarakan Tengah"
+                placeholder="Jl. Ahmad Yani No. 12"
                 value={form.alamat}
                 onChange={(e) => setForm((prev) => ({ ...prev, alamat: e.target.value }))}
                 className="w-full rounded-xl border border-brand-green/15 bg-brand-bg/50 px-3.5 py-2.5 text-xs font-bold text-brand-green-dark focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-green/20 transition resize-none"

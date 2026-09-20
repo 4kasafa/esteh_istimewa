@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Building2,
   Calendar,
@@ -12,24 +12,121 @@ import {
   Store,
   User,
 } from "lucide-react";
-import { addMockCabang, getMockCabang } from "../../services/mockData";
 import AddCabangModal from "./AddCabangModal";
 
-export default function CabangPanel({ selectedBranch = "Semua" }) {
+function normalizeCabang(c, defaultIndex = 0) {
+  if (!c || typeof c !== "object") {
+    return {
+      id: `CAB-${defaultIndex}`,
+      kode: "cabang_01",
+      nama: "Cabang Utama",
+      alamat: "-",
+      status: "Aktif",
+      penanggungJawab: "-",
+      telepon: "-",
+      jumlahStaff: 0,
+    };
+  }
+  const rawName = String(c.NAMA_CABANG || c.nama || "Cabang");
+  const displayName = rawName.toLowerCase().startsWith("cabang_")
+    ? `Outlet ${rawName.replace("_", " ").replace(/\b\w/g, (l) => l.toUpperCase())}`
+    : rawName;
+
+  const rawStatus = String(c.STATUS || c.status || "Aktif").trim();
+  const status = (rawStatus.toLowerCase() === "non aktif" || rawStatus.toLowerCase() === "nonaktif") ? "Non Aktif" : "Aktif";
+
+  return {
+    id: String(c.ID_CABANG || c.id || `CAB-${c._rowIndex || defaultIndex}`),
+    kode: String(c.NAMA_CABANG || c.kode || "cabang_01"),
+    nama: displayName,
+    alamat: String(c.ALAMAT || c.alamat || "-"),
+    status,
+    penanggungJawab: String(c.PENANGGUNG_JAWAB || c.penanggungJawab || "-"),
+    telepon: String(c.TELEPON || c.telepon || "-"),
+    jumlahStaff: Number(c.JUMLAH_STAFF || c.jumlahStaff) || 0,
+  };
+}
+
+export default function CabangPanel({ selectedBranch = "Semua", request }) {
   const [search, setSearch] = useState("");
-  const [cabangList, setCabangList] = useState(() => getMockCabang());
+  const [cabangList, setCabangList] = useState(() => {
+    try {
+      const stored = localStorage.getItem("esteh_cabang_list");
+      if (!stored) return [];
+      const parsed = JSON.parse(stored);
+      return Array.isArray(parsed) ? parsed.map((c, idx) => normalizeCabang(c, idx)) : [];
+    } catch {
+      return [];
+    }
+  });
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
+  useEffect(() => {
+    if (!request) return;
+    let isMounted = true;
+      request({ action: "read_master" })
+      .then((res) => {
+        if (!isMounted || !Array.isArray(res?.cabang)) return;
+        const mapped = res.cabang.map((c, idx) => normalizeCabang(c, idx));
+        setCabangList(mapped);
+        try {
+          localStorage.setItem("esteh_cabang_list", JSON.stringify(mapped));
+        } catch {
+          /* ignore storage write error */
+        }
+      })
+      .catch(() => {});
+    return () => { isMounted = false; };
+  }, [request]);
+
   const handleSaveCabang = useCallback((newCabang) => {
-    const updated = addMockCabang(newCabang);
-    setCabangList(updated);
-  }, []);
+    const nextItem = {
+      ...newCabang,
+      id: `CAB-${String(Date.now()).slice(-3)}`,
+      status: newCabang.status || "Aktif",
+      jumlahStaff: 0,
+    };
+    setCabangList((prev) => {
+      const updated = [...prev, nextItem];
+      try {
+        localStorage.setItem("esteh_cabang_list", JSON.stringify(updated));
+      } catch (err) {
+        console.error(err);
+      }
+      return updated;
+    });
+
+    if (request) {
+      request({
+        action: "update_master",
+        target: "cabang",
+        operation: "create",
+        data: {
+          ID_CABANG: nextItem.id,
+          NAMA_CABANG: nextItem.kode || nextItem.nama,
+          ALAMAT: nextItem.alamat,
+          STATUS: nextItem.status || "Aktif",
+        },
+      }).catch((err) => console.warn("Sync master cabang error:", err));
+    }
+  }, [request]);
 
   const filteredCabang = useMemo(() => {
     return cabangList.filter((c) => {
+      if (!c) return false;
+      const kode = String(c.kode || "").toLowerCase();
+      const nama = String(c.nama || "").toLowerCase();
+      const alamat = String(c.alamat || "").toLowerCase();
+      const penanggungJawab = String(c.penanggungJawab || "").toLowerCase();
+
       // Filter by navbar selected branch
       if (selectedBranch && selectedBranch.toLowerCase() !== "semua") {
-        if (c.kode.toLowerCase() !== selectedBranch.toLowerCase()) {
+        const sel = selectedBranch.toLowerCase();
+        if (
+          kode !== sel &&
+          nama !== sel &&
+          !nama.includes(sel)
+        ) {
           return false;
         }
       }
@@ -38,17 +135,17 @@ export default function CabangPanel({ selectedBranch = "Semua" }) {
       if (!search.trim()) return true;
       const q = search.toLowerCase();
       return (
-        c.nama.toLowerCase().includes(q) ||
-        c.kode.toLowerCase().includes(q) ||
-        c.alamat.toLowerCase().includes(q) ||
-        c.penanggungJawab.toLowerCase().includes(q)
+        nama.includes(q) ||
+        kode.includes(q) ||
+        alamat.includes(q) ||
+        penanggungJawab.includes(q)
       );
     });
   }, [cabangList, search, selectedBranch]);
 
   const stats = useMemo(() => {
     const total = cabangList.length;
-    const aktif = cabangList.filter((c) => c.status.toLowerCase() === "aktif").length;
+    const aktif = cabangList.filter((c) => String(c?.status || "").toLowerCase() === "aktif").length;
     return { total, aktif };
   }, [cabangList]);
 
@@ -62,7 +159,7 @@ export default function CabangPanel({ selectedBranch = "Semua" }) {
               Total Outlet Cabang
             </p>
             <h3 className="mt-2 text-2xl font-black text-brand-green-dark">{stats.total} Cabang</h3>
-            <p className="mt-1 text-[11px] font-semibold text-brand-muted">cabang_01 & cabang_02</p>
+            <p className="mt-1 text-[11px] font-semibold text-brand-muted">{stats.total > 0 ? `${stats.aktif} dari ${stats.total} cabang aktif` : "Belum ada cabang"}</p>
           </div>
           <div className="rounded-2xl bg-brand-green/10 p-3 text-brand-green">
             <Store size={20} />
@@ -75,7 +172,7 @@ export default function CabangPanel({ selectedBranch = "Semua" }) {
               Status Operasional
             </p>
             <h3 className="mt-2 text-2xl font-black text-emerald-600">{stats.aktif} Beroperasi</h3>
-            <p className="mt-1 text-[11px] font-semibold text-brand-muted">Semua outlet buka</p>
+            <p className="mt-1 text-[11px] font-semibold text-brand-muted">Outlet aktif melayani</p>
           </div>
           <div className="rounded-2xl bg-emerald-500/10 p-3 text-emerald-600">
             <CheckCircle2 size={20} />
@@ -85,13 +182,13 @@ export default function CabangPanel({ selectedBranch = "Semua" }) {
         <div className="rounded-3xl border border-brand-green/10 bg-white p-4 sm:p-5 card-shadow flex items-start justify-between">
           <div>
             <p className="text-[10px] sm:text-[11px] font-black uppercase tracking-wider text-brand-muted">
-              Kapasitas Total
+              Lokasi Terdata
             </p>
-            <h3 className="mt-2 text-2xl font-black text-brand-green-dark">1.000 Cup / Hari</h3>
-            <p className="mt-1 text-[11px] font-semibold text-brand-muted">Estimasi produksi teh</p>
+            <h3 className="mt-2 text-2xl font-black text-brand-green-dark">{cabangList.filter((c) => c.alamat && c.alamat !== "-").length} Lokasi</h3>
+            <p className="mt-1 text-[11px] font-semibold text-brand-muted">Alamat outlet terverifikasi</p>
           </div>
           <div className="rounded-2xl bg-brand-yellow/20 p-3 text-amber-700">
-            <Coffee size={20} />
+            <Store size={20} />
           </div>
         </div>
       </div>
@@ -154,7 +251,7 @@ export default function CabangPanel({ selectedBranch = "Semua" }) {
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex items-center gap-3.5">
-                    <div className="h-12 w-12 rounded-2xl bg-gradient-to-tr from-brand-green to-emerald-400 text-white flex items-center justify-center shadow-md shadow-brand-green/20 shrink-0">
+                    <div className="h-12 w-12 rounded-2xl bg-linear-to-tr from-brand-green to-emerald-400 text-white flex items-center justify-center shadow-md shadow-brand-green/20 shrink-0">
                       <Store size={24} />
                     </div>
                     <div>

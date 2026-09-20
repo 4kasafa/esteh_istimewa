@@ -9,12 +9,12 @@ Dokumen ini berisi langkah uji endpoint satu per satu di Postman dengan assertio
    - `base_url` = URL web app GAS, contoh `https://script.google.com/macros/s/<DEPLOYMENT_ID>/exec`
    - `admin_email`
    - `admin_password`
-   - `kasir_email`
-   - `kasir_password`
+   - `staff_email`
+   - `staff_password`
    - `admin_token` (kosongkan dulu)
-   - `kasir_token` (kosongkan dulu)
+   - `staff_token` (kosongkan dulu)
    - `created_id` (kosongkan dulu)
-3. Pastikan sheet `User`, `Sessions`, `Rincian`, `Database` sudah sesuai kebutuhan di README.
+3. Pastikan tab master di Master Spreadsheet sudah sesuai kebutuhan di README.
 
 ## 2) Struktur Collection
 
@@ -55,7 +55,7 @@ pm.test("Login success true", function () {
 pm.environment.set("admin_token", res.data.token);
 ```
 
-## 4) Test Endpoint `login` (kasir)
+## 4) Test Endpoint `login` (staff)
 
 ### Request
 
@@ -66,8 +66,8 @@ pm.environment.set("admin_token", res.data.token);
 ```json
 {
   "action": "login",
-  "email": "{{kasir_email}}",
-  "password": "{{kasir_password}}"
+  "username": "{{staff_email}}",
+  "password": "{{staff_password}}"
 }
 ```
 
@@ -75,12 +75,12 @@ pm.environment.set("admin_token", res.data.token);
 
 ```javascript
 const res = pm.response.json();
-pm.test("Kasir login success", function () {
+pm.test("Staff login success", function () {
   pm.expect(res.success).to.eql(true);
-  pm.expect(res.data.user.role).to.eql("kasir");
+  pm.expect(res.data.user.role).to.eql("staff");
 });
 
-pm.environment.set("kasir_token", res.data.token);
+pm.environment.set("staff_token", res.data.token);
 ```
 
 ## 5) Test Endpoint `create` (admin)
@@ -98,7 +98,7 @@ pm.environment.set("kasir_token", res.data.token);
   "data": {
     "SHIFT": "Pagi",
     "ARUS DANA": "KAMPUNG SATU",
-    "KASIR": "Abdul",
+    "STAFF": "Abdul",
     "GELAS MASUK": 120,
     "GELAS LAKU": 100,
     "GELAS RUSAK": 0,
@@ -259,7 +259,7 @@ pm.test("Read database monthly success", function () {
 });
 ```
 
-## 10) Negative Test `read_database` pakai token kasir (harus gagal)
+## 10) Negative Test `read_master` pakai token staff (harus gagal)
 
 ### Request
 
@@ -267,20 +267,20 @@ pm.test("Read database monthly success", function () {
 - URL:
 
 ```text
-{{base_url}}?action=read_database&authorization=Bearer%20{{kasir_token}}
+{{base_url}}?action=read_master&authorization=Bearer%20{{staff_token}}
 ```
 
 ### Tests
 
 ```javascript
 const res = pm.response.json();
-pm.test("Kasir forbidden read_database", function () {
+pm.test("Staff forbidden read_master", function () {
   pm.expect(res.success).to.eql(false);
   pm.expect(res.message).to.include("Forbidden");
 });
 ```
 
-## 10a) Negative Test `read` bulanan pakai token kasir (harus gagal)
+## 10a) Negative Test `setup_rekap` pakai token staff (harus gagal)
 
 ### Request
 
@@ -288,16 +288,16 @@ pm.test("Kasir forbidden read_database", function () {
 - URL:
 
 ```text
-{{base_url}}?action=read&period=2026-03&authorization=Bearer%20{{kasir_token}}
+{{base_url}}?action=setup_rekap&period=2026-03&authorization=Bearer%20{{staff_token}}
 ```
 
 ### Tests
 
 ```javascript
 const res = pm.response.json();
-pm.test("Kasir forbidden read monthly", function () {
+pm.test("Staff forbidden setup_rekap", function () {
   pm.expect(res.success).to.eql(false);
-  pm.expect(res.message).to.include("admin-only");
+  pm.expect(res.message).to.include("Forbidden");
 });
 ```
 
@@ -315,7 +315,7 @@ pm.test("Kasir forbidden read monthly", function () {
   "data": {
     "SHIFT": "Pagi",
     "ARUS DANA": "KAMPUNG SATU",
-    "KASIR": "Abdul"
+    "STAFF": "Abdul"
   }
 }
 ```

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { DASHBOARD_MENU } from "../constants/menu";
-import { BRANCH_OPTIONS, DENOMINATIONS_DATA, REPORT_FORM_DEFAULT } from "../constants/forms";
+import { REPORT_FORM_DEFAULT } from "../constants/forms";
 import Alert from "../components/common/Alert";
 import KasKeluarPanel from "../components/dashboard/KasKeluarPanel";
 import Sidebar from "../components/layout/Sidebar";
@@ -29,6 +29,7 @@ export default function DashboardPage({
   error,
   reportRows,
   dbRows,
+  masterData,
   onRefreshMonthly,
   onRefreshAll,
   onCreateReport,
@@ -36,19 +37,46 @@ export default function DashboardPage({
   request,
   onLogout,
 }) {
-  const isStaff = String(user?.role || "").toLowerCase() === "staff" || String(user?.role || "").toLowerCase() === "kasir";
-  const [activeMenu, setActiveMenu] = useState("dashboard");
+  const isStaff = String(user?.role || "").toLowerCase() === "staff";
+  const [activeMenu, setActiveMenu] = useState(() => (isStaff ? "laporan" : "dashboard"));
   const [mode, setMode] = useState(getViewportMode);
   const [isCollapsed, setIsCollapsed] = useState(mode === "tablet");
   const [mobileOpen, setMobileOpen] = useState(false);
   const [selectedBranch, setSelectedBranch] = useState("Semua");
   const period = toPeriodValue();
+  const [periodFilter, setPeriodFilter] = useState({ range: "month", period: toPeriodValue() });
   const [reportForm, setReportForm] = useState(REPORT_FORM_DEFAULT);
   const [isEditMode, setIsEditMode] = useState(false);
   const [logoutDialogOpen, setLogoutDialogOpen] = useState(false);
   const [logoutLoading, setLogoutLoading] = useState(false);
 
-  const branches = useMemo(() => ["Semua", ...BRANCH_OPTIONS], []);
+  const branchList = useMemo(() => {
+    const raw = masterData?.cabang || masterData?.cabangList || [];
+    const names = raw.map((c) => (typeof c === "string" ? c : c.NAMA_CABANG || c.nama || c.ID_CABANG)).filter(Boolean);
+    if (user?.cabang && !names.includes(user.cabang)) {
+      names.push(user.cabang);
+    }
+    return names.length > 0 ? names : [user?.cabang || "Cabang Utama"];
+  }, [masterData, user?.cabang]);
+
+  const branches = useMemo(() => ["Semua", ...branchList], [branchList]);
+
+  const availableBahan = useMemo(() => {
+    return masterData?.bahanBaku || masterData?.bahanBakuList || [];
+  }, [masterData]);
+
+  const availableTipePengeluaran = useMemo(() => {
+    return masterData?.tipePengeluaran || masterData?.tipePengeluaranList || [];
+  }, [masterData]);
+
+  const availableStaff = useMemo(() => {
+    const rawUsers = masterData?.users || [];
+    const names = rawUsers.map((u) => u["NAMA / USERNAME"] || u["NAMA/USERNAME"] || u.NAMA || u.USERNAME).filter(Boolean);
+    if (user?.nama && !names.includes(user.nama)) {
+      names.unshift(user.nama);
+    }
+    return names.length > 0 ? names : [user?.nama || "Staff"];
+  }, [masterData, user?.nama]);
 
   const filteredReportRows = useMemo(() => {
     if (!selectedBranch || selectedBranch.toLowerCase() === "semua") return reportRows;
@@ -98,8 +126,20 @@ export default function DashboardPage({
   }, [isAdmin, isStaff]);
 
   const reloadPengeluaran = useCallback(
-    (overridePeriod) => onRefreshMonthly(overridePeriod || period),
-    [onRefreshMonthly, period],
+    (overridePeriod) => onRefreshMonthly(overridePeriod || periodFilter.period || period),
+    [onRefreshMonthly, period, periodFilter.period],
+  );
+
+  const handlePeriodFilterChange = useCallback(
+    async (nextFilter) => {
+      setPeriodFilter(nextFilter);
+      if (nextFilter.range === "month") {
+        await onRefreshMonthly(nextFilter.period || toPeriodValue());
+      } else {
+        await onRefreshAll?.();
+      }
+    },
+    [onRefreshMonthly, onRefreshAll],
   );
 
   useEffect(() => {
@@ -141,7 +181,7 @@ export default function DashboardPage({
 
   function handleSelectMenu(menuKey) {
     if (menuKey === "pemasukan") {
-      const defaultBranch = selectedBranch.toLowerCase() !== "semua" ? selectedBranch : (BRANCH_OPTIONS[0] || "");
+      const defaultBranch = selectedBranch.toLowerCase() !== "semua" ? selectedBranch : (branchList[0] || "");
       if (!isStaff) {
         setIsEditMode(false);
         setReportForm({ ...REPORT_FORM_DEFAULT, "ARUS DANA": defaultBranch });
@@ -198,7 +238,7 @@ export default function DashboardPage({
       handleEditReportRow({ row: todayStaffReport });
       return;
     }
-    const defaultBranch = selectedBranch.toLowerCase() !== "semua" ? selectedBranch : (BRANCH_OPTIONS[0] || "");
+    const defaultBranch = selectedBranch.toLowerCase() !== "semua" ? selectedBranch : (branchList[0] || "");
     setIsEditMode(false);
     setReportForm({ ...REPORT_FORM_DEFAULT, "ARUS DANA": defaultBranch });
     setActiveMenu("pemasukan");
@@ -206,37 +246,51 @@ export default function DashboardPage({
 
   async function handleFormSubmit(e) {
     e.preventDefault();
-    const gelasAwal = Number(reportForm["GELAS AWAL"] ?? reportForm["GELAS MASUK"]) || 0;
-    const gelasSisa = Number(reportForm["GELAS SISA"]) || 0;
+    const gelasAwal = Number(reportForm["GELAS AWAL"] ?? reportForm["GELAS MASUK"] ?? reportForm.stokBahan?.["Gelas Cup"]?.awal) || 0;
+    const gelasSisa = Number(reportForm["GELAS SISA"] ?? reportForm.stokBahan?.["Gelas Cup"]?.sisa) || 0;
     const gelasRusak = Number(reportForm["GELAS RUSAK"]) || 0;
-    const gelasLaku = Number(reportForm["GELAS LAKU"]) || Math.max(0, gelasAwal - (gelasSisa + gelasRusak));
-    const denomTotal = DENOMINATIONS_DATA.reduce((acc, item) => {
-      const count = parseInt(reportForm[item.label]) || 0;
-      return acc + (count * item.value);
-    }, 0);
-    const autoTotalPenjualan = gelasLaku * 4000;
-    const totalNota = autoTotalPenjualan > 0 ? autoTotalPenjualan : (Number(reportForm["TOTAL NOTA"]) || denomTotal);
-    const uangMasuk = denomTotal > 0 ? denomTotal : (Number(reportForm["UANG MASUK"] || reportForm["UNAG MASUK"]) || totalNota);
-    const pengeluaran = Number(reportForm.PENGELUARAN || 0);
-    const selisih = uangMasuk - totalNota;
+    const gelasTerpakai = Math.max(0, gelasAwal - (gelasSisa + gelasRusak));
+    const gelasLaku = Number(reportForm["GELAS LAKU"]) || gelasTerpakai;
+
+    // Hitung Multiple Pengeluaran jika ada
+    let pengeluaranList = reportForm.pengeluaranList || [];
+    let totalPengeluaran = pengeluaranList.reduce((acc, curr) => acc + (Number(curr.nominal) || 0), 0);
+    if (totalPengeluaran === 0) {
+      totalPengeluaran = Number(reportForm["TOTAL PENGELUARAN"] || reportForm.PENGELUARAN || 0);
+    }
+
+    // Uang Setoran fisik
+    const uangSetoran = Number(reportForm["UANG SETORAN"] ?? reportForm["UANG MASUK"] ?? reportForm["UNAG MASUK"] ?? 0);
+
+    // Rumus: Total Penjualan = Uang Setoran + Total Pengeluaran
+    const totalPenjualan = uangSetoran + totalPengeluaran;
 
     const payload = {
       ...reportForm,
+      "STAFF": reportForm.STAFF || user?.nama || "Staff",
+      "CABANG": reportForm.CABANG || reportForm["ARUS DANA"] || selectedBranch,
+      "ARUS DANA": reportForm.CABANG || reportForm["ARUS DANA"] || selectedBranch,
       "GELAS AWAL": String(gelasAwal),
       "GELAS SISA": String(gelasSisa),
       "GELAS RUSAK": String(gelasRusak),
+      "GELAS TERPAKAI": String(gelasLaku),
       "GELAS LAKU": String(gelasLaku),
-      "TOTAL NOTA": String(totalNota),
-      "UANG MASUK": String(uangMasuk),
-      "UNAG MASUK": String(uangMasuk),
-      "SELISIH": String(selisih),
-      "PENGELUARAN": String(pengeluaran),
+      "UANG SETORAN": String(uangSetoran),
+      "TOTAL PENGELUARAN": String(totalPengeluaran),
+      "PENGELUARAN": String(totalPengeluaran),
+      "TOTAL PENJUALAN": String(totalPenjualan),
+      "TOTAL NOTA": String(totalPenjualan),
+      "UANG MASUK": String(totalPenjualan),
+      "UNAG MASUK": String(totalPenjualan),
+      "SELISIH": "0",
+      pengeluaranList,
     };
 
     if (isEditMode) {
-      const id = reportForm["NO TRANSAKSI"];
+      const id = reportForm["ID TRANSAKSI"] || reportForm["NO TRANSAKSI"];
       const patch = { ...payload };
-      delete patch["NO TRANSAKSI"]; // ID is not updated
+      delete patch["ID TRANSAKSI"];
+      delete patch["NO TRANSAKSI"];
       if (await onUpdateReport(id, patch, period)) {
         setActiveMenu("laporan");
       }
@@ -290,6 +344,9 @@ export default function DashboardPage({
           selectedBranch={selectedBranch}
           onSelectBranch={setSelectedBranch}
           branches={branches}
+          periodFilter={periodFilter}
+          onPeriodFilterChange={handlePeriodFilterChange}
+          loading={loading}
         />
 
         <div className="flex-1 overflow-y-auto overflow-x-hidden p-3 sm:p-4 lg:p-4 no-scrollbar">
@@ -298,20 +355,22 @@ export default function DashboardPage({
             {error && <Alert type="error">{error}</Alert>}
 
             <div className="animate-fade-in">
-              <div className={panelClass("dashboard")}>
+              <div className={panelClass("dashboard")} hidden={activeMenu !== "dashboard"} style={{ display: activeMenu === "dashboard" ? "block" : "none" }}>
                 <OverviewPanel
-                  dbRows={filteredDbRows}
+                  dbRows={filteredReportRows.length > 0 ? filteredReportRows : filteredDbRows}
                   loading={loading}
-                  onRefreshMonthly={onRefreshMonthly}
-                  onRefreshAll={onRefreshAll}
+                  periodFilter={periodFilter}
+                  onPeriodFilterChange={handlePeriodFilterChange}
                 />
               </div>
 
-              <div className={panelClass("laporan")}>
+              <div className={panelClass("laporan")} hidden={activeMenu !== "laporan"} style={{ display: activeMenu === "laporan" ? "block" : "none" }}>
                 <ReportPanel
                   reportRows={filteredReportRows}
+                  dbRows={filteredDbRows}
                   loading={loading}
                   isAdmin={isAdmin}
+                  availableBahan={availableBahan}
                   onRefreshMonthly={onRefreshMonthly}
                   onRefreshAll={onRefreshAll}
                   onEditRow={handleEditReportRow}
@@ -320,13 +379,18 @@ export default function DashboardPage({
                 />
               </div>
 
-              <div className={panelClass("pemasukan")}>
+              <div className={panelClass("pemasukan")} hidden={activeMenu !== "pemasukan"} style={{ display: activeMenu === "pemasukan" ? "block" : "none" }}>
                 <div className="bg-white rounded-4xl p-6 sm:p-10 border border-brand-green/5 card-shadow">
                   <ReportForm
                     value={reportForm}
                     loading={loading}
                     user={user}
                     isEdit={isEditMode}
+                    availableBahan={availableBahan}
+                    availableTipePengeluaran={availableTipePengeluaran}
+                    availableBranches={branchList}
+                    availableStaff={availableStaff}
+                    yesterdayStock={masterData?.yesterdayStock || {}}
                     onSubmit={handleFormSubmit}
                     onCancel={() => setActiveMenu("laporan")}
                     onChange={(key, value) => setReportForm((prev) => ({ ...prev, [key]: value }))}
@@ -334,25 +398,31 @@ export default function DashboardPage({
                 </div>
               </div>
 
-              <div className={panelClass("pengeluaran")}>
+              <div className={panelClass("pengeluaran")} hidden={activeMenu !== "pengeluaran"} style={{ display: activeMenu === "pengeluaran" ? "block" : "none" }}>
                 <KasKeluarPanel
                   dbRows={filteredDbRows}
                   request={request}
                   period={period}
+                  branches={branchList}
+                  staff={availableStaff}
                   onReload={reloadPengeluaran}
                   user={user}
                 />
               </div>
 
-              <div className={panelClass("karyawan")}>
-                <KaryawanPanel selectedBranch={selectedBranch} />
-              </div>
+              {isAdmin && (
+                <>
+                  <div className={panelClass("karyawan")} hidden={activeMenu !== "karyawan"} style={{ display: activeMenu === "karyawan" ? "block" : "none" }}>
+                    <KaryawanPanel selectedBranch={selectedBranch} branches={branchList} request={request} />
+                  </div>
 
-              <div className={panelClass("cabang")}>
-                <CabangPanel selectedBranch={selectedBranch} />
-              </div>
+                  <div className={panelClass("cabang")} hidden={activeMenu !== "cabang"} style={{ display: activeMenu === "cabang" ? "block" : "none" }}>
+                    <CabangPanel selectedBranch={selectedBranch} branches={branchList} request={request} />
+                  </div>
+                </>
+              )}
 
-              <div className={panelClass("setting")}>
+              <div className={panelClass("setting")} hidden={activeMenu !== "setting"} style={{ display: activeMenu === "setting" ? "block" : "none" }}>
                 <SettingPanel user={user} />
               </div>
             </div>

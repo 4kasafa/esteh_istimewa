@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Building2,
   Calendar,
@@ -11,33 +11,163 @@ import {
   UserCheck,
   Users,
 } from "lucide-react";
-import { addMockKaryawan, getMockCabang, getMockKaryawan } from "../../services/mockData";
 import AddKaryawanModal from "./AddKaryawanModal";
 
-export default function KaryawanPanel({ selectedBranch = "Semua" }) {
+function getInitials(name) {
+  if (!name) return "ST";
+  const clean = String(name).trim();
+  if (!clean) return "ST";
+  const words = clean.split(/\s+/).filter(Boolean);
+  if (words.length === 0) return "ST";
+  if (words.length === 1) {
+    return words[0].slice(0, 2).toUpperCase();
+  }
+  return (words[0][0] + (words[1]?.[0] || "")).toUpperCase();
+}
+
+function normalizeKaryawan(u, defaultIndex = 0) {
+  if (!u || typeof u !== "object") {
+    return {
+      id: `EMP-${defaultIndex}`,
+      nik: `EMP-${defaultIndex}`,
+      nama: "Staff",
+      role: "Staff",
+      cabang: "Cabang Utama",
+      status: "Aktif",
+      shift: "Shift Pagi",
+      telepon: "-",
+      email: "staff@estehistimewa.com",
+      tglBergabung: "-",
+    };
+  }
+
+  const rawRole = String(u.ROLE || u.role || "Staff").toLowerCase();
+  const role = rawRole.includes("admin") ? "Admin" : "Staff";
+  const rawNama = u.nama ?? u["NAMA / USERNAME"] ?? u["NAMA/USERNAME"] ?? u.NAMA ?? u.USERNAME ?? u.username ?? "Staff";
+  const nama = String(rawNama || "Staff").trim() || "Staff";
+  const rawUsername = u.username ?? u.USERNAME ?? u["NAMA / USERNAME"] ?? u["NAMA/USERNAME"] ?? u.NAMA ?? nama;
+  const username = String(rawUsername || "staff").trim() || "staff";
+  const id = String(u.id || u.ID || u.nik || `EMP-${username}`);
+  const rawNoTelp = u.telepon ?? u["NO. TELEPON"] ?? u["NO TELEPON"] ?? u["NO_TELEPON"] ?? u.TELEPON ?? "-";
+  const telepon = String(rawNoTelp || "-");
+  const rawStatus = String(u.status || u.STATUS || "Aktif").trim();
+  const status = (rawStatus.toLowerCase() === "non aktif" || rawStatus.toLowerCase() === "nonaktif") ? "Non Aktif" : "Aktif";
+  const cabang = String(u.cabang || u.CABANG || "Cabang Utama");
+  const shift = String(u.shift || u.SHIFT || "Shift Pagi");
+  const email = u.email ? String(u.email) : `${username.toLowerCase().replace(/[^a-z0-9]/g, "")}@estehistimewa.com`;
+  const tglBergabung = String(u.tglBergabung || "-");
+
+  return {
+    id,
+    nik: id,
+    nama,
+    role,
+    cabang,
+    status,
+    shift,
+    telepon,
+    email,
+    tglBergabung,
+  };
+}
+
+export default function KaryawanPanel({ selectedBranch = "Semua", branches = [], request }) {
   const [search, setSearch] = useState("");
-  const [karyawanList, setKaryawanList] = useState(() => getMockKaryawan());
+  const [karyawanList, setKaryawanList] = useState(() => {
+    try {
+      const stored = localStorage.getItem("esteh_karyawan_list");
+      if (!stored) return [];
+      const parsed = JSON.parse(stored);
+      return Array.isArray(parsed) ? parsed.map((item, idx) => normalizeKaryawan(item, idx)) : [];
+    } catch {
+      return [];
+    }
+  });
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
   const availableBranches = useMemo(() => {
-    try {
-      const data = getMockCabang();
-      return data.map((c) => c.kode);
-    } catch {
-      return ["cabang_01", "cabang_02"];
-    }
-  }, []);
+    return branches.length > 0 ? branches : [];
+  }, [branches]);
+
+  useEffect(() => {
+    if (!request) return;
+    let isMounted = true;
+    request({ action: "read_master" })
+      .then((res) => {
+        if (!isMounted || !Array.isArray(res?.users)) return;
+        const mapped = res.users.map((u, idx) => normalizeKaryawan(u, idx));
+        if (mapped.length > 0) {
+          setKaryawanList(mapped);
+          try {
+            localStorage.setItem("esteh_karyawan_list", JSON.stringify(mapped));
+          } catch {
+            /* ignore storage write error */
+          }
+        }
+      })
+      .catch(() => {});
+    return () => { isMounted = false; };
+  }, [request]);
 
   const handleSaveKaryawan = useCallback((newKaryawan) => {
-    const updated = addMockKaryawan(newKaryawan);
-    setKaryawanList(updated);
-  }, []);
+    const nextItem = normalizeKaryawan({
+      ...newKaryawan,
+      id: `EMP-${String(Date.now()).slice(-3)}`,
+      status: newKaryawan.status || "Aktif",
+    });
+    setKaryawanList((prev) => {
+      const updated = [...prev, nextItem];
+      try {
+        localStorage.setItem("esteh_karyawan_list", JSON.stringify(updated));
+      } catch (err) {
+        console.error(err);
+      }
+      return updated;
+    });
+
+    if (request) {
+      const role = String(nextItem.role || "").toLowerCase() === "admin" ? "Admin" : "Staff";
+      request({
+        action: "update_master",
+        target: "user",
+        operation: "create",
+        data: {
+          "NAMA / USERNAME": nextItem.nama,
+          USERNAME: nextItem.nama,
+          "NO. TELEPON": nextItem.telepon || "-",
+          PASSWORD: "123",
+          ROLE: role,
+          STATUS: nextItem.status || "Aktif",
+        },
+      })
+        .then(() => request({ action: "read_master" }))
+        .then((res) => {
+          if (!res?.users || !Array.isArray(res.users)) return;
+          const mapped = res.users.map((u, idx) => normalizeKaryawan(u, idx));
+          if (mapped.length > 0) {
+            setKaryawanList(mapped);
+            try {
+              localStorage.setItem("esteh_karyawan_list", JSON.stringify(mapped));
+            } catch {
+              /* ignore storage write error */
+            }
+          }
+        })
+        .catch((err) => console.warn("Sync master user error:", err));
+    }
+  }, [request]);
 
   const filteredKaryawan = useMemo(() => {
     return karyawanList.filter((k) => {
+      if (!k) return false;
+      const cabang = String(k.cabang || "").toLowerCase();
       // Filter by navbar selected branch
       if (selectedBranch && selectedBranch.toLowerCase() !== "semua") {
-        if (k.cabang.toLowerCase() !== selectedBranch.toLowerCase()) {
+        const sel = selectedBranch.toLowerCase();
+        if (
+          cabang !== sel &&
+          !cabang.includes(sel)
+        ) {
           return false;
         }
       }
@@ -45,21 +175,27 @@ export default function KaryawanPanel({ selectedBranch = "Semua" }) {
       // Filter by search keyword
       if (!search.trim()) return true;
       const q = search.toLowerCase();
+      const nama = String(k.nama || "").toLowerCase();
+      const nik = String(k.nik || "").toLowerCase();
+      const role = String(k.role || "").toLowerCase();
+      const shift = String(k.shift || "").toLowerCase();
+      const telepon = String(k.telepon || "").toLowerCase();
+
       return (
-        k.nama.toLowerCase().includes(q) ||
-        k.nik.toLowerCase().includes(q) ||
-        k.role.toLowerCase().includes(q) ||
-        k.cabang.toLowerCase().includes(q) ||
-        k.shift.toLowerCase().includes(q) ||
-        k.telepon.toLowerCase().includes(q)
+        nama.includes(q) ||
+        nik.includes(q) ||
+        role.includes(q) ||
+        cabang.includes(q) ||
+        shift.includes(q) ||
+        telepon.includes(q)
       );
     });
   }, [karyawanList, search, selectedBranch]);
 
   const stats = useMemo(() => {
     const total = karyawanList.length;
-    const aktif = karyawanList.filter((k) => k.status.toLowerCase() === "aktif").length;
-    const branches = new Set(karyawanList.map((k) => k.cabang)).size;
+    const aktif = karyawanList.filter((k) => String(k?.status || "").toLowerCase() === "aktif").length;
+    const branches = new Set(karyawanList.map((k) => String(k?.cabang || "").trim()).filter(Boolean)).size;
     return { total, aktif, branches };
   }, [karyawanList]);
 
@@ -99,7 +235,7 @@ export default function KaryawanPanel({ selectedBranch = "Semua" }) {
               Cabang Penugasan
             </p>
             <h3 className="mt-2 text-2xl font-black text-brand-green-dark">{stats.branches} Cabang</h3>
-            <p className="mt-1 text-[11px] font-semibold text-brand-muted">cabang_01 & cabang_02</p>
+            <p className="mt-1 text-[11px] font-semibold text-brand-muted">{stats.branches > 0 ? `Tersebar di ${stats.branches} cabang` : "Belum ada penugasan"}</p>
           </div>
           <div className="rounded-2xl bg-brand-yellow/20 p-3 text-amber-700">
             <Building2 size={20} />
@@ -166,11 +302,7 @@ export default function KaryawanPanel({ selectedBranch = "Semua" }) {
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex items-center gap-3.5">
                     <div className="h-12 w-12 rounded-2xl bg-gradient-to-tr from-brand-green to-emerald-400 text-white flex items-center justify-center text-lg font-black shadow-md shadow-brand-green/20 shrink-0">
-                      {k.nama
-                        .split(" ")
-                        .map((n) => n[0])
-                        .slice(0, 2)
-                        .join("")}
+                      {getInitials(k.nama)}
                     </div>
                     <div>
                       <div className="flex items-center gap-2">

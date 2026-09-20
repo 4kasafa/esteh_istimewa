@@ -104,6 +104,7 @@ export default function Sidebar({
             return (
               <button
                 key={item.key}
+                aria-label={item.label}
                 className={`
                   group relative w-full rounded-2xl px-3 py-3 text-sm font-bold transition-all
                   flex items-center ${showLabel ? "gap-3 justify-start" : "justify-center"}

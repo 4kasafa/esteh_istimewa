@@ -65,7 +65,7 @@ export default function DataTable({
 
   function renderCellValue(row, column) {
     const value = String(row[column] ?? "") || "-";
-    if (column.toUpperCase() === "ARUS DANA") {
+    if (column.toUpperCase() === "ARUS DANA" || column.toUpperCase() === "CABANG") {
       return (
         <span className="inline-flex rounded-lg border px-2.5 py-1 text-[11px] font-black" style={getArusDanaStyle(value)}>
           {value}
