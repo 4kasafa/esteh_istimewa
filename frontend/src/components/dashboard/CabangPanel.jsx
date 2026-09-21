@@ -10,9 +10,11 @@ import {
   Plus,
   Search,
   Store,
+  Trash2,
   User,
 } from "lucide-react";
 import AddCabangModal from "./AddCabangModal";
+import ConfirmDialog from "../common/ConfirmDialog";
 
 function normalizeCabang(c, defaultIndex = 0) {
   if (!c || typeof c !== "object") {
@@ -47,7 +49,11 @@ function normalizeCabang(c, defaultIndex = 0) {
   };
 }
 
-export default function CabangPanel({ selectedBranch = "Semua", request }) {
+export default function CabangPanel({
+  selectedBranch = "Semua",
+  request,
+  onReloadMaster,
+}) {
   const [search, setSearch] = useState("");
   const [cabangList, setCabangList] = useState(() => {
     try {
@@ -60,6 +66,9 @@ export default function CabangPanel({ selectedBranch = "Semua", request }) {
     }
   });
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [deletingCabang, setDeletingCabang] = useState(null);
+  const [actionLoading, setActionLoading] = useState(false);
+  const [feedback, setFeedback] = useState(null);
 
   useEffect(() => {
     if (!request) return;
@@ -111,6 +120,62 @@ export default function CabangPanel({ selectedBranch = "Semua", request }) {
     }
   }, [request]);
 
+  const handleConfirmDeleteCabang = useCallback(async () => {
+    if (!deletingCabang || !request) return;
+    if (cabangList.length <= 1) {
+      setFeedback({
+        type: "error",
+        message: "Tidak dapat menghapus cabang terakhir pada sistem.",
+      });
+      setDeletingCabang(null);
+      return;
+    }
+
+    setActionLoading(true);
+    setFeedback(null);
+    try {
+      await request({
+        action: "update_master",
+        target: "cabang",
+        operation: "delete",
+        id: deletingCabang.id,
+      });
+
+      setCabangList((prev) => {
+        const updated = prev.filter((c) => c.id !== deletingCabang.id);
+        try {
+          localStorage.setItem("esteh_cabang_list", JSON.stringify(updated));
+        } catch (err) {
+          console.error(err);
+        }
+        return updated;
+      });
+
+      setFeedback({
+        type: "success",
+        message: `Cabang "${deletingCabang.nama}" berhasil dihapus.`,
+      });
+      setDeletingCabang(null);
+
+      if (onReloadMaster) {
+        await onReloadMaster();
+      }
+    } catch (err) {
+      setFeedback({
+        type: "error",
+        message: err?.message || "Gagal menghapus data cabang.",
+      });
+    } finally {
+      setActionLoading(false);
+    }
+  }, [cabangList.length, deletingCabang, onReloadMaster, request]);
+
+  useEffect(() => {
+    if (!feedback?.message) return;
+    const timer = setTimeout(() => setFeedback(null), 4000);
+    return () => clearTimeout(timer);
+  }, [feedback]);
+
   const filteredCabang = useMemo(() => {
     return cabangList.filter((c) => {
       if (!c) return false;
@@ -151,6 +216,25 @@ export default function CabangPanel({ selectedBranch = "Semua", request }) {
 
   return (
     <div className="space-y-6">
+      {feedback && (
+        <div
+          className={`flex items-center justify-between rounded-2xl p-3.5 sm:p-4 text-xs font-bold transition-all ${
+            feedback.type === "success"
+              ? "bg-emerald-500/10 border border-emerald-500/20 text-emerald-800"
+              : "bg-red-500/10 border border-red-500/20 text-red-800"
+          }`}
+        >
+          <span>{feedback.message}</span>
+          <button
+            type="button"
+            className="text-current opacity-70 hover:opacity-100 cursor-pointer ml-2"
+            onClick={() => setFeedback(null)}
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
       {/* Stat Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
         <div className="rounded-3xl border border-brand-green/10 bg-white p-4 sm:p-5 card-shadow flex items-start justify-between">
@@ -268,9 +352,20 @@ export default function CabangPanel({ selectedBranch = "Semua", request }) {
                     </div>
                   </div>
 
-                  <span className="rounded-xl border border-brand-green/20 bg-white px-2.5 py-1 text-[10px] font-black uppercase text-brand-green-dark tracking-wide">
-                    {c.id}
-                  </span>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <span className="rounded-xl border border-brand-green/20 bg-white px-2.5 py-1 text-[10px] font-black uppercase text-brand-green-dark tracking-wide">
+                      {c.id}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setDeletingCabang(c)}
+                      className="p-1.5 rounded-xl text-brand-muted hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
+                      title="Hapus Cabang"
+                      aria-label={`Hapus ${c.nama}`}
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
                 </div>
 
                 <div className="space-y-2 text-xs pt-2 border-t border-brand-green/10">
@@ -337,6 +432,18 @@ export default function CabangPanel({ selectedBranch = "Semua", request }) {
         onClose={() => setIsAddModalOpen(false)}
         onSave={handleSaveCabang}
         nextBranchIndex={cabangList.length + 1}
+      />
+
+      <ConfirmDialog
+        open={Boolean(deletingCabang)}
+        title="Hapus Cabang?"
+        description={`Apakah Anda yakin ingin menghapus outlet cabang "${deletingCabang?.nama}" (${deletingCabang?.kode})? Cabang akan dinonaktifkan dari sistem.`}
+        confirmLabel="Hapus Cabang"
+        cancelLabel="Batal"
+        loading={actionLoading}
+        danger
+        onCancel={() => setDeletingCabang(null)}
+        onConfirm={handleConfirmDeleteCabang}
       />
     </div>
   );

@@ -8,10 +8,12 @@ import {
   Plus,
   Search,
   ShieldCheck,
+  Trash2,
   UserCheck,
   Users,
 } from "lucide-react";
 import AddKaryawanModal from "./AddKaryawanModal";
+import ConfirmDialog from "../common/ConfirmDialog";
 
 function getInitials(name) {
   if (!name) return "ST";
@@ -71,7 +73,13 @@ function normalizeKaryawan(u, defaultIndex = 0) {
   };
 }
 
-export default function KaryawanPanel({ selectedBranch = "Semua", branches = [], request }) {
+export default function KaryawanPanel({
+  selectedBranch = "Semua",
+  branches = [],
+  request,
+  user,
+  onReloadMaster,
+}) {
   const [search, setSearch] = useState("");
   const [karyawanList, setKaryawanList] = useState(() => {
     try {
@@ -84,6 +92,9 @@ export default function KaryawanPanel({ selectedBranch = "Semua", branches = [],
     }
   });
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [deletingKaryawan, setDeletingKaryawan] = useState(null);
+  const [actionLoading, setActionLoading] = useState(false);
+  const [feedback, setFeedback] = useState(null);
 
   const availableBranches = useMemo(() => {
     return branches.length > 0 ? branches : [];
@@ -157,6 +168,53 @@ export default function KaryawanPanel({ selectedBranch = "Semua", branches = [],
     }
   }, [request]);
 
+  const handleConfirmDeleteKaryawan = useCallback(async () => {
+    if (!deletingKaryawan || !request) return;
+    setActionLoading(true);
+    setFeedback(null);
+    try {
+      await request({
+        action: "update_master",
+        target: "user",
+        operation: "delete",
+        id: deletingKaryawan.id,
+      });
+
+      setKaryawanList((prev) => {
+        const updated = prev.filter((k) => k.id !== deletingKaryawan.id);
+        try {
+          localStorage.setItem("esteh_karyawan_list", JSON.stringify(updated));
+        } catch (err) {
+          console.error(err);
+        }
+        return updated;
+      });
+
+      setFeedback({
+        type: "success",
+        message: `Karyawan "${deletingKaryawan.nama}" berhasil dihapus.`,
+      });
+      setDeletingKaryawan(null);
+
+      if (onReloadMaster) {
+        await onReloadMaster();
+      }
+    } catch (err) {
+      setFeedback({
+        type: "error",
+        message: err?.message || "Gagal menghapus data karyawan.",
+      });
+    } finally {
+      setActionLoading(false);
+    }
+  }, [deletingKaryawan, onReloadMaster, request]);
+
+  useEffect(() => {
+    if (!feedback?.message) return;
+    const timer = setTimeout(() => setFeedback(null), 4000);
+    return () => clearTimeout(timer);
+  }, [feedback]);
+
   const filteredKaryawan = useMemo(() => {
     return karyawanList.filter((k) => {
       if (!k) return false;
@@ -201,6 +259,25 @@ export default function KaryawanPanel({ selectedBranch = "Semua", branches = [],
 
   return (
     <div className="space-y-6">
+      {feedback && (
+        <div
+          className={`flex items-center justify-between rounded-2xl p-3.5 sm:p-4 text-xs font-bold transition-all ${
+            feedback.type === "success"
+              ? "bg-emerald-500/10 border border-emerald-500/20 text-emerald-800"
+              : "bg-red-500/10 border border-red-500/20 text-red-800"
+          }`}
+        >
+          <span>{feedback.message}</span>
+          <button
+            type="button"
+            className="text-current opacity-70 hover:opacity-100 cursor-pointer ml-2"
+            onClick={() => setFeedback(null)}
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
       {/* Stat Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
         <div className="rounded-3xl border border-brand-green/10 bg-white p-4 sm:p-5 card-shadow flex items-start justify-between">
@@ -316,9 +393,25 @@ export default function KaryawanPanel({ selectedBranch = "Semua", branches = [],
                     </div>
                   </div>
 
-                  <span className="rounded-xl border border-brand-green/20 bg-white px-2.5 py-1 text-[10px] font-black uppercase text-brand-green-dark tracking-wide">
-                    {k.role}
-                  </span>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <span className="rounded-xl border border-brand-green/20 bg-white px-2.5 py-1 text-[10px] font-black uppercase text-brand-green-dark tracking-wide">
+                      {k.role}
+                    </span>
+                    {!(
+                      (user?.nama && k.nama && String(user.nama).trim().toLowerCase() === String(k.nama).trim().toLowerCase()) ||
+                      (user?.id && k.id && String(user.id).trim().toLowerCase() === String(k.id).trim().toLowerCase())
+                    ) && (
+                      <button
+                        type="button"
+                        onClick={() => setDeletingKaryawan(k)}
+                        className="p-1.5 rounded-xl text-brand-muted hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
+                        title="Hapus Karyawan"
+                        aria-label={`Hapus ${k.nama}`}
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    )}
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-2 text-xs pt-2 border-t border-brand-green/10">
@@ -363,6 +456,18 @@ export default function KaryawanPanel({ selectedBranch = "Semua", branches = [],
         onClose={() => setIsAddModalOpen(false)}
         onSave={handleSaveKaryawan}
         branches={availableBranches}
+      />
+
+      <ConfirmDialog
+        open={Boolean(deletingKaryawan)}
+        title="Hapus Karyawan?"
+        description={`Apakah Anda yakin ingin menghapus data karyawan "${deletingKaryawan?.nama}" (${deletingKaryawan?.role})? Akun dan akses staf ini akan dihapus dari sistem.`}
+        confirmLabel="Hapus Karyawan"
+        cancelLabel="Batal"
+        loading={actionLoading}
+        danger
+        onCancel={() => setDeletingKaryawan(null)}
+        onConfirm={handleConfirmDeleteKaryawan}
       />
     </div>
   );

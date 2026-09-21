@@ -1,68 +1,41 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import { ChevronLeft, Plus } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import {
+  Banknote,
+  Calendar,
+  CheckCircle2,
+  Plus,
+  Receipt,
+  Store,
+  Trash2,
+  User,
+} from "lucide-react";
 
 import Alert from "../common/Alert";
 import CustomSelect from "../common/CustomSelect";
-import DataTable from "./DataTable";
+import { getTodayDateString } from "../../constants/forms";
 import { mapApiErrorMessage } from "../../utils/errors";
-import { filterRows } from "../../utils/dashboard";
-import { parseTimestamp, toFormattedTimestamp, toPeriodValue } from "../../utils/formatters";
+import { toCurrency } from "../../utils/formatters";
 
-const MONTH_LABEL_FORMATTER = new Intl.DateTimeFormat("id-ID", {
-  month: "short",
-  year: "numeric",
-});
-
-function buildEmptyForm(userName = "", defaultBranch = "") {
+function buildEmptyExpense(defaultTipe = "") {
   return {
-    "TIMESTAMP INPUT": toFormattedTimestamp(),
-    "ARUS DANA": defaultBranch || "",
-    STAFF: userName || "",
-    "UANG KELUAR": "",
-    KETERANGAN: "",
+    id: `exp-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+    tipe: defaultTipe,
+    nominal: "",
+    keterangan: "",
   };
 }
 
-const HIDDEN_COLUMNS = new Set([
-  "input staff",
-  "pengeluaran",
-  "uang masuk",
-  "status selisih",
-  "selisih",
-  "saldo akhir",
-]);
-
-function sanitizeRow(row) {
-  const sanitized = {};
-  Object.entries(row).forEach(([key, value]) => {
-    if (key && HIDDEN_COLUMNS.has(String(key).trim().toLowerCase())) {
-      return;
-    }
-    sanitized[key] = value;
-  });
-  return sanitized;
-}
-
-function formatMonthLabel(period) {
-  const [year, month] = String(period || "").split("-");
-  const parsedYear = Number(year);
-  const parsedMonth = Number(month) - 1;
-  if (Number.isNaN(parsedYear) || Number.isNaN(parsedMonth)) {
-    return period || "-";
-  }
-  return MONTH_LABEL_FORMATTER.format(new Date(parsedYear, parsedMonth, 1)).toUpperCase();
-}
-
-function extractTimestamp(row) {
-  return parseTimestamp(row["TIMESTAMP INPUT"] || row["TIME STAMP INPUT"] || row.TIMESTAMP || row.timestamp);
-}
-
-export default function KasKeluarPanel({ dbRows = [], request, period, branches = [], staff = [], onReload, user }) {
-  const currentPeriod = toPeriodValue();
-  const [mode, setMode] = useState("view");
-  const [searchValue, setSearchValue] = useState("");
-  const [selectedMonth, setSelectedMonth] = useState(currentPeriod);
-
+export default function KasKeluarPanel({
+  request,
+  period,
+  branches = [],
+  staff = [],
+  availableTipePengeluaran = [],
+  selectedBranch = "",
+  onReload,
+  isAdmin = false,
+  user,
+}) {
   const branchList = useMemo(() => {
     return branches.length > 0 ? branches : [user?.cabang || "Cabang Utama"];
   }, [branches, user?.cabang]);
@@ -71,261 +44,429 @@ export default function KasKeluarPanel({ dbRows = [], request, period, branches 
     return staff.length > 0 ? staff : [user?.nama || "Staff"];
   }, [staff, user?.nama]);
 
-  const [formState, setFormState] = useState(() => buildEmptyForm(user?.nama || "", branchList[0]));
-  const [formError, setFormError] = useState("");
-  const [formSuccess, setFormSuccess] = useState("");
+  const tipePengeluaranOptions = useMemo(() => {
+    if (!availableTipePengeluaran || availableTipePengeluaran.length === 0) {
+      return [
+        "Operasional Toko",
+        "Bahan Baku",
+        "Kebersihan",
+        "Listrik / Air",
+        "Transportasi",
+        "Lain-lain",
+      ];
+    }
+    return availableTipePengeluaran
+      .map((t) => (typeof t === "string" ? t : t.NAMA_TIPE || t.nama || t.ID_TIPE))
+      .filter(Boolean);
+  }, [availableTipePengeluaran]);
+
+  const defaultBranch = useMemo(() => {
+    if (selectedBranch && selectedBranch.toLowerCase() !== "semua") return selectedBranch;
+    return user?.cabang || branchList[0] || "";
+  }, [selectedBranch, user?.cabang, branchList]);
+
+  const defaultStaff = user?.nama || staffList[0] || "";
+
+  const [tanggal, setTanggal] = useState(() => getTodayDateString());
+  const [cabang, setCabang] = useState(() => defaultBranch);
+  const [staffName, setStaffName] = useState(() => defaultStaff);
+  const [catatan, setCatatan] = useState("");
+  const [pengeluaranList, setPengeluaranList] = useState(() => [
+    buildEmptyExpense(tipePengeluaranOptions[0] || ""),
+  ]);
+
+  const [alert, setAlert] = useState(null);
   const [submitLoading, setSubmitLoading] = useState(false);
-  const [viewAlert, setViewAlert] = useState("");
-  const [monthPopoverOpen, setMonthPopoverOpen] = useState(false);
-  const monthPopoverRef = useRef(null);
 
   useEffect(() => {
-    setFormState((prev) => ({
-      ...prev,
-      STAFF: user?.nama || prev.STAFF || "",
-      "ARUS DANA": prev["ARUS DANA"] || branchList[0] || "",
-    }));
-  }, [branchList, user?.nama]);
-
-  const setoranRows = useMemo(() => {
-    return (dbRows || [])
-      .map((row) => {
-        const timestamp = extractTimestamp(row);
-        return { timestamp, row };
-      })
-      .filter((item) => {
-        if (!item.timestamp) return false;
-        const nominal = Number(item.row["UANG KELUAR"] || 0);
-        return nominal > 0;
-      });
-  }, [dbRows]);
-
-  const monthOptions = useMemo(() => {
-    const keys = new Set([currentPeriod]);
-    setoranRows.forEach((item) => {
-      keys.add(toPeriodValue(item.timestamp));
-    });
-    return Array.from(keys).sort((a, b) => b.localeCompare(a));
-  }, [currentPeriod, setoranRows]);
-
-  useEffect(() => {
-    if (selectedMonth && monthOptions.includes(selectedMonth)) return;
-    if (monthOptions.length) {
-      setSelectedMonth(monthOptions[0]);
-    } else {
-      setSelectedMonth(currentPeriod);
+    if (!cabang && defaultBranch) {
+      setCabang(defaultBranch);
     }
-  }, [currentPeriod, monthOptions, selectedMonth]);
-
-  const visibleRows = useMemo(() => {
-    if (!selectedMonth) return [];
-    return setoranRows
-      .filter((item) => toPeriodValue(item.timestamp) === selectedMonth)
-      .sort((a, b) => b.timestamp - a.timestamp)
-      .map((item) => sanitizeRow(item.row));
-  }, [selectedMonth, setoranRows]);
-
-  const filteredRows = useMemo(() => filterRows(visibleRows, searchValue), [searchValue, visibleRows]);
+  }, [defaultBranch, cabang]);
 
   useEffect(() => {
-    if (!viewAlert) return undefined;
-    const timer = setTimeout(() => setViewAlert(""), 4000);
+    if (!staffName && defaultStaff) {
+      setStaffName(defaultStaff);
+    }
+  }, [defaultStaff, staffName]);
+
+  useEffect(() => {
+    if (!alert?.message || alert.type !== "success") return undefined;
+    const timer = setTimeout(() => setAlert(null), 5000);
     return () => clearTimeout(timer);
-  }, [viewAlert]);
+  }, [alert]);
 
-  useEffect(() => {
-    function handlePointerDown(event) {
-      if (monthPopoverRef.current && !monthPopoverRef.current.contains(event.target)) {
-        setMonthPopoverOpen(false);
-      }
-    }
-    document.addEventListener("pointerdown", handlePointerDown);
-    return () => document.removeEventListener("pointerdown", handlePointerDown);
-  }, []);
+  const handleAddRow = () => {
+    const defaultTipe = tipePengeluaranOptions[0] || "";
+    setPengeluaranList((prev) => [...prev, buildEmptyExpense(defaultTipe)]);
+  };
 
-  const handleSubmit = async (event) => {
-    event.preventDefault();
-    setFormError("");
-    setFormSuccess("");
-    const timestampText = String(formState["TIMESTAMP INPUT"] || "").trim();
-    const parsedTimestamp = parseTimestamp(timestampText);
-    if (!parsedTimestamp) {
-      setFormError("Format timestamp tidak valid.");
+  const handleRemoveRow = (index) => {
+    setPengeluaranList((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const handleRowChange = (index, field, val) => {
+    setPengeluaranList((prev) =>
+      prev.map((item, i) => (i === index ? { ...item, [field]: val } : item))
+    );
+  };
+
+  const totalPengeluaran = useMemo(() => {
+    return pengeluaranList.reduce((acc, curr) => acc + (Number(curr.nominal) || 0), 0);
+  }, [pengeluaranList]);
+
+  const handleReset = () => {
+    setTanggal(getTodayDateString());
+    setCabang(defaultBranch);
+    setStaffName(defaultStaff);
+    setCatatan("");
+    setPengeluaranList([buildEmptyExpense(tipePengeluaranOptions[0] || "")]);
+    setAlert(null);
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setAlert(null);
+
+    const validExpenses = pengeluaranList
+      .map((item) => ({
+        tipe: item.tipe || tipePengeluaranOptions[0] || "Operasional",
+        nominal: Number(item.nominal) || 0,
+        keterangan: item.keterangan || "",
+      }))
+      .filter((item) => item.nominal > 0);
+
+    if (validExpenses.length === 0) {
+      setAlert({
+        type: "error",
+        message: "Masukkan minimal 1 baris pengeluaran dengan nominal lebih besar dari 0.",
+      });
       return;
     }
-    const nominalValue = Number(formState["UANG KELUAR"]);
-    if (!Number.isFinite(nominalValue) || nominalValue <= 0) {
-      setFormError("Nominal kas keluar harus lebih besar dari 0.");
+
+    if (!tanggal) {
+      setAlert({ type: "error", message: "Tanggal pengeluaran wajib diisi." });
       return;
     }
+
+    const finalCabang = cabang || branchList[0] || "Cabang Utama";
+    const finalStaff = (!isAdmin ? user?.nama : staffName) || user?.nama || "Staff";
 
     setSubmitLoading(true);
     try {
-      await request({
-        action: "create_database",
+      const now = new Date();
+      const waktuInput = `${String(now.getHours()).padStart(2, "0")}.${String(now.getMinutes()).padStart(2, "0")}.${String(now.getSeconds()).padStart(2, "0")}`;
+      const rincian = validExpenses
+        .map(
+          (item) =>
+            `[${item.tipe}: Rp ${item.nominal.toLocaleString("id-ID")}${
+              item.keterangan ? " - " + item.keterangan : ""
+            }]`
+        )
+        .join(", ");
+
+      const payload = {
+        action: "create_report",
         data: {
-          "TIMESTAMP INPUT": timestampText,
-          SHIFT: formState.SHIFT,
-          "ARUS DANA": formState["ARUS DANA"],
-          STAFF: formState.STAFF || user?.nama || "Staff",
-          KETERANGAN: formState.KETERANGAN,
-          "UANG KELUAR": nominalValue,
+          TANGGAL: tanggal,
+          "WAKTU INPUT": waktuInput,
+          "TIMESTAMP INPUT": `${tanggal} ${waktuInput}`,
+          CABANG: finalCabang,
+          "ARUS DANA": finalCabang,
+          STAFF: finalStaff,
+          "JENIS TRANSAKSI": "Pengeluaran",
+          isPengeluaranOnly: true,
+          "TOTAL PENGELUARAN": String(totalPengeluaran),
+          PENGELUARAN: String(totalPengeluaran),
+          "UANG KELUAR": String(totalPengeluaran),
+          "RINCIAN PENGELUARAN": rincian,
+          "UANG SETORAN": "0",
+          "UANG MASUK": "0",
+          "TOTAL PENJUALAN": "0",
+          KETERANGAN: catatan ? `${catatan} (${rincian})` : rincian,
+          pengeluaranList: validExpenses,
         },
+      };
+
+      if (request) {
+        await request(payload);
+      }
+
+      setAlert({
+        type: "success",
+        message: `Pengeluaran sebesar ${toCurrency(
+          totalPengeluaran
+        )} berhasil disimpan. Data otomatis masuk ke tabel transaksi di menu Laporan.`,
       });
 
-      const successMessage = "Pengeluaran tersimpan.";
-      setFormSuccess(successMessage);
-      setViewAlert(successMessage);
-      setMode("view");
-      const targetMonth = toPeriodValue(parsedTimestamp);
-      setSelectedMonth(targetMonth);
+      // Reset form fields
+      setCatatan("");
+      setPengeluaranList([buildEmptyExpense(tipePengeluaranOptions[0] || "")]);
+
       if (onReload) {
-        await onReload(targetMonth || period);
+        const targetPeriod = tanggal.substring(0, 7) || period;
+        await onReload(targetPeriod);
       }
-      setFormState(buildEmptyForm(user?.nama || ""));
     } catch (err) {
-      setFormError(mapApiErrorMessage(err.message));
+      setAlert({ type: "error", message: mapApiErrorMessage(err?.message || err) });
     } finally {
       setSubmitLoading(false);
     }
   };
 
-  const updateFormField = (name, value) => {
-    setFormState((prev) => ({ ...prev, [name]: value }));
-  };
+  const inputStyle =
+    "w-full rounded-2xl border border-brand-green/20 bg-brand-bg/60 px-4 py-2.5 text-sm font-bold text-brand-green-dark focus:border-brand-green focus:bg-white focus:outline-none transition";
+  const labelStyle =
+    "text-[10px] font-black uppercase tracking-[0.32em] text-brand-muted mb-2 block";
+  const sectionCardStyle =
+    "space-y-4 rounded-3xl border border-brand-green/10 bg-white p-5 sm:p-6 card-shadow";
 
-  const renderView = () => (
-    <div className="space-y-5 bg-white rounded-4xl border border-brand-green/5 shadow-2xl shadow-brand-green/10">
+  return (
+    <div className="space-y-5 pb-8 max-w-5xl mx-auto">
+      {/* Header Info */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+        <div>
+          <h2 className="text-xl sm:text-2xl font-black text-brand-green-dark tracking-tight">
+            Pengeluaran
+          </h2>
+          <p className="text-xs font-semibold text-brand-muted">
+            Catat biaya dan nota operasional outlet secara langsung tanpa tabel terpisah.
+          </p>
+        </div>
+      </div>
 
-      {viewAlert && <Alert type="success">{viewAlert}</Alert>}
+      {alert?.message && <Alert type={alert.type}>{alert.message}</Alert>}
 
-      <div className="relative" ref={monthPopoverRef}>
-        <DataTable
-          title="Pengeluaran"
-          rows={filteredRows}
-          search={searchValue}
-          onSearchChange={setSearchValue}
-          headerActions={
-            <button
-              className="inline-flex items-center gap-2 rounded-2xl bg-brand-green px-3 py-2 text-[10px] font-black uppercase text-white shadow-lg shadow-brand-green/30 transition hover:bg-brand-green-dark"
-              type="button"
-              onClick={() => {
-                setMode("input");
-                setFormError("");
-                setFormSuccess("");
-              }}
-            >
-              <Plus size={14} />
-              Input
-            </button>
-          }
-        />
-        {monthPopoverOpen && (
-          <div className="absolute right-4 top-0 z-20 mt-12 w-48 rounded-2xl border border-brand-green/15 bg-white p-3 shadow-2xl shadow-brand-green-dark/20">
-            <p className="text-[10px] font-black uppercase tracking-[0.32em] text-brand-muted mb-2">Pilih Bulan</p>
-            <div className="space-y-2 max-h-56 overflow-y-auto">
-              {monthOptions.map((option) => (
-                <button
-                  key={option}
-                  type="button"
-                  className={`w-full rounded-xl px-3 py-2 text-sm font-bold transition ${selectedMonth === option ? "bg-brand-green text-white" : "bg-brand-bg/60 text-brand-green-dark hover:bg-brand-bg/80"}`}
-                  onClick={() => {
-                    setSelectedMonth(option);
-                    setMonthPopoverOpen(false);
-                  }}
-                >
-                  {formatMonthLabel(option)}
-                </button>
-              ))}
+      <form onSubmit={handleSubmit} noValidate className="space-y-5">
+        {/* Section 1: Informasi Header */}
+        <section className={sectionCardStyle}>
+          <div className="flex items-center gap-2 mb-2">
+            <Store size={18} className="text-brand-green" />
+            <h3 className="text-xs font-black uppercase tracking-widest text-brand-green-dark/70">
+              1. Informasi Outlet & Tanggal
+            </h3>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+            {/* Tanggal Pengeluaran */}
+            <div>
+              <label htmlFor="exp-tanggal" className={labelStyle}>
+                Tanggal Pengeluaran
+              </label>
+              <div className="relative">
+                <input
+                  id="exp-tanggal"
+                  type="date"
+                  className={inputStyle}
+                  value={tanggal}
+                  onChange={(e) => setTanggal(e.target.value)}
+                  disabled={submitLoading}
+                />
+              </div>
+            </div>
+
+            {/* Cabang */}
+            <div>
+              <label className={labelStyle}>Cabang Outlet</label>
+              {!isAdmin && user?.cabang ? (
+                <div className="rounded-2xl border border-brand-green/20 bg-brand-bg/60 px-4 py-2.5 text-sm font-bold text-brand-green-dark">
+                  {user.cabang}
+                </div>
+              ) : (
+                <CustomSelect
+                  value={cabang}
+                  options={branchList}
+                  onChange={setCabang}
+                  disabled={submitLoading}
+                />
+              )}
+            </div>
+
+            {/* Staff Bertugas */}
+            <div>
+              <label className={labelStyle}>Staff Bertugas</label>
+              {!isAdmin ? (
+                <div className="rounded-2xl border border-brand-green/20 bg-brand-bg/60 px-4 py-2.5 text-sm font-bold text-brand-green-dark">
+                  {user?.nama || user?.username || "Staff"}
+                </div>
+              ) : (
+                <CustomSelect
+                  value={staffName}
+                  options={staffList}
+                  onChange={setStaffName}
+                  disabled={submitLoading}
+                />
+              )}
             </div>
           </div>
-        )}
-      </div>
-    </div>
-  );
+        </section>
 
-  const renderForm = () => (
-    <div className="space-y-5 bg-white rounded-4xl border border-brand-green/5 p-6 shadow-2xl shadow-brand-green/10">
-      <button
-        type="button"
-        className="inline-flex items-center gap-2 rounded-2xl border border-brand-green/20 px-4 py-2.5 text-sm font-black text-brand-green-dark hover:bg-brand-green/5 transition"
-        onClick={() => setMode("view")}
-      >
-        <ChevronLeft size={16} />
-        Kembali
-      </button>
-
-      {formError && <Alert type="error">{formError}</Alert>}
-      {formSuccess && <Alert type="success">{formSuccess}</Alert>}
-
-      <form className="space-y-4" onSubmit={handleSubmit}>
-        <div className="space-y-2">
-          <label className="text-[10px] font-black uppercase tracking-[0.32em] text-brand-muted">Timestamp Input</label>
-          <input
-            type="text"
-            className="w-full rounded-2xl border border-brand-green/20 bg-brand-bg/60 px-4 py-2.5 text-sm font-bold text-brand-green-dark focus:border-brand-green focus:outline-none"
-            value={formState["TIMESTAMP INPUT"]}
-            onChange={(event) => updateFormField("TIMESTAMP INPUT", event.target.value)}
-            placeholder="Minggu, 1 Maret 2026 22.22.26"
-          />
-        </div>
-
-        <div className="grid gap-4 md:grid-cols-2">
-          <div>
-            <label className="text-[10px] font-black uppercase tracking-[0.32em] text-brand-muted mb-2 block">Cabang</label>
-            <CustomSelect
-              options={branchList}
-              value={formState["ARUS DANA"]}
-              onChange={(value) => updateFormField("ARUS DANA", value)}
-            />
+        {/* Section 2: Rincian Pengeluaran Dinamis */}
+        <section className={sectionCardStyle}>
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <Receipt size={18} className="text-brand-green" />
+              <h3 className="text-xs font-black uppercase tracking-widest text-brand-green-dark/70">
+                2. Pengeluaran Operasional
+              </h3>
+            </div>
+            <button
+              type="button"
+              onClick={handleAddRow}
+              className="inline-flex items-center gap-1.5 text-xs font-extrabold text-brand-green hover:text-brand-green-dark bg-brand-green/10 hover:bg-brand-green/20 px-3 py-1.5 rounded-xl transition-colors cursor-pointer"
+            >
+              <Plus size={14} />
+              <span>Tambah Baris</span>
+            </button>
           </div>
-          <div>
-            <label className="text-[10px] font-black uppercase tracking-[0.32em] text-brand-muted mb-2 block">Staff Bertugas</label>
-            <CustomSelect
-              options={staffList}
-              value={formState.STAFF}
-              onChange={(value) => updateFormField("STAFF", value)}
-            />
-          </div>
-        </div>
 
-        <div className="grid gap-4 md:grid-cols-2">
-          <div>
-            <label className="text-[10px] font-black uppercase tracking-[0.32em] text-brand-muted mb-2 block">Nominal</label>
-            <input
-              type="number"
-              min="0"
-              step="1"
-              className="w-full rounded-2xl border border-brand-green/20 bg-brand-bg/60 px-4 py-2.5 text-sm font-bold text-brand-green-dark focus:border-brand-green focus:outline-none"
-              value={formState["UANG KELUAR"]}
-              onChange={(event) => updateFormField("UANG KELUAR", event.target.value)}
-              placeholder="100000"
-            />
+          {pengeluaranList.length === 0 ? (
+            <div className="text-center py-8 px-4 border-2 border-dashed border-brand-green/15 rounded-2xl bg-brand-bg/30">
+              <p className="text-xs font-bold text-brand-muted">
+                Tidak ada pengeluaran dicatat.
+              </p>
+              <button
+                type="button"
+                onClick={handleAddRow}
+                className="mt-3 inline-flex items-center gap-1.5 text-xs font-black text-brand-green hover:underline cursor-pointer"
+              >
+                <Plus size={14} />
+                <span>Klik untuk mencatat nota/pengeluaran</span>
+              </button>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {pengeluaranList.map((item, index) => (
+                <div
+                  key={item.id || index}
+                  className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 p-3.5 rounded-2xl border border-brand-green/10 bg-white/70 shadow-xs"
+                >
+                  {/* Tipe / Kategori Pengeluaran */}
+                  <div className="w-full sm:w-48 shrink-0">
+                    {tipePengeluaranOptions.length > 0 ? (
+                      <CustomSelect
+                        value={item.tipe}
+                        options={tipePengeluaranOptions}
+                        onChange={(val) => handleRowChange(index, "tipe", val)}
+                        disabled={submitLoading}
+                      />
+                    ) : (
+                      <input
+                        type="text"
+                        placeholder="Tipe pengeluaran"
+                        className="w-full rounded-xl border border-brand-green/15 bg-white px-3 py-2.5 text-xs font-bold text-brand-green-dark focus:outline-none focus:border-brand-green"
+                        value={item.tipe}
+                        onChange={(e) => handleRowChange(index, "tipe", e.target.value)}
+                        disabled={submitLoading}
+                      />
+                    )}
+                  </div>
+
+                  {/* Nominal Pengeluaran */}
+                  <div className="w-full sm:w-40 shrink-0">
+                    <input
+                      type="number"
+                      min="0"
+                      step="any"
+                      placeholder="Nominal (Rp)"
+                      aria-label={`Nominal Pengeluaran ${index + 1}`}
+                      className="w-full rounded-xl border border-brand-green/15 bg-white px-3 py-2.5 text-xs font-bold text-brand-green-dark focus:outline-none focus:border-brand-green"
+                      value={item.nominal}
+                      onChange={(e) => handleRowChange(index, "nominal", e.target.value)}
+                      disabled={submitLoading}
+                    />
+                  </div>
+
+                  {/* Keterangan / Nota */}
+                  <div className="flex-1">
+                    <input
+                      type="text"
+                      placeholder="Keterangan / Nota (Opsional)"
+                      aria-label={`Keterangan Pengeluaran ${index + 1}`}
+                      className="w-full rounded-xl border border-brand-green/15 bg-white px-3 py-2.5 text-xs font-bold text-brand-green-dark focus:outline-none focus:border-brand-green"
+                      value={item.keterangan}
+                      onChange={(e) => handleRowChange(index, "keterangan", e.target.value)}
+                      disabled={submitLoading}
+                    />
+                  </div>
+
+                  {/* Tombol Hapus */}
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveRow(index)}
+                    className="self-end sm:self-center p-2.5 rounded-xl text-red-500 hover:bg-red-50 transition-colors cursor-pointer disabled:opacity-40"
+                    title="Hapus baris pengeluaran"
+                    aria-label={`Hapus baris pengeluaran ${index + 1}`}
+                    disabled={submitLoading || pengeluaranList.length <= 1}
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Total Pengeluaran Banner */}
+          <div className="mt-4 p-4 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-between">
+            <span className="text-xs font-black uppercase tracking-wider text-amber-900">
+              Total Pengeluaran:
+            </span>
+            <span className="text-base sm:text-lg font-black text-amber-900">
+              {toCurrency(totalPengeluaran)}
+            </span>
           </div>
+        </section>
+
+        {/* Section 3: Catatan Tambahan (Opsional) */}
+        <section className={sectionCardStyle}>
+          <div className="flex items-center gap-2 mb-2">
+            <Banknote size={18} className="text-brand-green" />
+            <h3 className="text-xs font-black uppercase tracking-widest text-brand-green-dark/70">
+              3. Catatan Tambahan (Opsional)
+            </h3>
+          </div>
+
           <div>
-            <label className="text-[10px] font-black uppercase tracking-[0.32em] text-brand-muted mb-2 block">Keterangan</label>
             <textarea
-              className="w-full rounded-2xl border border-brand-green/20 bg-brand-bg/60 px-4 py-2.5 text-sm font-bold text-brand-green-dark focus:border-brand-green focus:outline-none"
+              className={`${inputStyle} resize-none`}
               rows="2"
-              value={formState.KETERANGAN}
-              onChange={(event) => updateFormField("KETERANGAN", event.target.value)}
-              placeholder="Catatan transaksi pengeluaran"
+              value={catatan}
+              onChange={(e) => setCatatan(e.target.value)}
+              placeholder="Catatan umum transaksi pengeluaran (opsional)..."
+              disabled={submitLoading}
             />
           </div>
-        </div>
+        </section>
 
-        <div className="flex sm:justify-end">
+        {/* Tombol Aksi Form */}
+        <div className="flex flex-col-reverse sm:flex-row items-center sm:justify-end gap-3 pt-2">
           <button
-            className="inline-flex justify-center items-center gap-2 rounded-2xl bg-brand-green px-5 py-3 text-xs font-black uppercase tracking-[0.3em] text-white shadow-lg shadow-brand-green/20 transition hover:bg-emerald-700 disabled:opacity-60 w-full sm:w-auto"
+            type="button"
+            onClick={handleReset}
+            disabled={submitLoading}
+            className="w-full sm:w-auto rounded-2xl border border-brand-green/20 bg-white px-5 py-3 text-xs font-black uppercase tracking-[0.2em] text-brand-green-dark hover:bg-brand-bg transition-colors disabled:opacity-50 cursor-pointer"
+          >
+            Reset Form
+          </button>
+          <button
             type="submit"
             disabled={submitLoading}
+            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-2xl bg-brand-green px-6 py-3 text-xs font-black uppercase tracking-[0.25em] text-white shadow-lg shadow-brand-green/25 hover:bg-brand-green-dark transition-all disabled:opacity-60 cursor-pointer"
           >
-            Simpan Pengeluaran
+            {submitLoading ? (
+              <>
+                <div className="h-4 w-4 rounded-full border-2 border-white/30 border-t-white animate-spin" />
+                <span>Menyimpan...</span>
+              </>
+            ) : (
+              <>
+                <CheckCircle2 size={16} />
+                <span>Simpan Pengeluaran</span>
+              </>
+            )}
           </button>
         </div>
       </form>
     </div>
   );
-
-  return mode === "input" ? renderForm() : renderView();
 }

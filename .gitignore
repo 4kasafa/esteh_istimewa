@@ -22,3 +22,6 @@ Thumbs.db
 
 # Clasp auth (jika ada token pribadi)
 .clasprc.json
+
+# Archify diagrams & artifacts
+.archify/

@@ -5,6 +5,7 @@ export default function ConfirmDialog({
   confirmLabel = "Ya",
   cancelLabel = "Tidak",
   loading = false,
+  danger = false,
   onConfirm,
   onCancel,
 }) {
@@ -27,7 +28,11 @@ export default function ConfirmDialog({
             {cancelLabel}
           </button>
           <button
-            className="rounded-xl bg-brand-green px-4 py-2.5 text-sm font-black text-white hover:bg-brand-green-dark disabled:opacity-60"
+            className={`rounded-xl px-4 py-2.5 text-sm font-black text-white disabled:opacity-60 transition-colors ${
+              danger
+                ? "bg-rose-600 hover:bg-rose-700"
+                : "bg-brand-green hover:bg-brand-green-dark"
+            }`}
             onClick={onConfirm}
             disabled={loading}
           >

@@ -7,6 +7,7 @@ import {
   MessageSquareWarning,
   RefreshCw,
   Send,
+  Sparkles,
   UserRound,
 } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -15,6 +16,7 @@ const DEV_CONTACT = import.meta.env.VITE_DEV_CONTACT || "6285156704029";
 
 export default function SettingPanel({
   user,
+  onOpenWizard,
 }) {
   const [activeSub, setActiveSub] = useState("main"); // main, account, download, report, about
   const [reportMessage, setReportMessage] = useState("");
@@ -73,6 +75,17 @@ export default function SettingPanel({
       description: "Refresh data aplikasi terbaru",
       action: () => window.location.reload(),
     },
+    ...(String(user?.role || "").toLowerCase() === "admin" && onOpenWizard
+      ? [
+          {
+            key: "wizard",
+            label: "Setup Wizard Operasional",
+            icon: Sparkles,
+            description: "Jalankan ulang panduan input cabang, staf & stok awal",
+            action: onOpenWizard,
+          },
+        ]
+      : []),
     ...(!isPWA
       ? [
           {

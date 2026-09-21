@@ -4,7 +4,7 @@ export default function BarChart({ title, data, color = "#2B9348", stretch = fal
   const max = Math.max(...data.map((item) => item.value), 1);
 
   return (
-    <div className={`${stretch ? "h-full flex flex-col" : ""} space-y-4`}>
+    <div className={`${stretch ? "h-full flex flex-col" : ""} space-y-3 xl:overflow-y-auto no-scrollbar`}>
       {title ? <h4 className="text-sm font-black uppercase tracking-wider text-brand-muted">{title}</h4> : null}
 
       {data.length === 0 ? (

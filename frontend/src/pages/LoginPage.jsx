@@ -36,11 +36,11 @@ export default function LoginPage({ hasApiUrl, loading, error, onLogin }) {
             </p>
           </header>
 
-          <div className="space-y-5 sm:space-y-6">
-
+          <div className="space-y-4 sm:space-y-5">
             {!hasApiUrl && (
               <Alert type="error">Konfigurasi API (VITE_GAS_API_URL) belum diatur.</Alert>
             )}
+            {error && <Alert type="error">{error}</Alert>}
             
             <form onSubmit={handleSubmit} className="flex flex-col gap-3.5 sm:gap-4">
               <div className="space-y-2">
@@ -99,8 +99,6 @@ export default function LoginPage({ hasApiUrl, loading, error, onLogin }) {
                 ) : "MASUK"}
               </button>
             </form>
-
-            {error && <Alert type="error">{error}</Alert>}
           </div>
         </section>
 

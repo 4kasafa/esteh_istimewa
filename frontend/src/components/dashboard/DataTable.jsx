@@ -15,6 +15,7 @@ export default function DataTable({
   dense = false,
   fitContainer = false,
   headerActions = null,
+  renderRowActions = null,
 }) {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(PAGE_SIZE_OPTIONS[0]);
@@ -135,6 +136,11 @@ export default function DataTable({
                       </span>
                     </div>
                   ))}
+                  {renderRowActions && (
+                    <div className="flex justify-end pt-1.5 border-t border-brand-green/10">
+                      {renderRowActions(row)}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
@@ -142,6 +148,11 @@ export default function DataTable({
             <table className="hidden md:table w-full text-left border-collapse">
               <thead>
                 <tr className="bg-brand-bg sticky top-0 z-10">
+                  {renderRowActions && (
+                    <th className={`${dense ? "px-4 py-3" : "px-6 py-4"} w-20 text-[10px] font-black text-brand-muted uppercase tracking-[0.15em] border-b border-brand-bg`}>
+                      Aksi
+                    </th>
+                  )}
                   {columns.map((column) => (
                   <th key={column} className={`${dense ? "px-4 py-3" : "px-6 py-4"} text-[10px] font-black text-brand-muted uppercase tracking-[0.15em] border-b border-brand-bg`}>
                       {column}
@@ -152,6 +163,11 @@ export default function DataTable({
               <tbody className="divide-y divide-brand-bg">
                 {pageRows.map((row, rowIndex) => (
                   <tr key={`r-${startIndex + rowIndex}`} className="group transition-all duration-200 hover:bg-brand-bg/50 hover:shadow-[inset_0_0_0_1px_rgba(43,147,72,0.12)]">
+                    {renderRowActions && (
+                      <td className={`${dense ? "px-4 py-2.5" : "px-6 py-4"} whitespace-nowrap`}>
+                        {renderRowActions(row)}
+                      </td>
+                    )}
                     {columns.map((column) => (
                       <td key={`${startIndex + rowIndex}-${column}`} className={`${dense ? "px-4 py-2.5 text-[11px]" : "px-6 py-4 text-xs"} font-bold text-brand-green-dark/80 whitespace-nowrap`}>
                         {renderCellValue(row, column)}

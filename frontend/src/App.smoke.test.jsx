@@ -305,7 +305,7 @@ describe("App smoke", () => {
 
     // Verify form opened
     expect(screen.getByRole("heading", { level: 2, name: /laporan baru/i })).toBeInTheDocument();
-    expect(screen.getByText(/Gelas Awal/i)).toBeInTheDocument();
+    expect(screen.getByText(/Gelas Cup/i)).toBeInTheDocument();
     expect(screen.getAllByText(/Uang Setoran/i).length).toBeGreaterThan(0);
   });
 
@@ -343,8 +343,8 @@ describe("App smoke", () => {
     expect(screen.getByRole("button", { name: /kembali ke laporan/i })).toBeInTheDocument();
 
     // Fill minimal report form
-    fireEvent.change(screen.getByLabelText("Gelas Awal"), { target: { value: "100" } });
-    fireEvent.change(screen.getByLabelText("Gelas Sisa"), { target: { value: "50" } });
+    fireEvent.change(screen.getByLabelText("Stok Awal Gelas Cup"), { target: { value: "100" } });
+    fireEvent.change(screen.getByLabelText("Stok Sisa Gelas Cup"), { target: { value: "50" } });
 
     // Submit form
     const submitBtn = screen.getByRole("button", { name: /kirim laporan harian|submit laporan/i });
@@ -511,7 +511,7 @@ describe("App smoke", () => {
     });
   });
 
-  it("calculates Gelas Laku automatically from Gelas Awal, Sisa, and Rusak without manual input in report form", async () => {
+  it("calculates Gelas Cup stock consumption automatically from Stok Awal and Stok Sisa identical to other stock items", async () => {
     render(<App />);
 
     // Login as staff
@@ -525,31 +525,30 @@ describe("App smoke", () => {
     fireEvent.click(screen.getByRole("button", { name: /^buat laporan hari ini$/i }));
     expect(screen.getByRole("heading", { level: 2, name: "Laporan Baru" })).toBeInTheDocument();
 
-    // Verify fields: Gelas Awal, Gelas Sisa, Gelas Rusak, Gelas Laku
-    expect(screen.getByText(/^Gelas Awal$/i)).toBeInTheDocument();
-    expect(screen.getByText(/^Gelas Sisa$/i)).toBeInTheDocument();
-    expect(screen.getByText(/^Gelas Rusak$/i)).toBeInTheDocument();
-    expect(screen.getByText(/^Gelas Laku$/i)).toBeInTheDocument();
+    // Verify fields for Gelas Cup match standard stock items: Stok Awal and Stok Sisa
+    await waitFor(() => {
+      expect(screen.getByText("Gelas Cup")).toBeInTheDocument();
+    });
+    expect(screen.getByLabelText("Stok Awal Gelas Cup")).toBeInTheDocument();
+    expect(screen.getByLabelText("Stok Sisa Gelas Cup")).toBeInTheDocument();
 
-    // Verify Gelas Laku has no text/number input field
-    expect(screen.queryByRole("spinbutton", { name: /^gelas laku$/i })).not.toBeInTheDocument();
-    expect(screen.queryByRole("textbox", { name: /^gelas laku$/i })).not.toBeInTheDocument();
+    // Verify custom legacy fields are removed
+    expect(screen.queryByText(/^Gelas Rusak$/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/^Gelas Laku$/i)).not.toBeInTheDocument();
 
-    // Find inputs for Gelas Awal, Sisa, Rusak
-    const awalInput = screen.getByLabelText("Gelas Awal");
-    const sisaInput = screen.getByLabelText("Gelas Sisa");
-    const rusakInput = screen.getByLabelText("Gelas Rusak");
+    // Find inputs for Gelas Cup
+    const awalInput = screen.getByLabelText("Stok Awal Gelas Cup");
+    const sisaInput = screen.getByLabelText("Stok Sisa Gelas Cup");
 
-    // Enter Gelas Awal = 200, Gelas Sisa = 48, Gelas Rusak = 2
+    // Enter Stok Awal = 200, Stok Sisa = 50 -> Terpakai = 150 Cup
     fireEvent.change(awalInput, { target: { value: "200" } });
-    fireEvent.change(sisaInput, { target: { value: "48" } });
-    fireEvent.change(rusakInput, { target: { value: "2" } });
+    fireEvent.change(sisaInput, { target: { value: "50" } });
 
-    // Verify auto-calculated badge: 200 - 48 - 2 = 150 Cup
+    // Verify auto-calculated badge: 200 - 50 = 150 Cup
     expect(screen.getByText("150 Cup")).toBeInTheDocument();
 
-    // Change Gelas Sisa to 20: 200 - 20 - 2 = 178 Cup
-    fireEvent.change(sisaInput, { target: { value: "20" } });
+    // Change Stok Sisa to 22: 200 - 22 = 178 Cup
+    fireEvent.change(sisaInput, { target: { value: "22" } });
     expect(screen.getByText("178 Cup")).toBeInTheDocument();
   });
 
@@ -567,15 +566,14 @@ describe("App smoke", () => {
     fireEvent.click(screen.getByRole("button", { name: /^buat laporan hari ini$/i }));
 
     await waitFor(() => {
-      expect(screen.getByLabelText("Gelas Awal")).toBeInTheDocument();
+      expect(screen.getByLabelText("Stok Awal Gelas Cup")).toBeInTheDocument();
     });
 
-    // Input Gelas: Awal=100, Sisa=50, Rusak=9 -> Gelas Laku = 41 Cup
-    fireEvent.change(screen.getByLabelText("Gelas Awal"), { target: { value: "100" } });
-    fireEvent.change(screen.getByLabelText("Gelas Sisa"), { target: { value: "50" } });
-    fireEvent.change(screen.getByLabelText("Gelas Rusak"), { target: { value: "9" } });
+    // Input Gelas: Awal=100, Sisa=50 -> Terpakai = 50 Cup
+    fireEvent.change(screen.getByLabelText("Stok Awal Gelas Cup"), { target: { value: "100" } });
+    fireEvent.change(screen.getByLabelText("Stok Sisa Gelas Cup"), { target: { value: "50" } });
 
-    expect(screen.getByText("41 Cup")).toBeInTheDocument();
+    expect(screen.getByText("50 Cup")).toBeInTheDocument();
 
     // Input Uang Setoran = 164000
     fireEvent.change(screen.getByLabelText(/Uang Setoran/i), { target: { value: "164000" } });
@@ -587,7 +585,7 @@ describe("App smoke", () => {
     // Verify returning to report list and Total Penjualan is Rp 164.000 (not '-')
     await waitFor(() => {
       expect(screen.getByText("Menampilkan 1 entri data")).toBeInTheDocument();
-      expect(screen.getAllByText(/41 Cup/i).length).toBeGreaterThan(0);
+      expect(screen.getAllByText(/50 Cup/i).length).toBeGreaterThan(0);
       expect(screen.getAllByText(/Rp\s*164\.000/i).length).toBeGreaterThan(0);
     });
   });
@@ -648,6 +646,25 @@ describe("App smoke", () => {
 
     await waitFor(() => {
       expect(screen.getByText(/password salah untuk username admin/i)).toBeInTheDocument();
+    });
+  });
+
+  it("displays Stok Bahan menu for admin and navigates to Stok panel", async () => {
+    render(<App />);
+
+    loginAsAdmin();
+
+    const stokBtn = await screen.findByRole("button", { name: /^stok bahan$/i });
+    expect(stokBtn).toBeInTheDocument();
+
+    fireEvent.click(stokBtn);
+
+    await waitFor(() => {
+      expect(screen.getByText("Jenis Bahan")).toBeInTheDocument();
+    });
+
+    await waitFor(() => {
+      expect(screen.getAllByText(/Gelas Cup/i).length).toBeGreaterThan(0);
     });
   });
 });

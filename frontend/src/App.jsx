@@ -29,6 +29,7 @@ export default function App() {
     reportRows,
     dbRows,
     masterData,
+    loadMasterData,
     loading: dataLoading,
     message: dataMessage,
     error: dataError,
@@ -37,6 +38,7 @@ export default function App() {
     loadData,
     createReport,
     updateReport,
+    deleteReport,
   } = useDashboardData({
     token,
     isAdmin,
@@ -149,7 +151,9 @@ export default function App() {
       onRefreshAll={() => loadData({ monthly: false })}
       onCreateReport={createReport}
       onUpdateReport={updateReport}
+      onDeleteReport={deleteReport}
       request={request}
+      onReloadMaster={loadMasterData}
       onLogout={logout}
     />
   );

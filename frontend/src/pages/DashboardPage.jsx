@@ -11,8 +11,11 @@ import ReportForm from "../components/forms/ReportForm";
 import KaryawanPanel from "../components/dashboard/KaryawanPanel";
 import CabangPanel from "../components/dashboard/CabangPanel";
 import SettingPanel from "../components/dashboard/SettingPanel";
+import StokPanel from "../components/dashboard/StokPanel";
+import SetupBanner from "../components/dashboard/SetupBanner";
+import SetupWizard from "../components/dashboard/SetupWizard";
 import ConfirmDialog from "../components/common/ConfirmDialog";
-import { parseTimestamp, toPeriodValue } from "../utils/formatters";
+import { generateTrxId, parseTimestamp, toPeriodValue } from "../utils/formatters";
 
 function getViewportMode() {
   if (typeof window === "undefined") return "desktop";
@@ -34,7 +37,9 @@ export default function DashboardPage({
   onRefreshAll,
   onCreateReport,
   onUpdateReport,
+  onDeleteReport,
   request,
+  onReloadMaster,
   onLogout,
 }) {
   const isStaff = String(user?.role || "").toLowerCase() === "staff";
@@ -50,13 +55,24 @@ export default function DashboardPage({
   const [logoutDialogOpen, setLogoutDialogOpen] = useState(false);
   const [logoutLoading, setLogoutLoading] = useState(false);
 
+  const [isWizardOpen, setIsWizardOpen] = useState(false);
+  const [isBannerDismissed, setIsBannerDismissed] = useState(() => {
+    try {
+      return sessionStorage.getItem("esteh_banner_dismissed") === "true";
+    } catch {
+      return false;
+    }
+  });
+
+  const viewportMode = mode;
+
   const branchList = useMemo(() => {
     const raw = masterData?.cabang || masterData?.cabangList || [];
     const names = raw.map((c) => (typeof c === "string" ? c : c.NAMA_CABANG || c.nama || c.ID_CABANG)).filter(Boolean);
     if (user?.cabang && !names.includes(user.cabang)) {
       names.push(user.cabang);
     }
-    return names.length > 0 ? names : [user?.cabang || "Cabang Utama"];
+    return names;
   }, [masterData, user?.cabang]);
 
   const branches = useMemo(() => ["Semua", ...branchList], [branchList]);
@@ -75,7 +91,7 @@ export default function DashboardPage({
     if (user?.nama && !names.includes(user.nama)) {
       names.unshift(user.nama);
     }
-    return names.length > 0 ? names : [user?.nama || "Staff"];
+    return names;
   }, [masterData, user?.nama]);
 
   const filteredReportRows = useMemo(() => {
@@ -122,7 +138,7 @@ export default function DashboardPage({
     if (isAdmin) {
       return DASHBOARD_MENU;
     }
-    return DASHBOARD_MENU.filter((item) => item.key !== "pengeluaran");
+    return DASHBOARD_MENU.filter((item) => item.key !== "pengeluaran" && item.key !== "stok");
   }, [isAdmin, isStaff]);
 
   const reloadPengeluaran = useCallback(
@@ -148,6 +164,70 @@ export default function DashboardPage({
       setActiveMenu(sidebarMenu[0]?.key || "laporan");
     }
   }, [activeMenu, sidebarMenu]);
+
+  // Deteksi otomatis apakah data master esensial (cabang / staf) masih kosong
+  const isMasterIncomplete = useMemo(() => {
+    if (!isAdmin) return false;
+    const rawCabang = masterData?.cabang || masterData?.cabangList || [];
+    const rawStaff = (masterData?.users || []).filter(
+      (u) => String(u.ROLE || u.role || "").toLowerCase() === "staff"
+    );
+    return rawCabang.length === 0 || rawStaff.length === 0;
+  }, [isAdmin, masterData?.cabang, masterData?.cabangList, masterData?.users]);
+
+  // Otomatis buka wizard saat pertama kali login admin jika data masih kosong & belum pernah dilewati di sesi ini
+  useEffect(() => {
+    if (!isAdmin || loading) return;
+    const hasFetchedMaster = (masterData?.users || []).length > 0;
+    if (!hasFetchedMaster) return;
+
+    try {
+      const isSkipped = sessionStorage.getItem("esteh_wizard_skipped") === "true";
+      const isCompleted = localStorage.getItem("esteh_wizard_completed") === "true";
+      if (isMasterIncomplete && !isSkipped && !isCompleted) {
+        setIsWizardOpen(true);
+      }
+    } catch {
+      /* ignore storage errors */
+    }
+  }, [isAdmin, isMasterIncomplete, loading, masterData?.users]);
+
+  const handleOpenWizard = useCallback(() => {
+    setIsWizardOpen(true);
+  }, []);
+
+  const handleCloseWizard = useCallback(() => {
+    try {
+      sessionStorage.setItem("esteh_wizard_skipped", "true");
+    } catch {
+      /* ignore storage errors */
+    }
+    setIsWizardOpen(false);
+  }, []);
+
+  const handleFinishWizard = useCallback(async () => {
+    try {
+      localStorage.setItem("esteh_wizard_completed", "true");
+      sessionStorage.removeItem("esteh_wizard_skipped");
+    } catch {
+      /* ignore storage errors */
+    }
+    setIsBannerDismissed(true);
+    if (onReloadMaster) {
+      await onReloadMaster();
+    }
+  }, [onReloadMaster]);
+
+  const handleDismissBanner = useCallback(() => {
+    try {
+      sessionStorage.setItem("esteh_banner_dismissed", "true");
+    } catch {
+      /* ignore storage errors */
+    }
+    setIsBannerDismissed(true);
+  }, []);
+
+  const showBanner = isAdmin && isMasterIncomplete && !isBannerDismissed && !isWizardOpen;
 
   // Cari apakah staf sudah memiliki laporan hari ini
   const todayStaffReport = useMemo(() => {
@@ -207,9 +287,6 @@ export default function DashboardPage({
     setIsCollapsed((prev) => !prev);
   }
 
-  function panelClass(menuKey) {
-    return activeMenu === menuKey ? "block" : "hidden";
-  }
 
   function handleRequestLogout() {
     setLogoutDialogOpen(true);
@@ -265,8 +342,16 @@ export default function DashboardPage({
     // Rumus: Total Penjualan = Uang Setoran + Total Pengeluaran
     const totalPenjualan = uangSetoran + totalPengeluaran;
 
+    let idTransaksi = reportForm["ID TRANSAKSI"] || reportForm["NO TRANSAKSI"] || "";
+    const isLegacyId = !idTransaksi || !String(idTransaksi).toUpperCase().startsWith("TRX-") || String(idTransaksi).includes(",");
+    if (isLegacyId) {
+      idTransaksi = generateTrxId(reportForm.TANGGAL || new Date());
+    }
+
     const payload = {
       ...reportForm,
+      "ID TRANSAKSI": idTransaksi,
+      "NO TRANSAKSI": idTransaksi,
       "STAFF": reportForm.STAFF || user?.nama || "Staff",
       "CABANG": reportForm.CABANG || reportForm["ARUS DANA"] || selectedBranch,
       "ARUS DANA": reportForm.CABANG || reportForm["ARUS DANA"] || selectedBranch,
@@ -351,12 +436,19 @@ export default function DashboardPage({
 
         <div className="flex-1 overflow-y-auto overflow-x-hidden p-3 sm:p-4 lg:p-4 no-scrollbar">
           <div className="w-full space-y-4 sm:space-y-6">
+            {showBanner && (
+              <SetupBanner
+                onStartWizard={handleOpenWizard}
+                onDismiss={handleDismissBanner}
+              />
+            )}
             {message && <Alert type="success">{message}</Alert>}
             {error && <Alert type="error">{error}</Alert>}
 
             <div className="animate-fade-in">
-              <div className={panelClass("dashboard")} hidden={activeMenu !== "dashboard"} style={{ display: activeMenu === "dashboard" ? "block" : "none" }}>
+              <div hidden={activeMenu !== "dashboard"} style={{ display: activeMenu === "dashboard" ? "block" : "none" }}>
                 <OverviewPanel
+                  reportRows={filteredReportRows}
                   dbRows={filteredReportRows.length > 0 ? filteredReportRows : filteredDbRows}
                   loading={loading}
                   periodFilter={periodFilter}
@@ -364,7 +456,7 @@ export default function DashboardPage({
                 />
               </div>
 
-              <div className={panelClass("laporan")} hidden={activeMenu !== "laporan"} style={{ display: activeMenu === "laporan" ? "block" : "none" }}>
+              <div hidden={activeMenu !== "laporan"} style={{ display: activeMenu === "laporan" ? "block" : "none" }}>
                 <ReportPanel
                   reportRows={filteredReportRows}
                   dbRows={filteredDbRows}
@@ -375,55 +467,90 @@ export default function DashboardPage({
                   onRefreshAll={onRefreshAll}
                   onEditRow={handleEditReportRow}
                   onAddReport={handleAddReport}
+                  onDeleteReport={onDeleteReport}
+                  period={periodFilter.period || period}
                   todayReport={todayStaffReport}
                 />
               </div>
 
-              <div className={panelClass("pemasukan")} hidden={activeMenu !== "pemasukan"} style={{ display: activeMenu === "pemasukan" ? "block" : "none" }}>
-                <div className="bg-white rounded-4xl p-6 sm:p-10 border border-brand-green/5 card-shadow">
-                  <ReportForm
-                    value={reportForm}
-                    loading={loading}
-                    user={user}
-                    isEdit={isEditMode}
-                    availableBahan={availableBahan}
-                    availableTipePengeluaran={availableTipePengeluaran}
-                    availableBranches={branchList}
-                    availableStaff={availableStaff}
-                    yesterdayStock={masterData?.yesterdayStock || {}}
-                    onSubmit={handleFormSubmit}
-                    onCancel={() => setActiveMenu("laporan")}
-                    onChange={(key, value) => setReportForm((prev) => ({ ...prev, [key]: value }))}
-                  />
-                </div>
+              <div hidden={activeMenu !== "pemasukan"} style={{ display: activeMenu === "pemasukan" ? "block" : "none" }}>
+                <ReportForm
+                  value={reportForm}
+                  loading={loading}
+                  user={user}
+                  isAdmin={isAdmin}
+                  viewportMode={viewportMode}
+                  isEdit={isEditMode}
+                  availableBahan={availableBahan}
+                  availableTipePengeluaran={availableTipePengeluaran}
+                  availableBranches={branchList}
+                  availableStaff={availableStaff}
+                  yesterdayStock={masterData?.yesterdayStock || {}}
+                  onSubmit={handleFormSubmit}
+                  onCancel={() => setActiveMenu("laporan")}
+                  onChange={(key, value) => setReportForm((prev) => ({ ...prev, [key]: value }))}
+                />
               </div>
 
-              <div className={panelClass("pengeluaran")} hidden={activeMenu !== "pengeluaran"} style={{ display: activeMenu === "pengeluaran" ? "block" : "none" }}>
-                <KasKeluarPanel
-                  dbRows={filteredDbRows}
-                  request={request}
-                  period={period}
-                  branches={branchList}
-                  staff={availableStaff}
-                  onReload={reloadPengeluaran}
-                  user={user}
-                />
+              <div hidden={activeMenu !== "pengeluaran"} style={{ display: activeMenu === "pengeluaran" ? "block" : "none" }}>
+                {activeMenu === "pengeluaran" && (
+                  <KasKeluarPanel
+                    request={request}
+                    period={periodFilter.period || period}
+                    branches={branchList}
+                    staff={availableStaff}
+                    availableTipePengeluaran={availableTipePengeluaran}
+                    selectedBranch={selectedBranch}
+                    onReload={reloadPengeluaran}
+                    isAdmin={isAdmin}
+                    user={user}
+                  />
+                )}
               </div>
 
               {isAdmin && (
                 <>
-                  <div className={panelClass("karyawan")} hidden={activeMenu !== "karyawan"} style={{ display: activeMenu === "karyawan" ? "block" : "none" }}>
-                    <KaryawanPanel selectedBranch={selectedBranch} branches={branchList} request={request} />
+                  <div hidden={activeMenu !== "stok"} style={{ display: activeMenu === "stok" ? "block" : "none" }}>
+                    {activeMenu === "stok" && (
+                      <StokPanel
+                        selectedBranch={selectedBranch}
+                        branches={branchList}
+                        masterBahan={availableBahan}
+                        reportRows={filteredReportRows}
+                        dbRows={filteredDbRows}
+                        request={request}
+                        onReloadMaster={onReloadMaster}
+                      />
+                    )}
                   </div>
 
-                  <div className={panelClass("cabang")} hidden={activeMenu !== "cabang"} style={{ display: activeMenu === "cabang" ? "block" : "none" }}>
-                    <CabangPanel selectedBranch={selectedBranch} branches={branchList} request={request} />
+                  <div hidden={activeMenu !== "karyawan"} style={{ display: activeMenu === "karyawan" ? "block" : "none" }}>
+                    {activeMenu === "karyawan" && (
+                      <KaryawanPanel
+                        selectedBranch={selectedBranch}
+                        branches={branchList}
+                        request={request}
+                        user={user}
+                        onReloadMaster={onReloadMaster}
+                      />
+                    )}
+                  </div>
+
+                  <div hidden={activeMenu !== "cabang"} style={{ display: activeMenu === "cabang" ? "block" : "none" }}>
+                    {activeMenu === "cabang" && (
+                      <CabangPanel
+                        selectedBranch={selectedBranch}
+                        branches={branchList}
+                        request={request}
+                        onReloadMaster={onReloadMaster}
+                      />
+                    )}
                   </div>
                 </>
               )}
 
-              <div className={panelClass("setting")} hidden={activeMenu !== "setting"} style={{ display: activeMenu === "setting" ? "block" : "none" }}>
-                <SettingPanel user={user} />
+              <div hidden={activeMenu !== "setting"} style={{ display: activeMenu === "setting" ? "block" : "none" }}>
+                <SettingPanel user={user} onOpenWizard={handleOpenWizard} />
               </div>
             </div>
           </div>
@@ -439,6 +566,14 @@ export default function DashboardPage({
         loading={logoutLoading}
         onCancel={() => setLogoutDialogOpen(false)}
         onConfirm={handleConfirmLogout}
+      />
+
+      <SetupWizard
+        open={isWizardOpen}
+        onClose={handleCloseWizard}
+        onFinish={handleFinishWizard}
+        request={request}
+        existingBranches={branchList}
       />
     </div>
   );

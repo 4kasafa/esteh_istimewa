@@ -13,7 +13,7 @@ function buildPoints(data, width, height, paddingX, paddingY) {
   });
 }
 
-export default function LineChart({ data }) {
+export default function LineChart({ data, stretch = false }) {
   const [activeIndex, setActiveIndex] = useState(-1);
   const [isMobile, setIsMobile] = useState(false);
   const svgRef = useRef(null);
@@ -66,13 +66,13 @@ export default function LineChart({ data }) {
   }
 
   return (
-    <div className="space-y-4">
+    <div className={stretch ? "h-full flex flex-col flex-1 min-h-0" : "space-y-4"}>
       {data.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-brand-green/20 bg-brand-bg/40 px-4 py-8 text-center text-sm font-bold text-brand-muted">
           Belum ada data tren pemasukan.
         </div>
       ) : (
-        <div className="relative">
+        <div className={stretch ? "relative flex-1 min-h-0" : "relative"}>
           {activeIndex >= 0 && points[activeIndex] && (
             <div className="absolute left-0 top-0 z-10 rounded-xl border border-brand-green/15 bg-white/95 px-3 py-2 text-xs shadow-lg">
               <p className="font-black text-brand-green-dark">{points[activeIndex].label}</p>
@@ -80,11 +80,11 @@ export default function LineChart({ data }) {
             </div>
           )}
 
-          <div className="w-full">
+          <div className={stretch ? "h-full" : "w-full"}>
             <svg
               ref={svgRef}
               viewBox={`0 0 ${width} ${height}`}
-              className="w-full h-36 sm:h-48 xl:h-40 2xl:h-48 touch-none"
+              className={`w-full ${stretch ? "h-full" : "h-36 sm:h-48 xl:h-40 2xl:h-48"} touch-none`}
               onPointerDown={handlePointerDown}
               onPointerMove={handlePointerMove}
               onPointerLeave={() => {

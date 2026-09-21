@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseLooseNumber, parseTimestamp } from "./formatters";
+import { generateTrxId, parseLooseNumber, parseTimestamp } from "./formatters";
 
 describe("parseLooseNumber", () => {
   it("parses Indonesian number format", () => {
@@ -34,3 +34,21 @@ describe("parseTimestamp", () => {
     expect(parseTimestamp("invalid-date")).toBeNull();
   });
 });
+
+describe("generateTrxId", () => {
+  it("generates TRX ID format with timestamp", () => {
+    const trxId = generateTrxId("2026-09-21");
+    expect(trxId).toMatch(/^TRX-20260921-\d{6}$/);
+  });
+
+  it("generates TRX ID with counter", () => {
+    const trxId = generateTrxId("2026-09-21", 5);
+    expect(trxId).toBe("TRX-20260921-005");
+  });
+
+  it("falls back to current date if date is empty or invalid", () => {
+    const trxId = generateTrxId();
+    expect(trxId).toMatch(/^TRX-\d{8}-\d{6}$/);
+  });
+});
+

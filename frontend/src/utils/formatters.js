@@ -100,6 +100,33 @@ export function toPeriodValue(date = new Date()) {
   return `${year}-${month}`;
 }
 
+export function generateTrxId(date = new Date(), counter = "") {
+  let d = date;
+  if (typeof date === "string") {
+    const parts = date.split("-");
+    if (parts.length === 3) {
+      d = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+    } else {
+      d = new Date(date);
+    }
+  }
+  const validDate = d instanceof Date && !Number.isNaN(d.getTime()) ? d : new Date();
+  const year = validDate.getFullYear();
+  const month = String(validDate.getMonth() + 1).padStart(2, "0");
+  const day = String(validDate.getDate()).padStart(2, "0");
+  const dateStr = `${year}${month}${day}`;
+
+  if (counter) {
+    return `TRX-${dateStr}-${String(counter).padStart(3, "0")}`;
+  }
+
+  const now = new Date();
+  const hours = String(now.getHours()).padStart(2, "0");
+  const minutes = String(now.getMinutes()).padStart(2, "0");
+  const seconds = String(now.getSeconds()).padStart(2, "0");
+  return `TRX-${dateStr}-${hours}${minutes}${seconds}`;
+}
+
 export function toFormattedTimestamp(date = new Date()) {
   const days = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
   const months = [

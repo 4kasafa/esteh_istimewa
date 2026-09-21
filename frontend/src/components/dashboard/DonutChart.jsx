@@ -19,12 +19,12 @@ function buildSegments(data) {
   });
 }
 
-export default function DonutChart({ data }) {
+export default function DonutChart({ data, stretch = false }) {
   const segments = useMemo(() => buildSegments(data), [data]);
 
   return (
-    <div className="space-y-4">
-      <div className="relative mx-auto h-44 w-44 sm:h-48 sm:w-48">
+    <div className={`space-y-4 ${stretch ? "h-full flex flex-col" : ""}`}>
+      <div className="relative mx-auto h-44 w-44 sm:h-48 sm:w-48 xl:h-36 xl:w-36">
         <svg viewBox="0 0 120 120" className="h-full w-full -rotate-90">
           <circle cx="60" cy="60" r="44" fill="none" stroke="#EAF3E2" strokeWidth="12" />
           {segments.map((segment) => (
@@ -50,7 +50,7 @@ export default function DonutChart({ data }) {
         </div>
       </div>
 
-      <div className="space-y-2">
+      <div className={`space-y-2 ${stretch ? "flex-1 min-h-0 overflow-y-auto no-scrollbar" : ""}`}>
         {data.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-brand-green/20 bg-brand-bg/40 px-4 py-6 text-sm font-bold text-brand-muted">
             Belum ada data kontribusi cabang.

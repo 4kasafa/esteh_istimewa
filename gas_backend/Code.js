@@ -41,6 +41,14 @@ function doGet(e) {
       return jsonResponse_(true, null, "Rekapitulasi periode " + targetPeriod + " berhasil diperbarui.");
     }
 
+    if (action === "sync_monthly_sheets" || action === "sync_headers") {
+      return jsonResponse_(true, null, syncAndMigrateMonthlySheets());
+    }
+
+    if (action === "fix_headers" || action === "format_headers") {
+      return jsonResponse_(true, null, fixAllHeadersAndColumnWidths());
+    }
+
     if (action === "cleanup_duplicates") {
       return jsonResponse_(true, null, cleanupDuplicateMonthlySpreadsheets());
     }
@@ -89,6 +97,12 @@ function doPost(e) {
       case "update":
         return handleUpdateReport_(payload, session);
 
+      case "delete_report":
+      case "delete_transaction":
+      case "delete":
+        ensureAdmin_(session);
+        return handleDeleteReport_(payload, session);
+
       case "read_reports":
       case "read":
         return handleReadReports_(payload, session);
@@ -118,6 +132,16 @@ function doPost(e) {
       case "cleanup_duplicates":
         ensureAdmin_(session);
         return jsonResponse_(true, null, cleanupDuplicateMonthlySpreadsheets());
+
+      case "sync_monthly_sheets":
+      case "sync_headers":
+        ensureAdmin_(session);
+        return jsonResponse_(true, null, syncAndMigrateMonthlySheets());
+
+      case "fix_headers":
+      case "format_headers":
+        ensureAdmin_(session);
+        return jsonResponse_(true, null, fixAllHeadersAndColumnWidths());
 
       case "reset_all_sheets":
       case "clean_all_sheets":

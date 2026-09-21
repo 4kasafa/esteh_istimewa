@@ -191,6 +191,46 @@ export function useDashboardData({ token, isAdmin, request, onAuthError }) {
     }
   }, [isAdmin, loadData, onAuthError, request]);
 
+  const deleteReport = useCallback(async (id, period, rowIndex) => {
+    setLoading(true);
+    setError("");
+    setMessage("");
+
+    try {
+      await request({ action: "delete_report", id, period, rowIndex });
+      setMessage("Transaksi berhasil dihapus.");
+      setTimeout(() => setMessage(""), 5000);
+
+      setReportRows((prev) =>
+        prev.filter((r) => {
+          const matchId = id && String(r["ID TRANSAKSI"] || r["NO TRANSAKSI"] || r.id || "").toLowerCase() === String(id).toLowerCase();
+          const matchRowIndex = rowIndex && r._rowIndex === rowIndex;
+          return !matchId && !matchRowIndex;
+        })
+      );
+      setDbRows((prev) =>
+        prev.filter((r) => {
+          const matchId = id && String(r["ID TRANSAKSI"] || r["NO TRANSAKSI"] || r.id || "").toLowerCase() === String(id).toLowerCase();
+          const matchRowIndex = rowIndex && r._rowIndex === rowIndex;
+          return !matchId && !matchRowIndex;
+        })
+      );
+
+      await loadData({ monthly: true, period });
+
+      return true;
+    } catch (err) {
+      const friendlyMessage = mapApiErrorMessage(err.message);
+      setError(friendlyMessage);
+      if (isAuthErrorMessage(err.message)) {
+        await onAuthError?.();
+      }
+      return false;
+    } finally {
+      setLoading(false);
+    }
+  }, [loadData, onAuthError, request]);
+
   return {
     reportRows,
     dbRows,
@@ -205,5 +245,6 @@ export function useDashboardData({ token, isAdmin, request, onAuthError }) {
     loadData,
     createReport,
     updateReport,
+    deleteReport,
   };
 }

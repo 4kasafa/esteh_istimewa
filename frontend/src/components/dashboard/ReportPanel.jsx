@@ -7,17 +7,18 @@ import {
   Pencil,
   Plus,
   Funnel,
+  Trash2,
   TrendingDown,
   TrendingUp,
   X,
 } from "lucide-react";
-import { parseLooseNumber, toCurrency, toPeriodValue } from "../../utils/formatters";
+import ConfirmDialog from "../common/ConfirmDialog";
+import { parseLooseNumber, toCurrency } from "../../utils/formatters";
 import { filterRows } from "../../utils/dashboard";
 import {
   applyReportFilters,
   buildReportTableData,
   buildTransactionList,
-  getReportArusDanaOptions,
   getReportStaffOptions,
   sanitizeReportRows,
 } from "../../utils/reports";
@@ -26,16 +27,65 @@ const PAGE_SIZE_OPTIONS = [25, 50, 100];
 
 function getDefaultFilter() {
   return {
-    range: "month",
-    period: toPeriodValue(),
     date: "",
-    arusDana: "semua",
     staff: "semua",
   };
 }
 
+function TablePagination({
+  pageSize,
+  setPageSize,
+  safePage,
+  totalPages,
+  startIndex,
+  itemCount,
+  totalItems,
+  onPrev,
+  onNext,
+}) {
+  if (totalItems === 0) return null;
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-2 border-t border-brand-bg px-3 py-2.5">
+      <div className="flex items-center gap-1.5 text-xs font-bold text-brand-muted">
+        <span>Rows:</span>
+        <select
+          className="rounded-lg border border-brand-green/15 bg-white px-2 py-1 text-xs font-bold text-brand-green-dark cursor-pointer"
+          value={pageSize}
+          onChange={(event) => setPageSize(Number(event.target.value))}
+        >
+          {PAGE_SIZE_OPTIONS.map((size) => (
+            <option key={size} value={size}>{size}</option>
+          ))}
+        </select>
+      </div>
+
+      <div className="text-xs font-bold text-brand-muted">
+        {totalItems > 0 ? `${startIndex + 1}-${Math.min(startIndex + itemCount, totalItems)} / ${totalItems}` : "0 data"}
+      </div>
+
+      <div className="flex items-center gap-1.5">
+        <button
+          className="rounded-lg border border-brand-green/15 px-2.5 py-1 text-xs font-black text-brand-green-dark disabled:opacity-40 cursor-pointer"
+          onClick={onPrev}
+          disabled={safePage <= 1}
+        >
+          Prev
+        </button>
+        <span className="text-xs font-black text-brand-muted">{safePage}/{totalPages}</span>
+        <button
+          className="rounded-lg border border-brand-green/15 px-2.5 py-1 text-xs font-black text-brand-green-dark disabled:opacity-40 cursor-pointer"
+          onClick={onNext}
+          disabled={safePage >= totalPages}
+        >
+          Next
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // Smart Row Mobile — gaya e-wallet / banking
-function SmartRowMobile({ item, expanded, onToggle, onEdit }) {
+function SmartRowMobile({ item, expanded, onToggle, onEdit, onDelete, isAdmin }) {
   const row = item.row;
 
   const omset = parseLooseNumber(
@@ -92,6 +142,17 @@ function SmartRowMobile({ item, expanded, onToggle, onEdit }) {
           >
             <Pencil size={13} />
           </button>
+
+          {isAdmin && (
+            <button
+              className="p-1.5 rounded-lg text-brand-muted hover:text-rose-600 hover:bg-rose-50 transition-colors"
+              onClick={() => onDelete?.(item)}
+              title="Hapus laporan"
+              aria-label="Hapus laporan"
+            >
+              <Trash2 size={13} />
+            </button>
+          )}
 
           <button
             className="p-1.5 rounded-lg text-brand-muted hover:text-brand-green-dark hover:bg-brand-bg transition-colors"
@@ -165,6 +226,7 @@ function ReportTable({
   expandedRowIds,
   onToggleRow,
   onEditRow,
+  onDeleteRow,
   onAddReport,
   onEditTodayReport,
   hasTodayReport = false,
@@ -329,15 +391,19 @@ function ReportTable({
                   expanded={expandedRowIds.has(item.id)}
                   onToggle={onToggleRow}
                   onEdit={onEditRow}
+                  onDelete={onDeleteRow}
+                  isAdmin={isAdmin}
                 />
               ))}
             </div>
 
-            {/* Desktop: Tabel (tidak berubah) */}
+            {/* Desktop: Tabel */}
             <table className="hidden md:table w-full text-left border-collapse">
               <thead>
                 <tr className="bg-brand-bg sticky top-0 z-10">
-                  <th className="w-16 px-3 py-3 text-[10px] font-black text-brand-muted uppercase tracking-[0.15em] border-b border-brand-bg">Edit</th>
+                  <th className={`${isAdmin ? "w-20" : "w-16"} px-3 py-3 text-[10px] font-black text-brand-muted uppercase tracking-[0.15em] border-b border-brand-bg`}>
+                    {isAdmin ? "Aksi" : "Edit"}
+                  </th>
                   {columns.map((column) => (
                     <th key={column} className="px-3 py-3 text-[10px] font-black text-brand-muted uppercase tracking-[0.15em] border-b border-brand-bg">
                       {column}
@@ -349,15 +415,27 @@ function ReportTable({
                 {pageRows.map((item, rowIndex) => (
                   <Fragment key={`group-${item.id}-${rowIndex}`}>
                     <tr className="transition-all duration-200 hover:bg-brand-bg/50">
-                      <td className="px-3 py-2 text-xs font-bold text-brand-green-dark/80">
-                        <button
-                          className="inline-flex items-center text-brand-muted hover:text-brand-green-dark transition-colors"
-                          onClick={() => onEditRow?.(item)}
-                          title="Edit laporan"
-                          aria-label="Edit laporan"
-                        >
-                          <Pencil size={14} />
-                        </button>
+                      <td className="px-3 py-2 text-xs font-bold text-brand-green-dark/80 whitespace-nowrap">
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            className="inline-flex items-center text-brand-muted hover:text-brand-green-dark transition-colors cursor-pointer"
+                            onClick={() => onEditRow?.(item)}
+                            title="Edit laporan"
+                            aria-label="Edit laporan"
+                          >
+                            <Pencil size={14} />
+                          </button>
+                          {isAdmin && (
+                            <button
+                              className="inline-flex items-center text-brand-muted hover:text-rose-600 transition-colors cursor-pointer"
+                              onClick={() => onDeleteRow?.(item)}
+                              title="Hapus laporan"
+                              aria-label="Hapus laporan"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          )}
+                        </div>
                       </td>
                       {columns.map((column) => (
                         <td key={`${item.id}-${column}`} className="px-3 py-2.5 text-[11px] font-bold text-brand-green-dark/80 whitespace-nowrap">
@@ -373,46 +451,21 @@ function ReportTable({
         )}
       </div>
 
-      {rows.length > 0 && showFooter && (
-        <div className="flex flex-wrap items-center justify-between gap-2 border-t border-brand-bg px-3 py-2.5">
-          <div className="flex items-center gap-1.5 text-xs font-bold text-brand-muted">
-            <span>Rows:</span>
-            <select
-              className="rounded-lg border border-brand-green/15 bg-white px-2 py-1 text-xs font-bold text-brand-green-dark"
-              value={pageSize}
-              onChange={(event) => {
-                setPageSize(Number(event.target.value));
-                setPage(1);
-              }}
-            >
-              {PAGE_SIZE_OPTIONS.map((size) => (
-                <option key={size} value={size}>{size}</option>
-              ))}
-            </select>
-          </div>
-
-          <div className="text-xs font-bold text-brand-muted">
-            {startIndex + 1}-{Math.min(startIndex + pageRows.length, rows.length)} / {rows.length}
-          </div>
-
-          <div className="flex items-center gap-1.5">
-            <button
-              className="rounded-lg border border-brand-green/15 px-2.5 py-1 text-xs font-black text-brand-green-dark disabled:opacity-40"
-              onClick={() => setPage((prev) => Math.max(prev - 1, 1))}
-              disabled={safePage <= 1}
-            >
-              Prev
-            </button>
-            <span className="text-xs font-black text-brand-muted">{safePage}/{totalPages}</span>
-            <button
-              className="rounded-lg border border-brand-green/15 px-2.5 py-1 text-xs font-black text-brand-green-dark disabled:opacity-40"
-              onClick={() => setPage((prev) => Math.min(prev + 1, totalPages))}
-              disabled={safePage >= totalPages}
-            >
-              Next
-            </button>
-          </div>
-        </div>
+      {showFooter && (
+        <TablePagination
+          pageSize={pageSize}
+          setPageSize={(size) => {
+            setPageSize(size);
+            setPage(1);
+          }}
+          safePage={safePage}
+          totalPages={totalPages}
+          startIndex={startIndex}
+          itemCount={pageRows.length}
+          totalItems={rows.length}
+          onPrev={() => setPage((prev) => Math.max(prev - 1, 1))}
+          onNext={() => setPage((prev) => Math.min(prev + 1, totalPages))}
+        />
       )}
     </div>
   );
@@ -432,6 +485,7 @@ function TransactionTable({
   search,
   onSearchChange,
   onEditRow,
+  onDeleteRow,
   onAddReport,
   isAdmin,
   onFilterClick,
@@ -553,6 +607,16 @@ function TransactionTable({
                           <Pencil size={13} />
                         </button>
                       )}
+                      {isAdmin && (
+                        <button
+                          className="p-1.5 rounded-lg text-brand-muted hover:text-rose-600 hover:bg-rose-50 transition-colors"
+                          onClick={() => onDeleteRow?.(item)}
+                          title="Hapus transaksi"
+                          aria-label="Hapus transaksi"
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -564,7 +628,7 @@ function TransactionTable({
               <thead>
                 <tr className="bg-brand-bg sticky top-0 z-10">
                   {isAdmin && (
-                    <th className="w-16 px-3 py-3 text-[10px] font-black text-brand-muted uppercase tracking-[0.15em] border-b border-brand-bg">Edit</th>
+                    <th className="w-20 px-3 py-3 text-[10px] font-black text-brand-muted uppercase tracking-[0.15em] border-b border-brand-bg">Aksi</th>
                   )}
                   {TRANSACTION_COLUMNS.map((col) => (
                     <th key={col.key} className="px-3 py-3 text-[10px] font-black text-brand-muted uppercase tracking-[0.15em] border-b border-brand-bg">
@@ -578,15 +642,25 @@ function TransactionTable({
                   <tr key={`tr-${startIndex + rowIndex}`} className="transition-all duration-200 hover:bg-brand-bg/50">
                     {isAdmin && (
                       <td className="px-3 py-2 text-xs font-bold text-brand-green-dark/80">
-                        {item.type === "PEMASUKAN" ? (
+                        <div className="flex items-center gap-1.5">
+                          {item.type === "PEMASUKAN" ? (
+                            <button
+                              className="inline-flex items-center text-brand-muted hover:text-brand-green-dark transition-colors cursor-pointer"
+                              onClick={() => onEditRow?.(item)}
+                              title="Edit laporan"
+                            >
+                              <Pencil size={14} />
+                            </button>
+                          ) : null}
                           <button
-                            className="inline-flex items-center text-brand-muted hover:text-brand-green-dark transition-colors"
-                            onClick={() => onEditRow?.(item)}
-                            title="Edit laporan"
+                            className="inline-flex items-center text-brand-muted hover:text-rose-600 transition-colors cursor-pointer"
+                            onClick={() => onDeleteRow?.(item)}
+                            title="Hapus transaksi"
+                            aria-label="Hapus transaksi"
                           >
-                            <Pencil size={14} />
+                            <Trash2 size={14} />
                           </button>
-                        ) : null}
+                        </div>
                       </td>
                     )}
                     <td className="px-3 py-2.5 text-[11px] font-bold whitespace-nowrap">
@@ -623,47 +697,20 @@ function TransactionTable({
         )}
       </div>
 
-      {rows.length > 0 && (
-        <div className="flex flex-wrap items-center justify-between gap-2 border-t border-brand-bg px-3 py-2.5">
-          <div className="flex items-center gap-1.5 text-xs font-bold text-brand-muted">
-            <span>Rows:</span>
-            <select
-              className="rounded-lg border border-brand-green/15 bg-white px-2 py-1 text-xs font-bold text-brand-green-dark"
-              value={pageSize}
-              onChange={(event) => {
-                setPageSize(Number(event.target.value));
-                setPage(1);
-              }}
-            >
-              {PAGE_SIZE_OPTIONS.map((size) => (
-                <option key={size} value={size}>{size}</option>
-              ))}
-            </select>
-          </div>
-
-          <div className="text-xs font-bold text-brand-muted">
-            {startIndex + 1}-{Math.min(startIndex + pageRows.length, rows.length)} / {rows.length}
-          </div>
-
-          <div className="flex items-center gap-1.5">
-            <button
-              className="rounded-lg border border-brand-green/15 px-2.5 py-1 text-xs font-black text-brand-green-dark disabled:opacity-40"
-              onClick={() => setPage((prev) => Math.max(prev - 1, 1))}
-              disabled={safePage <= 1}
-            >
-              Prev
-            </button>
-            <span className="text-xs font-black text-brand-muted">{safePage}/{totalPages}</span>
-            <button
-              className="rounded-lg border border-brand-green/15 px-2.5 py-1 text-xs font-black text-brand-green-dark disabled:opacity-40"
-              onClick={() => setPage((prev) => Math.min(prev + 1, totalPages))}
-              disabled={safePage >= totalPages}
-            >
-              Next
-            </button>
-          </div>
-        </div>
-      )}
+      <TablePagination
+        pageSize={pageSize}
+        setPageSize={(size) => {
+          setPageSize(size);
+          setPage(1);
+        }}
+        safePage={safePage}
+        totalPages={totalPages}
+        startIndex={startIndex}
+        itemCount={pageRows.length}
+        totalItems={rows.length}
+        onPrev={() => setPage((prev) => Math.max(prev - 1, 1))}
+        onNext={() => setPage((prev) => Math.min(prev + 1, totalPages))}
+      />
     </div>
   );
 }
@@ -673,10 +720,10 @@ export default function ReportPanel({
   dbRows = [],
   loading,
   isAdmin,
-  onRefreshMonthly,
-  onRefreshAll,
   onEditRow,
   onAddReport,
+  onDeleteReport,
+  period,
   todayReport = null,
 }) {
   const [search, setSearch] = useState("");
@@ -685,7 +732,8 @@ export default function ReportPanel({
   const [expandedRowIds, setExpandedRowIds] = useState(() => new Set());
   const [appliedFilter, setAppliedFilter] = useState(() => getDefaultFilter());
   const [draftFilter, setDraftFilter] = useState(() => getDefaultFilter());
-  const [submittingFilter, setSubmittingFilter] = useState(false);
+  const [deletingItem, setDeletingItem] = useState(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
 
   const normalizedRows = useMemo(() => sanitizeReportRows(reportRows), [reportRows]);
 
@@ -715,17 +763,26 @@ export default function ReportPanel({
     ));
   }, [normalizedRows, todayReport]);
 
-  const arusDanaOptions = useMemo(() => getReportArusDanaOptions(normalizedRows), [normalizedRows]);
   const staffOptions = useMemo(() => getReportStaffOptions(normalizedRows), [normalizedRows]);
 
   const filteredRows = useMemo(() => {
     if (!isAdmin) return scopedRows;
-    return applyReportFilters(scopedRows, appliedFilter);
+    return applyReportFilters(scopedRows, {
+      range: appliedFilter.date ? "date" : "all",
+      date: appliedFilter.date || "",
+      arusDana: "semua",
+      staff: appliedFilter.staff || "semua",
+    });
   }, [appliedFilter, isAdmin, scopedRows]);
 
   const filteredTransactions = useMemo(() => {
     if (!isAdmin) return [];
-    return applyReportFilters(transactionRows, appliedFilter);
+    return applyReportFilters(transactionRows, {
+      range: appliedFilter.date ? "date" : "all",
+      date: appliedFilter.date || "",
+      arusDana: "semua",
+      staff: appliedFilter.staff || "semua",
+    });
   }, [appliedFilter, isAdmin, transactionRows]);
 
   const tableRows = useMemo(() => buildReportTableData(filteredRows), [filteredRows]);
@@ -744,6 +801,34 @@ export default function ReportPanel({
     if (!transactionSearch.trim()) return filteredTransactions;
     return filterRows(filteredTransactions, transactionSearch);
   }, [transactionSearch, filteredTransactions]);
+
+  async function handleConfirmDelete() {
+    if (!deletingItem || !onDeleteReport) return;
+    setDeleteLoading(true);
+    try {
+      const id =
+        deletingItem.id ||
+        deletingItem.row?.["ID TRANSAKSI"] ||
+        deletingItem.row?.["NO TRANSAKSI"] ||
+        deletingItem.raw?.["ID TRANSAKSI"] ||
+        deletingItem.raw?.["NO TRANSAKSI"] ||
+        deletingItem["ID TRANSAKSI"] ||
+        deletingItem["NO TRANSAKSI"];
+      const targetPeriod =
+        period ||
+        deletingItem.raw?.TANGGAL?.substring(0, 7) ||
+        deletingItem.row?.TANGGAL?.substring(0, 7) ||
+        deletingItem.raw?.["TIME STAMP INPUT"]?.substring(0, 7);
+      const rowIndex =
+        deletingItem.row?._rowIndex ||
+        deletingItem.raw?._rowIndex ||
+        deletingItem._rowIndex;
+      await onDeleteReport(id, targetPeriod, rowIndex);
+      setDeletingItem(null);
+    } finally {
+      setDeleteLoading(false);
+    }
+  }
 
   function handleEditTodayReport() {
     if (todayReport) {
@@ -766,46 +851,30 @@ export default function ReportPanel({
     });
   }
 
-  async function applyFilter() {
-    const nextFilter = { ...draftFilter };
-    setSubmittingFilter(true);
-    setAppliedFilter(nextFilter);
+  function applyFilter() {
+    setAppliedFilter({ ...draftFilter });
     setIsFilterOpen(false);
-
-    const refreshTask = (nextFilter.range === "month" && isAdmin)
-      ? onRefreshMonthly?.(nextFilter.period || toPeriodValue())
-      : onRefreshAll?.();
-
-    Promise.resolve(refreshTask)
-      .catch(() => {})
-      .finally(() => setSubmittingFilter(false));
   }
 
-  async function resetFilter() {
+  function resetFilter() {
     const defaults = getDefaultFilter();
-    setSubmittingFilter(true);
     setDraftFilter(defaults);
     setAppliedFilter(defaults);
     setExpandedRowIds(new Set());
     setIsFilterOpen(false);
-
-    const refreshTask = isAdmin ? onRefreshMonthly?.(defaults.period) : onRefreshAll?.();
-    Promise.resolve(refreshTask)
-      .catch(() => {})
-      .finally(() => setSubmittingFilter(false));
   }
 
   const filterModal = isFilterOpen ? (
     <div className="fixed inset-0 z-100 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-brand-green-dark/35 backdrop-blur-sm" onClick={() => setIsFilterOpen(false)} />
-      <div className="relative w-full max-w-xl max-h-[90vh] overflow-y-auto rounded-3xl border border-brand-green/10 bg-white p-5 sm:p-6 shadow-2xl shadow-brand-green-dark/20">
+      <div className="relative w-full max-w-md max-h-[90vh] overflow-y-auto rounded-3xl border border-brand-green/10 bg-white p-5 sm:p-6 shadow-2xl shadow-brand-green-dark/20">
         <div className="mb-4 flex items-start justify-between gap-3">
           <div>
             <h3 className="text-base font-black text-brand-green-dark">Filter Laporan</h3>
-            <p className="text-xs font-semibold text-brand-muted">Rentang waktu, cabang, dan staff.</p>
+            <p className="text-xs font-semibold text-brand-muted">Pencarian staff dan tanggal spesifik.</p>
           </div>
           <button
-            className="rounded-xl border border-brand-green/15 p-2 text-brand-muted hover:bg-brand-bg"
+            className="rounded-xl border border-brand-green/15 p-2 text-brand-muted hover:bg-brand-bg cursor-pointer"
             onClick={() => setIsFilterOpen(false)}
             title="Tutup"
           >
@@ -815,88 +884,42 @@ export default function ReportPanel({
 
         <div className="space-y-4">
           <div>
-            <label className="text-[10px] font-black uppercase tracking-widest text-brand-muted">Rentang</label>
-            <div className="mt-2 flex flex-wrap gap-2">
-              {[
-                { key: "month", label: "Bulan Ini" },
-                { key: "today", label: "Hari Ini" },
-                { key: "last7", label: "7 Hari" },
-                { key: "date", label: "Tanggal Tertentu" },
-              ].map((item) => (
-                <button
-                  key={item.key}
-                  className={`rounded-xl px-3 py-2 text-xs font-black transition-all ${draftFilter.range === item.key ? "bg-brand-green text-white" : "bg-brand-bg text-brand-green-dark"}`}
-                  onClick={() => setDraftFilter((prev) => ({ ...prev, range: item.key }))}
-                >
-                  {item.label}
-                </button>
+            <label className="text-[10px] font-black uppercase tracking-widest text-brand-muted">Staff Bertugas</label>
+            <select
+              value={draftFilter.staff || "semua"}
+              onChange={(event) => setDraftFilter((prev) => ({ ...prev, staff: event.target.value }))}
+              className="mt-2 w-full rounded-xl border border-brand-green/15 bg-brand-bg px-3 py-2 text-sm font-bold text-brand-green-dark cursor-pointer"
+            >
+              {staffOptions.map((option) => (
+                <option key={option} value={option}>{option === "semua" ? "Semua Staff" : option}</option>
               ))}
-            </div>
+            </select>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label className="text-[10px] font-black uppercase tracking-widest text-brand-muted">Bulan</label>
-              <input
-                type="month"
-                value={draftFilter.period}
-                onChange={(event) => setDraftFilter((prev) => ({ ...prev, period: event.target.value, range: "month" }))}
-                className="mt-2 w-full rounded-xl border border-brand-green/15 bg-brand-bg px-3 py-2 text-sm font-bold text-brand-green-dark"
-              />
-            </div>
-            <div>
-              <label className="text-[10px] font-black uppercase tracking-widest text-brand-muted">Tanggal</label>
-              <input
-                type="date"
-                value={draftFilter.date}
-                onChange={(event) => setDraftFilter((prev) => ({ ...prev, date: event.target.value, range: "date" }))}
-                className="mt-2 w-full rounded-xl border border-brand-green/15 bg-brand-bg px-3 py-2 text-sm font-bold text-brand-green-dark"
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label className="text-[10px] font-black uppercase tracking-widest text-brand-muted">Cabang</label>
-              <select
-                value={draftFilter.arusDana}
-                onChange={(event) => setDraftFilter((prev) => ({ ...prev, arusDana: event.target.value }))}
-                className="mt-2 w-full rounded-xl border border-brand-green/15 bg-brand-bg px-3 py-2 text-sm font-bold text-brand-green-dark"
-              >
-                {arusDanaOptions.map((option) => (
-                  <option key={option} value={option}>{option === "semua" ? "Semua Cabang" : option}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="text-[10px] font-black uppercase tracking-widest text-brand-muted">Staff</label>
-              <select
-                value={draftFilter.staff || "semua"}
-                onChange={(event) => setDraftFilter((prev) => ({ ...prev, staff: event.target.value }))}
-                className="mt-2 w-full rounded-xl border border-brand-green/15 bg-brand-bg px-3 py-2 text-sm font-bold text-brand-green-dark"
-              >
-                {staffOptions.map((option) => (
-                  <option key={option} value={option}>{option === "semua" ? "Semua Staff" : option}</option>
-                ))}
-              </select>
-            </div>
+          <div>
+            <label className="text-[10px] font-black uppercase tracking-widest text-brand-muted">Tanggal Kustom (Opsional)</label>
+            <input
+              type="date"
+              value={draftFilter.date || ""}
+              onChange={(event) => setDraftFilter((prev) => ({ ...prev, date: event.target.value }))}
+              className="mt-2 w-full rounded-xl border border-brand-green/15 bg-brand-bg px-3 py-2 text-sm font-bold text-brand-green-dark cursor-pointer"
+            />
+            <p className="mt-1 text-[10px] text-brand-muted">Kosongkan jika ingin menampilkan seluruh data tanggal pada periode aktif.</p>
           </div>
         </div>
 
         <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
           <button
-            className="rounded-xl border border-brand-green/15 bg-white px-4 py-2.5 text-sm font-black text-brand-green-dark hover:bg-brand-bg disabled:opacity-50"
+            className="rounded-xl border border-brand-green/15 bg-white px-4 py-2.5 text-sm font-black text-brand-green-dark hover:bg-brand-bg cursor-pointer"
             onClick={resetFilter}
-            disabled={loading || submittingFilter}
           >
             Reset
           </button>
           <button
-            className="rounded-xl bg-brand-green px-4 py-2.5 text-sm font-black text-white hover:bg-brand-green-dark disabled:opacity-60"
+            className="rounded-xl bg-brand-green px-4 py-2.5 text-sm font-black text-white hover:bg-brand-green-dark cursor-pointer"
             onClick={applyFilter}
-            disabled={loading || submittingFilter}
           >
-            {submittingFilter ? "Memproses..." : "Terapkan"}
+            Terapkan
           </button>
         </div>
       </div>
@@ -916,13 +939,14 @@ export default function ReportPanel({
             search={transactionSearch}
             onSearchChange={setTransactionSearch}
             onEditRow={onEditRow}
+            onDeleteRow={(item) => setDeletingItem(item)}
             onAddReport={onAddReport}
             isAdmin={isAdmin}
             onFilterClick={() => {
               setDraftFilter(appliedFilter);
               setIsFilterOpen(true);
             }}
-            filterDisabled={loading || submittingFilter}
+            filterDisabled={loading}
             showControls={true}
           />
         ) : (
@@ -933,6 +957,7 @@ export default function ReportPanel({
             expandedRowIds={expandedRowIds}
             onToggleRow={toggleRow}
             onEditRow={onEditRow}
+            onDeleteRow={(item) => setDeletingItem(item)}
             onAddReport={onAddReport}
             onEditTodayReport={handleEditTodayReport}
             hasTodayReport={hasTodayReport}
@@ -941,7 +966,7 @@ export default function ReportPanel({
               setDraftFilter(appliedFilter);
               setIsFilterOpen(true);
             }}
-            filterDisabled={loading || submittingFilter}
+            filterDisabled={loading}
             showAddButton={isAdmin || !hasTodayReport}
             showControls={isAdmin}
             showFooter={isAdmin}
@@ -950,6 +975,25 @@ export default function ReportPanel({
       </div>
 
       {typeof document !== "undefined" ? createPortal(filterModal, document.body) : null}
+
+      <ConfirmDialog
+        open={Boolean(deletingItem)}
+        title="Hapus Transaksi?"
+        description={`Apakah Anda yakin ingin menghapus data transaksi ${
+          deletingItem?.id ||
+          deletingItem?.row?.["ID TRANSAKSI"] ||
+          deletingItem?.row?.["NO TRANSAKSI"] ||
+          deletingItem?.raw?.["ID TRANSAKSI"] ||
+          deletingItem?.raw?.["NO TRANSAKSI"] ||
+          ""
+        }? Data transaksi beserta rincian pengeluaran terkait akan dihapus secara permanen.`}
+        confirmLabel="Hapus Transaksi"
+        cancelLabel="Batal"
+        loading={deleteLoading}
+        danger
+        onCancel={() => setDeletingItem(null)}
+        onConfirm={handleConfirmDelete}
+      />
     </div>
   );
 }

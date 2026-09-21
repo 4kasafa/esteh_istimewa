@@ -176,12 +176,7 @@ export default function Topbar({
           )}
         </div>
 
-        <div className="flex items-center gap-2">
-          <div className="flex items-center gap-1.5 rounded-xl border border-brand-green/10 bg-white px-2 py-1.5">
-            <BadgeCheck size={13} className="text-brand-green shrink-0" />
-            <p className="text-xs font-black text-brand-green-dark uppercase">{user?.role || "staff"}</p>
-          </div>
-        </div>
+        <div className="flex items-center gap-2" />
       </header>
     </>
   );
