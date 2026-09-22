@@ -32,6 +32,7 @@ export default function DashboardPage({
   error,
   reportRows,
   masterData,
+  pwa,
   onRefreshMonthly,
   onRefreshAll,
   onCreateReport,
@@ -570,7 +571,7 @@ export default function DashboardPage({
               )}
 
               <div hidden={activeMenu !== "setting"} style={{ display: activeMenu === "setting" ? "block" : "none" }}>
-                <SettingPanel user={user} onOpenWizard={handleOpenWizard} />
+                <SettingPanel user={user} onOpenWizard={handleOpenWizard} pwa={pwa} />
               </div>
             </div>
           </div>

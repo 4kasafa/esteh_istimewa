@@ -37,7 +37,7 @@ export default function SetupWizard({
 
   // Step 3: Master Bahan Baku
   const [bahanList, setBahanList] = useState([
-    { id: "bhn-temp-1", nama: "", satuan: "Pcs", isSaved: false },
+    { id: "bhn-temp-1", nama: "", satuan: "", isSaved: false },
   ]);
 
   // Saved branch names accumulator
@@ -110,7 +110,7 @@ export default function SetupWizard({
   const handleAddBahan = () => {
     setBahanList((prev) => [
       ...prev,
-      { id: `bhn-temp-${Date.now()}`, nama: "", satuan: "Pcs", isSaved: false },
+      { id: `bhn-temp-${Date.now()}`, nama: "", satuan: "", isSaved: false },
     ]);
   };
 
@@ -260,7 +260,7 @@ export default function SetupWizard({
             operation: "create",
             data: unsaved.map((b) => ({
               NAMA_BAHAN: b.nama.trim(),
-              SATUAN: b.satuan.trim() || "Pcs",
+              SATUAN: b.satuan.trim() || "",
             })),
           });
 
@@ -318,7 +318,7 @@ export default function SetupWizard({
     "w-full rounded-xl sm:rounded-2xl border border-brand-green/15 bg-white px-3.5 py-2.5 sm:py-3 text-xs sm:text-sm font-bold text-brand-green-dark focus:outline-none focus:ring-3 focus:ring-brand-green/10 focus:border-brand-green transition-all placeholder:text-brand-muted/30 shadow-xs";
 
   return (
-    <div className="fixed inset-0 z-50 bg-[#F8FAF8] flex flex-col overflow-hidden select-none">
+    <div className="fixed inset-0 z-50 bg-brand-bg flex flex-col overflow-hidden select-none">
       {/* Background subtle glow */}
       <div className="absolute left-1/4 top-10 w-80 h-80 bg-green-200/20 rounded-full blur-3xl pointer-events-none" />
       <div className="absolute right-1/4 bottom-10 w-80 h-80 bg-emerald-200/20 rounded-full blur-3xl pointer-events-none" />
@@ -761,7 +761,7 @@ export default function SetupWizard({
                     {validCabang.map((c) => (
                       <li key={c.id} className="py-1 flex justify-between gap-2">
                         <span className="truncate">{c.nama}</span>
-                        <span className="text-brand-muted font-normal text-[10px] truncate max-w-[120px]">
+                        <span className="text-brand-muted font-normal text-[10px] truncate max-w-30">
                           {c.alamat || "-"}
                         </span>
                       </li>
@@ -862,7 +862,7 @@ export default function SetupWizard({
           {isSaving ? (
             <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-amber-50 border border-amber-200 text-amber-800 text-xs font-black animate-pulse">
               <Loader2 size={13} className="animate-spin text-amber-600" />
-              <span className="truncate max-w-[160px] sm:max-w-none">
+              <span className="truncate max-w-40 sm:max-w-none">
                 {savingText || "Menyimpan..."}
               </span>
             </div>

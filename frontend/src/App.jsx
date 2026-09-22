@@ -3,6 +3,7 @@ import LoginPage from "./pages/LoginPage";
 import DashboardPage from "./pages/DashboardPage";
 import { useAuthSession } from "./hooks/useAuthSession";
 import { useDashboardData } from "./hooks/useDashboardData";
+import { usePWAInstall } from "./hooks/usePWAInstall";
 
 export default function App() {
   const [runtimeError, setRuntimeError] = useState(null);
@@ -24,6 +25,7 @@ export default function App() {
   } = useAuthSession(apiUrl);
 
   const handleAuthError = useCallback(() => logout(true), [logout]);
+  const pwa = usePWAInstall();
 
   const {
     reportRows,
@@ -157,6 +159,7 @@ export default function App() {
       reportRows={reportRows}
       dbRows={dbRows}
       masterData={masterData}
+      pwa={pwa}
       onRefreshMonthly={(period, opts) => loadData({ monthly: isAdmin, period, silent: Boolean(opts?.silent) })}
       onRefreshAll={(opts) => loadData({ monthly: false, silent: Boolean(opts?.silent) })}
       onCreateReport={createReport}

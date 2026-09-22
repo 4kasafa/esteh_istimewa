@@ -15,47 +15,61 @@ const DEV_CONTACT = import.meta.env.VITE_DEV_CONTACT || "";
 
 export default function SettingPanel({
   user,
+  pwa,
 }) {
   const [activeSub, setActiveSub] = useState("main"); // main, account, download, report, about
   const [reportMessage, setReportMessage] = useState("");
-  const [isPWA, setIsPWA] = useState(false);
-  const [deferredPrompt, setDeferredPrompt] = useState(null);
+  const [localIsPWA, setLocalIsPWA] = useState(false);
+  const [localDeferred, setLocalDeferred] = useState(null);
+  // ponytail: jika pwa dari App tersedia pakai itu (event ditangkap sejak page
+  // load). State lokal hanya fallback saat dipasang standalone (mis. di test).
+  const deferredPrompt = pwa?.deferredPrompt ?? localDeferred;
+  const isPWA = pwa?.isPWA ?? localIsPWA;
 
   useEffect(() => {
+    if (pwa) return;
     const checkPWA = () => {
       const isStandalone = typeof window !== "undefined" && typeof window.matchMedia === "function" 
         ? window.matchMedia("(display-mode: standalone)").matches 
         : false;
-      setIsPWA(isStandalone);
+      setLocalIsPWA(isStandalone);
     };
     checkPWA();
 
     const handleBeforeInstallPrompt = (e) => {
       e.preventDefault();
-      setDeferredPrompt(e);
+      setLocalDeferred(e);
     };
 
     window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
     window.addEventListener("appinstalled", () => {
-      setIsPWA(true);
-      setDeferredPrompt(null);
+      setLocalIsPWA(true);
+      setLocalDeferred(null);
     });
 
     return () => {
       window.removeEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
     };
-  }, []);
+  }, [pwa]);
 
   const handleInstall = async () => {
-    if (!deferredPrompt) {
+    if (pwa) {
+      const outcome = await pwa.promptInstall();
+      if (outcome === "unavailable") {
+        // Fallback jika prompt tidak tersedia (misal di iOS atau sudah terinstal tapi belum terdeteksi)
+        alert("Gunakan menu 'Tambahkan ke Layar Utama' pada browser kamu jika tombol tidak muncul.");
+      }
+      return;
+    }
+    if (!localDeferred) {
       // Fallback jika prompt tidak tersedia (misal di iOS atau sudah terinstal tapi belum terdeteksi)
       alert("Gunakan menu 'Tambahkan ke Layar Utama' pada browser kamu jika tombol tidak muncul.");
       return;
     }
-    deferredPrompt.prompt();
-    const { outcome } = await deferredPrompt.userChoice;
+    localDeferred.prompt();
+    const { outcome } = await localDeferred.userChoice;
     if (outcome === "accepted") {
-      setDeferredPrompt(null);
+      setLocalDeferred(null);
     }
   };
 
@@ -158,10 +172,11 @@ export default function SettingPanel({
           <div className="pt-4">
             <button
               onClick={handleInstall}
-              className="w-full bg-brand-green text-white py-4 rounded-2xl font-black shadow-lg shadow-brand-green/20 hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-3"
+              disabled={!deferredPrompt}
+              className="w-full bg-brand-green text-white py-4 rounded-2xl font-black shadow-lg shadow-brand-green/20 hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-3 disabled:opacity-50"
             >
               <Download size={20} />
-              DOWNLOAD SEKARANG
+              {deferredPrompt ? "DOWNLOAD SEKARANG" : "MENUNGGU BROWSER..."}
             </button>
             <p className="text-[10px] text-center mt-4 text-brand-muted font-bold opacity-50 uppercase tracking-widest">
               Hanya tersedia untuk browser Google Chrome

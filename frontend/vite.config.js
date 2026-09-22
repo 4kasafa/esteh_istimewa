@@ -11,6 +11,7 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       injectRegister: 'auto',
+      includeAssets: ['Appic.svg', 'icons/*.png'],
       manifest: {
         name: 'Es Teh Istimewa',
         short_name: 'Es Teh Istimewa',
@@ -22,12 +23,6 @@ export default defineConfig({
         lang: 'id',
         id: '/',
         icons: [
-          {
-            src: '/Appic.svg',
-            sizes: 'any',
-            type: 'image/svg+xml',
-            purpose: 'any'
-          },
           {
             src: '/icons/pwa-192.png',
             sizes: '192x192',
