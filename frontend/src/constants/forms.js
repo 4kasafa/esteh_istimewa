@@ -1,10 +1,4 @@
-export const getTodayDateString = () => {
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(2, "0");
-  const day = String(now.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-};
+import { getTodayDateString } from "../utils/formatters";
 
 export const REPORT_FORM_DEFAULT = {
   "ID TRANSAKSI": "",
@@ -36,12 +30,6 @@ export const REPORT_FORM_DEFAULT = {
   SELISIH: 0,
   KETERANGAN: "",
 };
-
-export const DEFAULT_BAHAN_BAKU = [];
-export const DEFAULT_TIPE_PENGELUARAN = [];
-export const STAFF_OPTIONS = [];
-export const BRANCH_OPTIONS = [];
-export const SHIFT_OPTIONS = [];
 
 export const DENOMINATIONS_DATA = [
   { label: "Rp 100.000", value: 100000 },

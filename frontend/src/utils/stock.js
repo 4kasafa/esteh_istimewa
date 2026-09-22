@@ -15,29 +15,24 @@ export function normalizeBahanItem(b, index = 0) {
     return {
       id: `BAHAN-${String(index + 1).padStart(2, "0")}`,
       nama: `Bahan ${index + 1}`,
-      satuan: "Pcs",
+      satuan: "",
+      _rowIndex: null,
     };
   }
   if (typeof b === "string") {
     return {
       id: `BAHAN-${String(index + 1).padStart(2, "0")}`,
       nama: b.trim(),
-      satuan: "Pcs",
+      satuan: "",
+      _rowIndex: null,
     };
   }
   return {
     id: String(b.ID_BAHAN || b.id || `BAHAN-${String(b._rowIndex || index + 1).padStart(2, "0")}`),
     nama: String(b.NAMA_BAHAN || b.nama || "").trim(),
-    satuan: String(b.SATUAN || b.satuan || "Pcs").trim(),
+    satuan: String(b.SATUAN || b.satuan || "").trim(),
+    _rowIndex: b._rowIndex ?? null,
   };
-}
-
-export function parseRowTimestamp(row) {
-  const tsStr = row["TANGGAL"] || row["TIME STAMP INPUT"] || row["TIMESTAMP INPUT"] || "";
-  if (!tsStr) return 0;
-  const d = new Date(tsStr);
-  const time = d.getTime();
-  return Number.isNaN(time) ? 0 : time;
 }
 
 /**
@@ -150,6 +145,7 @@ export function calculateStockBalances(
       id: bahan.id,
       nama: bahan.nama,
       satuan: bahan.satuan,
+      _rowIndex: bahan._rowIndex ?? null,
       sisa: currentSisa,
       totalTerpakai,
       branchBalances,

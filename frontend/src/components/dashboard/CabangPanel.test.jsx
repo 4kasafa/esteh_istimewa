@@ -8,16 +8,8 @@ describe("CabangPanel", () => {
     vi.restoreAllMocks();
   });
 
-  it("renders branches from master and allows deleting when multiple branches exist", async () => {
+  it("renders branches from props without fetching read_master and allows deleting", async () => {
     const mockRequest = vi.fn().mockImplementation((payload) => {
-      if (payload.action === "read_master") {
-        return Promise.resolve({
-          cabang: [
-            { ID_CABANG: "CAB-01", NAMA_CABANG: "Cabang Utama", ALAMAT: "Jl. Merdeka No. 1", STATUS: "Aktif" },
-            { ID_CABANG: "CAB-02", NAMA_CABANG: "Cabang Timur", ALAMAT: "Jl. Sudirman No. 2", STATUS: "Aktif" },
-          ],
-        });
-      }
       if (payload.action === "update_master" && payload.operation === "delete") {
         return Promise.resolve({ success: true });
       }
@@ -30,14 +22,20 @@ describe("CabangPanel", () => {
       <CabangPanel
         selectedBranch="Semua"
         branches={["Cabang Utama", "Cabang Timur"]}
+        rawCabang={[
+          { ID_CABANG: "CAB-01", NAMA_CABANG: "Cabang Utama", ALAMAT: "Jl. Merdeka No. 1", STATUS: "Aktif" },
+          { ID_CABANG: "CAB-02", NAMA_CABANG: "Cabang Timur", ALAMAT: "Jl. Sudirman No. 2", STATUS: "Aktif" },
+        ]}
         request={mockRequest}
         onReloadMaster={mockReload}
       />
     );
 
-    await waitFor(() => {
-      expect(screen.getByText("Cabang Timur")).toBeInTheDocument();
-    });
+    expect(screen.getByText("Cabang Timur")).toBeInTheDocument();
+    // Panel tidak lagi memanggil read_master sendiri saat mount.
+    expect(mockRequest).not.toHaveBeenCalledWith(
+      expect.objectContaining({ action: "read_master" })
+    );
 
     const deleteBtn = screen.getByLabelText("Hapus Cabang Timur");
     expect(deleteBtn).toBeInTheDocument();
@@ -65,31 +63,25 @@ describe("CabangPanel", () => {
     await waitFor(() => {
       expect(screen.getByText(/berhasil dihapus/i)).toBeInTheDocument();
     });
+
+    expect(mockReload).toHaveBeenCalled();
   });
 
   it("prevents deletion if only one branch remains", async () => {
-    const mockRequest = vi.fn().mockImplementation((payload) => {
-      if (payload.action === "read_master") {
-        return Promise.resolve({
-          cabang: [
-            { ID_CABANG: "CAB-01", NAMA_CABANG: "Cabang Tunggal", ALAMAT: "Jl. Merdeka No. 1", STATUS: "Aktif" },
-          ],
-        });
-      }
-      return Promise.resolve({});
-    });
+    const mockRequest = vi.fn().mockResolvedValue({});
 
     render(
       <CabangPanel
         selectedBranch="Semua"
         branches={["Cabang Tunggal"]}
+        rawCabang={[
+          { ID_CABANG: "CAB-01", NAMA_CABANG: "Cabang Tunggal", ALAMAT: "Jl. Merdeka No. 1", STATUS: "Aktif" },
+        ]}
         request={mockRequest}
       />
     );
 
-    await waitFor(() => {
-      expect(screen.getByText("Cabang Tunggal")).toBeInTheDocument();
-    });
+    expect(screen.getByText("Cabang Tunggal")).toBeInTheDocument();
 
     const deleteBtn = screen.getByLabelText("Hapus Cabang Tunggal");
     deleteBtn.click();

@@ -6,13 +6,13 @@ const POPULAR_UNITS = ["Cup", "Gram", "Kg", "Pcs", "Pack", "Dus", "Botol", "Lite
 function BahanFormDialog({ onClose, onSave, initialData = null, loading = false }) {
   const isEdit = Boolean(initialData?.id);
   const [nama, setNama] = useState(() => initialData?.nama || initialData?.NAMA_BAHAN || "");
-  const [satuan, setSatuan] = useState(() => initialData?.satuan || initialData?.SATUAN || "Pcs");
+  const [satuan, setSatuan] = useState(() => initialData?.satuan || initialData?.SATUAN || "");
   const [error, setError] = useState("");
 
   async function handleSubmit(e) {
     e.preventDefault();
     const cleanNama = nama.trim();
-    const cleanSatuan = satuan.trim() || "Pcs";
+    const cleanSatuan = satuan.trim() || "";
 
     if (!cleanNama) {
       setError("Nama bahan baku wajib diisi.");

@@ -70,27 +70,25 @@ function normalizeKaryawan(u, defaultIndex = 0) {
     telepon,
     email,
     tglBergabung,
+    _rowIndex: u._rowIndex ?? null,
   };
 }
 
 export default function KaryawanPanel({
   selectedBranch = "Semua",
   branches = [],
+  users = [],
   request,
   user,
   onReloadMaster,
 }) {
   const [search, setSearch] = useState("");
-  const [karyawanList, setKaryawanList] = useState(() => {
-    try {
-      const stored = localStorage.getItem("esteh_karyawan_list");
-      if (!stored) return [];
-      const parsed = JSON.parse(stored);
-      return Array.isArray(parsed) ? parsed.map((item, idx) => normalizeKaryawan(item, idx)) : [];
-    } catch {
-      return [];
-    }
-  });
+  // ponytail: daftar karyawan diturunkan dari prop users (satu sumber: loadMasterData
+  // di level App). Panel tidak fetch/cache sendiri.
+  const karyawanList = useMemo(
+    () => (Array.isArray(users) ? users.map((item, idx) => normalizeKaryawan(item, idx)) : []),
+    [users],
+  );
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [deletingKaryawan, setDeletingKaryawan] = useState(null);
   const [actionLoading, setActionLoading] = useState(false);
@@ -100,45 +98,17 @@ export default function KaryawanPanel({
     return branches.length > 0 ? branches : [];
   }, [branches]);
 
-  useEffect(() => {
+  const handleSaveKaryawan = useCallback(async (newKaryawan) => {
     if (!request) return;
-    let isMounted = true;
-    request({ action: "read_master" })
-      .then((res) => {
-        if (!isMounted || !Array.isArray(res?.users)) return;
-        const mapped = res.users.map((u, idx) => normalizeKaryawan(u, idx));
-        if (mapped.length > 0) {
-          setKaryawanList(mapped);
-          try {
-            localStorage.setItem("esteh_karyawan_list", JSON.stringify(mapped));
-          } catch {
-            /* ignore storage write error */
-          }
-        }
-      })
-      .catch(() => {});
-    return () => { isMounted = false; };
-  }, [request]);
-
-  const handleSaveKaryawan = useCallback((newKaryawan) => {
-    const nextItem = normalizeKaryawan({
-      ...newKaryawan,
-      id: `EMP-${String(Date.now()).slice(-3)}`,
-      status: newKaryawan.status || "Aktif",
-    });
-    setKaryawanList((prev) => {
-      const updated = [...prev, nextItem];
-      try {
-        localStorage.setItem("esteh_karyawan_list", JSON.stringify(updated));
-      } catch (err) {
-        console.error(err);
-      }
-      return updated;
-    });
-
-    if (request) {
+    setActionLoading(true);
+    setFeedback(null);
+    try {
+      const nextItem = normalizeKaryawan({
+        ...newKaryawan,
+        status: newKaryawan.status || "Aktif",
+      });
       const role = String(nextItem.role || "").toLowerCase() === "admin" ? "Admin" : "Staff";
-      request({
+      await request({
         action: "update_master",
         target: "user",
         operation: "create",
@@ -150,23 +120,27 @@ export default function KaryawanPanel({
           ROLE: role,
           STATUS: nextItem.status || "Aktif",
         },
-      })
-        .then(() => request({ action: "read_master" }))
-        .then((res) => {
-          if (!res?.users || !Array.isArray(res.users)) return;
-          const mapped = res.users.map((u, idx) => normalizeKaryawan(u, idx));
-          if (mapped.length > 0) {
-            setKaryawanList(mapped);
-            try {
-              localStorage.setItem("esteh_karyawan_list", JSON.stringify(mapped));
-            } catch {
-              /* ignore storage write error */
-            }
-          }
-        })
-        .catch((err) => console.warn("Sync master user error:", err));
+      });
+
+      // Daftar diperbarui lewat onReloadMaster -> prop users (tanpa optimis lokal).
+      if (onReloadMaster) {
+        await onReloadMaster();
+      }
+
+      setFeedback({
+        type: "success",
+        message: `Karyawan "${nextItem.nama}" berhasil ditambahkan.`,
+      });
+      setIsAddModalOpen(false);
+    } catch (err) {
+      setFeedback({
+        type: "error",
+        message: err?.message || "Gagal menambahkan data karyawan.",
+      });
+    } finally {
+      setActionLoading(false);
     }
-  }, [request]);
+  }, [onReloadMaster, request]);
 
   const handleConfirmDeleteKaryawan = useCallback(async () => {
     if (!deletingKaryawan || !request) return;
@@ -178,16 +152,10 @@ export default function KaryawanPanel({
         target: "user",
         operation: "delete",
         id: deletingKaryawan.id,
-      });
-
-      setKaryawanList((prev) => {
-        const updated = prev.filter((k) => k.id !== deletingKaryawan.id);
-        try {
-          localStorage.setItem("esteh_karyawan_list", JSON.stringify(updated));
-        } catch (err) {
-          console.error(err);
-        }
-        return updated;
+        data: {
+          "NAMA / USERNAME": deletingKaryawan.nama,
+          _rowIndex: deletingKaryawan._rowIndex ?? null,
+        },
       });
 
       setFeedback({

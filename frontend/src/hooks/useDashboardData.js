@@ -82,7 +82,9 @@ export function useDashboardData({ token, isAdmin, request, onAuthError }) {
     }
   }, [isAdmin, request, token]);
 
-  const loadData = useCallback(async ({ period = "", monthly = false, reportId = "", cabang = "" } = {}) => {
+  // ponytail: refreshMaster default false. Master (cabang/bahan/stok kemarin) hanya
+  // di-refresh saat login & pasca mutasi — bukan tiap ganti filter/periode.
+  const loadData = useCallback(async ({ period = "", monthly = false, reportId = "", cabang = "", refreshMaster = false } = {}) => {
     if (!token) return;
     setLoading(true);
     setError("");
@@ -98,20 +100,30 @@ export function useDashboardData({ token, isAdmin, request, onAuthError }) {
         reportPayload.cabang = cabang;
       }
 
-      const reportData = await request(reportPayload);
-      setReportRows(toRows(reportData));
-
-      // Muat data master secara paralel
-      loadMasterData(cabang).catch(() => {});
-
+      let summaryPayload = null;
       if (isAdmin) {
-        const summaryPayload = { action: "get_summary" };
+        summaryPayload = { action: "get_summary" };
         if (monthly && period) summaryPayload.period = period;
         if (cabang && cabang.toLowerCase() !== "semua") summaryPayload.cabang = cabang;
+      }
 
-        const sumData = await request(summaryPayload);
-        setSummaryData(sumData);
-        setDbRows(toRows(sumData?.rows || sumData));
+      // Muat data master hanya bila diminta (fire-and-forget seperti sebelumnya).
+      if (refreshMaster) {
+        loadMasterData(cabang).catch(() => {});
+      }
+
+      // ponytail: laporan + ringkasan jalan paralel (dulu serial: ~2x RTT GAS).
+      const tasks = [request(reportPayload)];
+      if (summaryPayload) tasks.push(request(summaryPayload));
+      const [reportRes, summaryRes] = await Promise.allSettled(tasks);
+
+      if (reportRes.status === "rejected") throw reportRes.reason;
+      setReportRows(toRows(reportRes.value));
+
+      if (summaryPayload) {
+        if (summaryRes.status === "rejected") throw summaryRes.reason;
+        setSummaryData(summaryRes.value);
+        setDbRows(toRows(summaryRes.value?.rows || summaryRes.value));
       } else {
         setDbRows([]);
         setSummaryData(null);
@@ -144,9 +156,9 @@ export function useDashboardData({ token, isAdmin, request, onAuthError }) {
         } catch (err) {
           console.error("Storage error:", err);
         }
-        await loadData({ reportId: newId });
+        await loadData({ reportId: newId, refreshMaster: true });
       } else {
-        await loadData({ monthly: true, period });
+        await loadData({ monthly: true, period, refreshMaster: true });
       }
 
       return true;
@@ -173,9 +185,9 @@ export function useDashboardData({ token, isAdmin, request, onAuthError }) {
       setTimeout(() => setMessage(""), 5000);
 
       if (!isAdmin && id) {
-        await loadData({ reportId: id });
+        await loadData({ reportId: id, refreshMaster: true });
       } else {
-        await loadData({ monthly: true, period });
+        await loadData({ monthly: true, period, refreshMaster: true });
       }
 
       return true;
@@ -216,7 +228,7 @@ export function useDashboardData({ token, isAdmin, request, onAuthError }) {
         })
       );
 
-      await loadData({ monthly: true, period });
+      await loadData({ monthly: true, period, refreshMaster: true });
 
       return true;
     } catch (err) {

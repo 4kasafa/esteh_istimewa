@@ -49,6 +49,10 @@ export function useAuthSession(apiUrl) {
       localStorage.removeItem("gas_token");
       localStorage.removeItem("gas_user");
       localStorage.removeItem("gas_last_today_report");
+      // ponytail: kunci cache master panel (P1 tidak lagi menulisnya, ini migrasi sekali).
+      localStorage.removeItem("esteh_cabang_list");
+      localStorage.removeItem("esteh_karyawan_list");
+      localStorage.removeItem("esteh_bahan_list");
     } catch (err) {
       console.error("Storage error:", err);
     }

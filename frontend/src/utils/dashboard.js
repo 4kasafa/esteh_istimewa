@@ -5,8 +5,11 @@ function getArusDana(row) {
 }
 
 function getAmount(row) {
-  const explicit = parseLooseNumber(row["TOTAL PENJUALAN"] || row["UANG MASUK"] || row["UNAG MASUK"] || row["TOTAL NOTA"]);
-  if (explicit > 0) return explicit;
+  const explicitKeys = ["TOTAL PENJUALAN", "UANG MASUK", "UNAG MASUK", "TOTAL NOTA"];
+  for (const key of explicitKeys) {
+    const val = parseLooseNumber(row[key]);
+    if (val > 0) return val;
+  }
   const setoran = parseLooseNumber(row["UANG SETORAN"]);
   const pengeluaran = parseLooseNumber(row["TOTAL PENGELUARAN"] || row.PENGELUARAN);
   return setoran + pengeluaran;
@@ -115,19 +118,6 @@ export function buildTrendData(dbRows) {
   return Array.from(map.entries()).map(([label, value]) => ({ label, value })).slice(-8);
 }
 
-export function buildAreaData(dbRows) {
-  const map = new Map();
-  dbRows.forEach((row) => {
-    const area = getArusDana(row);
-    map.set(area, (map.get(area) || 0) + getAmount(row));
-  });
-
-  return Array.from(map.entries())
-    .map(([label, value]) => ({ label, value }))
-    .sort((a, b) => b.value - a.value)
-    .slice(0, 6);
-}
-
 export function sanitizeDatabaseRows(rows) {
   return rows
     .map((raw) => {
@@ -141,11 +131,6 @@ export function sanitizeDatabaseRows(rows) {
       };
     })
     .filter((item) => item.timestamp);
-}
-
-export function getArusDanaOptions(rows) {
-  const set = new Set(rows.map((item) => item.arusDana));
-  return ["semua", ...Array.from(set).sort((a, b) => a.localeCompare(b))];
 }
 
 export function applyDashboardFilters(rows, { range = "month", period = toPeriodValue(), date = "", arusDana = "semua" } = {}) {
@@ -181,24 +166,6 @@ function buildTotalsByArusDana(rows) {
     map.set(item.arusDana, (map.get(item.arusDana) || 0) + item.amount);
   });
   return map;
-}
-
-export function buildDashboardCards(rows) {
-  const totalSales = rows.reduce((sum, item) => sum + item.amount, 0);
-  const totalByArusDana = buildTotalsByArusDana(rows);
-  const sortedBranches = Array.from(totalByArusDana.entries()).sort((a, b) => b[1] - a[1]);
-  const topBranch = sortedBranches[0]?.[0] || "-";
-  const topBranchSales = sortedBranches[0]?.[1] || 0;
-
-  const daySet = new Set(rows.map((item) => dateKey(item.timestamp)));
-  const avgDaily = daySet.size ? totalSales / daySet.size : totalSales;
-
-  return {
-    totalSales,
-    topBranch,
-    topBranchSales,
-    avgDaily,
-  };
 }
 
 export function buildDonutData(rows) {
@@ -264,14 +231,6 @@ export function buildLineSeries(rows, { range = "month", period = toPeriodValue(
       value: amountByDate.get(key) || 0,
     };
   });
-}
-
-export function buildAreaPerformance(rows) {
-  return buildDonutData(rows).slice(0, 6).map((item) => ({
-    label: item.label,
-    value: item.value,
-    color: item.color,
-  }));
 }
 
 export function buildDashboardTableRows(rawRows) {

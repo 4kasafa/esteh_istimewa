@@ -19,12 +19,30 @@ export default defineConfig({
         background_color: '#f8faf8',
         display: 'standalone',
         start_url: '/',
+        lang: 'id',
+        id: '/',
         icons: [
           {
             src: '/Appic.svg',
             sizes: 'any',
             type: 'image/svg+xml',
-            purpose: 'any maskable'
+            purpose: 'any'
+          },
+          {
+            src: '/icons/pwa-192.png',
+            sizes: '192x192',
+            type: 'image/png'
+          },
+          {
+            src: '/icons/pwa-512.png',
+            sizes: '512x512',
+            type: 'image/png'
+          },
+          {
+            src: '/icons/pwa-maskable-512.png',
+            sizes: '512x512',
+            type: 'image/png',
+            purpose: 'maskable'
           }
         ]
       }

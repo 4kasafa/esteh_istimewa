@@ -4,7 +4,6 @@ import {
   Calendar,
   CheckCircle2,
   Clock,
-  Coffee,
   MapPin,
   Phone,
   Plus,
@@ -46,79 +45,68 @@ function normalizeCabang(c, defaultIndex = 0) {
     penanggungJawab: String(c.PENANGGUNG_JAWAB || c.penanggungJawab || "-"),
     telepon: String(c.TELEPON || c.telepon || "-"),
     jumlahStaff: Number(c.JUMLAH_STAFF || c.jumlahStaff) || 0,
+    _rowIndex: c._rowIndex ?? null,
   };
 }
 
 export default function CabangPanel({
   selectedBranch = "Semua",
+  rawCabang = [],
   request,
   onReloadMaster,
 }) {
   const [search, setSearch] = useState("");
-  const [cabangList, setCabangList] = useState(() => {
-    try {
-      const stored = localStorage.getItem("esteh_cabang_list");
-      if (!stored) return [];
-      const parsed = JSON.parse(stored);
-      return Array.isArray(parsed) ? parsed.map((c, idx) => normalizeCabang(c, idx)) : [];
-    } catch {
-      return [];
-    }
-  });
+  // ponytail: daftar cabang diturunkan dari prop rawCabang (satu sumber: loadMasterData
+  // di level App). Panel tidak fetch/cache sendiri.
+  const cabangList = useMemo(
+    () => (Array.isArray(rawCabang) ? rawCabang.map((c, idx) => normalizeCabang(c, idx)) : []),
+    [rawCabang],
+  );
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [deletingCabang, setDeletingCabang] = useState(null);
   const [actionLoading, setActionLoading] = useState(false);
   const [feedback, setFeedback] = useState(null);
 
-  useEffect(() => {
+  const handleSaveCabang = useCallback(async (newCabang) => {
     if (!request) return;
-    let isMounted = true;
-      request({ action: "read_master" })
-      .then((res) => {
-        if (!isMounted || !Array.isArray(res?.cabang)) return;
-        const mapped = res.cabang.map((c, idx) => normalizeCabang(c, idx));
-        setCabangList(mapped);
-        try {
-          localStorage.setItem("esteh_cabang_list", JSON.stringify(mapped));
-        } catch {
-          /* ignore storage write error */
-        }
-      })
-      .catch(() => {});
-    return () => { isMounted = false; };
-  }, [request]);
-
-  const handleSaveCabang = useCallback((newCabang) => {
-    const nextItem = {
-      ...newCabang,
-      id: `CAB-${String(Date.now()).slice(-3)}`,
-      status: newCabang.status || "Aktif",
-      jumlahStaff: 0,
-    };
-    setCabangList((prev) => {
-      const updated = [...prev, nextItem];
-      try {
-        localStorage.setItem("esteh_cabang_list", JSON.stringify(updated));
-      } catch (err) {
-        console.error(err);
-      }
-      return updated;
-    });
-
-    if (request) {
-      request({
+    setActionLoading(true);
+    setFeedback(null);
+    try {
+      const nextItem = {
+        ...newCabang,
+        status: newCabang.status || "Aktif",
+        jumlahStaff: 0,
+      };
+      await request({
         action: "update_master",
         target: "cabang",
         operation: "create",
         data: {
-          ID_CABANG: nextItem.id,
           NAMA_CABANG: nextItem.kode || nextItem.nama,
           ALAMAT: nextItem.alamat,
           STATUS: nextItem.status || "Aktif",
         },
-      }).catch((err) => console.warn("Sync master cabang error:", err));
+      });
+
+      // Daftar diperbarui lewat onReloadMaster -> prop rawCabang (tanpa optimis lokal).
+      if (onReloadMaster) {
+        await onReloadMaster();
+      }
+
+      setFeedback({
+        type: "success",
+        message: `Cabang "${nextItem.nama}" berhasil ditambahkan.`,
+      });
+      setIsAddModalOpen(false);
+    } catch (err) {
+      setFeedback({
+        type: "error",
+        message: err?.message || "Gagal menambahkan data cabang.",
+      });
+    } finally {
+      setActionLoading(false);
     }
-  }, [request]);
+  }, [onReloadMaster, request]);
 
   const handleConfirmDeleteCabang = useCallback(async () => {
     if (!deletingCabang || !request) return;
@@ -139,16 +127,10 @@ export default function CabangPanel({
         target: "cabang",
         operation: "delete",
         id: deletingCabang.id,
-      });
-
-      setCabangList((prev) => {
-        const updated = prev.filter((c) => c.id !== deletingCabang.id);
-        try {
-          localStorage.setItem("esteh_cabang_list", JSON.stringify(updated));
-        } catch (err) {
-          console.error(err);
-        }
-        return updated;
+        data: {
+          NAMA_CABANG: deletingCabang.kode,
+          _rowIndex: deletingCabang._rowIndex ?? null,
+        },
       });
 
       setFeedback({

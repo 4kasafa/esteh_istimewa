@@ -13,7 +13,7 @@ import {
   X,
 } from "lucide-react";
 import ConfirmDialog from "../common/ConfirmDialog";
-import { parseLooseNumber, toCurrency } from "../../utils/formatters";
+import { parseLooseNumber, toCurrency, formatTimestamp } from "../../utils/formatters";
 import { filterRows } from "../../utils/dashboard";
 import {
   applyReportFilters,
@@ -499,16 +499,6 @@ function TransactionTable({
   const safePage = Math.min(page, totalPages);
   const startIndex = (safePage - 1) * pageSize;
   const pageRows = rows.slice(startIndex, startIndex + pageSize);
-
-  function formatTimestamp(ts) {
-    if (!(ts instanceof Date) || Number.isNaN(ts.getTime())) return "-";
-    const dd = String(ts.getDate()).padStart(2, "0");
-    const mm = String(ts.getMonth() + 1).padStart(2, "0");
-    const yyyy = ts.getFullYear();
-    const hh = String(ts.getHours()).padStart(2, "0");
-    const mi = String(ts.getMinutes()).padStart(2, "0");
-    return `${dd}-${mm}-${yyyy} ${hh}.${mi}`;
-  }
 
   return (
     <div className="bg-white rounded-4xl border border-brand-green/5 card-shadow overflow-hidden flex flex-col h-full min-h-0">

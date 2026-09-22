@@ -10,13 +10,15 @@ describe("stock utility", () => {
     expect(normalizeBahanItem(null, 0)).toEqual({
       id: "BAHAN-01",
       nama: "Bahan 1",
-      satuan: "Pcs",
+      satuan: "",
+      _rowIndex: null,
     });
 
     expect(normalizeBahanItem("Gelas Cup", 1)).toEqual({
       id: "BAHAN-02",
       nama: "Gelas Cup",
-      satuan: "Pcs",
+      satuan: "",
+      _rowIndex: null,
     });
 
     expect(
@@ -25,7 +27,21 @@ describe("stock utility", () => {
       id: "BAHAN-05",
       nama: "Teh",
       satuan: "Pack",
+      _rowIndex: null,
     });
+  });
+
+  it("preserves _rowIndex for delete-by-row of ID-less imported rows", () => {
+    const normalized = normalizeBahanItem({ NAMA_BAHAN: "Teh", _rowIndex: 8 });
+    expect(normalized._rowIndex).toBe(8);
+
+    const [item] = calculateStockBalances(
+      [{ NAMA_BAHAN: "Teh", _rowIndex: 8 }],
+      [],
+      [],
+      "Semua"
+    );
+    expect(item._rowIndex).toBe(8);
   });
 
   it("handles header prefix mapping", () => {

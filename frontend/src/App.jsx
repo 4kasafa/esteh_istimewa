@@ -66,15 +66,15 @@ export default function App() {
       const now = new Date();
       const period = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
       if (isAdmin) {
-        loadData({ monthly: true, period }).catch(() => {});
+        loadData({ monthly: true, period, refreshMaster: true }).catch(() => {});
       } else {
         const role = String(user?.role || "").toLowerCase();
         if (!role) return;
         const lastTodayReportId = String(user?.lastTodayReport || "").trim();
         if (lastTodayReportId) {
-          loadData({ reportId: lastTodayReportId }).catch(() => {});
+          loadData({ reportId: lastTodayReportId, refreshMaster: true }).catch(() => {});
         } else {
-          loadData({ monthly: false }).catch(() => {});
+          loadData({ monthly: false, refreshMaster: true }).catch(() => {});
         }
       }
     }
@@ -103,7 +103,7 @@ export default function App() {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-[#f8f9ee] text-[#1B3A1E] p-6 text-center">
         <div className="w-12 h-12 border-4 border-green-200 border-t-green-600 rounded-full animate-spin mb-4"></div>
-        <p className="font-bold tracking-widest text-xs uppercase opacity-50">Memvalidasi Sesi...</p>
+        <p className="font-bold tracking-widest text-xs uppercase opacity-50">Mohon tunggu...</p>
         {!apiUrl && (
           <p className="mt-4 text-red-500 text-xs font-bold">VITE_GAS_API_URL belum dikonfigurasi!</p>
         )}

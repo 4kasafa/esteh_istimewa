@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { Coffee, Receipt, TrendingUp } from "lucide-react";
 import DonutChart from "./DonutChart";
 import LineChart from "./LineChart";
-import { toCurrency, toPeriodValue } from "../../utils/formatters";
+import { toCurrency, toPeriodValue, formatShortDate } from "../../utils/formatters";
 import {
   applyDashboardFilters,
   buildExecutiveKpi,
@@ -11,15 +11,6 @@ import {
   sanitizeDatabaseRows,
 } from "../../utils/dashboard";
 import { buildTransactionList } from "../../utils/reports";
-
-function formatShortDate(ts) {
-  if (!(ts instanceof Date) || Number.isNaN(ts.getTime())) return "-";
-  const dd = String(ts.getDate()).padStart(2, "0");
-  const mm = String(ts.getMonth() + 1).padStart(2, "0");
-  const hh = String(ts.getHours()).padStart(2, "0");
-  const mi = String(ts.getMinutes()).padStart(2, "0");
-  return `${dd}/${mm} ${hh}:${mi}`;
-}
 
 // Hero Card: Metrik finansial utama untuk business owner
 function HeroCard({ totalSales, totalDeposit }) {
@@ -107,7 +98,7 @@ function MiniChips({ totalExpenses, totalCups, topBranch }) {
 
             {/* Bagian Bawah: Angka / Nilai di Tengah Center */}
             <div className="my-auto py-1.5 flex items-center justify-center text-center">
-              <p className="text-xs sm:text-base font-black text-brand-green-dark break-words leading-tight text-center">
+              <p className="text-xs sm:text-base font-black text-brand-green-dark wrap-break-word leading-tight text-center">
                 {chip.value}
               </p>
             </div>
@@ -166,7 +157,7 @@ function CompactTransactionTable({ transactions = [] }) {
                         {isIncome ? "Masuk" : "Keluar"}
                       </span>
                     </td>
-                    <td className="py-2 px-2.5 font-black text-brand-green-dark whitespace-nowrap truncate max-w-[130px]">
+                    <td className="py-2 px-2.5 font-black text-brand-green-dark whitespace-nowrap truncate max-w-32.5">
                       {tx.arusDana || tx.cabang || "-"}
                     </td>
                     <td

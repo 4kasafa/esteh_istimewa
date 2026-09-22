@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import {
   Boxes,
   CheckCircle2,
@@ -31,49 +31,12 @@ export default function StokPanel({
   const [actionLoading, setActionLoading] = useState(false);
   const [localFeedback, setLocalFeedback] = useState(null);
 
-  // Local state for master bahan baku with cache fallback
-  const [bahanList, setBahanList] = useState(() => {
-    if (Array.isArray(masterBahan) && masterBahan.length > 0) return masterBahan;
-    try {
-      const stored = localStorage.getItem("esteh_bahan_list");
-      if (!stored) return [];
-      const parsed = JSON.parse(stored);
-      return Array.isArray(parsed) ? parsed : [];
-    } catch {
-      return [];
-    }
-  });
-
-  useEffect(() => {
-    if (Array.isArray(masterBahan) && masterBahan.length > 0) {
-      setBahanList(masterBahan);
-      try {
-        localStorage.setItem("esteh_bahan_list", JSON.stringify(masterBahan));
-      } catch {
-        /* ignore storage write error */
-      }
-    }
-  }, [masterBahan]);
-
-  useEffect(() => {
-    if (!request) return;
-    let isMounted = true;
-    request({ action: "read_master" })
-      .then((res) => {
-        if (!isMounted) return;
-        const list = res?.bahanBaku || res?.bahanBakuList;
-        if (Array.isArray(list) && list.length > 0) {
-          setBahanList(list);
-          try {
-            localStorage.setItem("esteh_bahan_list", JSON.stringify(list));
-          } catch {
-            /* ignore storage write error */
-          }
-        }
-      })
-      .catch(() => {});
-    return () => { isMounted = false; };
-  }, [request]);
+  // ponytail: data master bahan baku berasal dari satu sumber (prop masterBahan,
+  // hasil fetch loadMasterData di level App). Panel tidak fetch/cache sendiri.
+  const bahanList = useMemo(
+    () => (Array.isArray(masterBahan) ? masterBahan : []),
+    [masterBahan],
+  );
 
   // Combine rows: prefer reportRows if available, fallback to dbRows
   const combinedRows = useMemo(() => {
@@ -134,26 +97,7 @@ export default function StokPanel({
         },
       });
 
-      const savedItem = {
-        ID_BAHAN: bahanData.id || `BAHAN-${String(Date.now()).slice(-3)}`,
-        id: bahanData.id || `BAHAN-${String(Date.now()).slice(-3)}`,
-        NAMA_BAHAN: bahanData.nama,
-        nama: bahanData.nama,
-        SATUAN: bahanData.satuan,
-        satuan: bahanData.satuan,
-      };
-
-      setBahanList((prev) => {
-        const next = isEdit
-          ? prev.map((b) => ((b.id || b.ID_BAHAN) === bahanData.id ? { ...b, ...savedItem } : b))
-          : [...prev, savedItem];
-        try {
-          localStorage.setItem("esteh_bahan_list", JSON.stringify(next));
-        } catch {
-          /* ignore storage write error */
-        }
-        return next;
-      });
+      // Daftar item diperbarui lewat onReloadMaster -> prop masterBahan (tanpa optimis lokal).
 
       setLocalFeedback({
         type: "success",
@@ -190,17 +134,8 @@ export default function StokPanel({
         data: {
           ID_BAHAN: deletingItem.id,
           NAMA_BAHAN: deletingItem.nama,
+          _rowIndex: deletingItem._rowIndex ?? null,
         },
-      });
-
-      setBahanList((prev) => {
-        const next = prev.filter((b) => (b.id || b.ID_BAHAN) !== deletingItem.id);
-        try {
-          localStorage.setItem("esteh_bahan_list", JSON.stringify(next));
-        } catch {
-          /* ignore storage write error */
-        }
-        return next;
       });
 
       setLocalFeedback({

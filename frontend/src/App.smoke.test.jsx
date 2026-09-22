@@ -10,6 +10,9 @@ function mockSuccess(data) {
 
 function createDefaultGasMock() {
   let createdReport = null;
+  // Simulasi server: item yang dibuat via update_master ikut terbaca ulang.
+  const dynamicUsers = [];
+  const dynamicCabang = [];
 
   return vi.fn((_, options) => {
     let payload = {};
@@ -104,10 +107,12 @@ function createDefaultGasMock() {
               { USERNAME: "joko", NAMA: "Joko", ROLE: "staff", CABANG: "cabang_01" },
               { USERNAME: "abu", NAMA: "Abu Arfan", ROLE: "staff", CABANG: "cabang_01" },
               { USERNAME: "arief", NAMA: "Arief Rahman", ROLE: "staff", CABANG: "cabang_02" },
+              ...dynamicUsers,
             ],
             cabang: [
               { ID_CABANG: "CAB-01", NAMA_CABANG: "cabang_01", ALAMAT: "Jl. Ahmad Yani" },
               { ID_CABANG: "CAB-02", NAMA_CABANG: "cabang_02", ALAMAT: "Jl. Sudirman" },
+              ...dynamicCabang,
             ],
             bahanBaku: [
               { ID_BAHAN: "BAHAN-01", NAMA_BAHAN: "Gelas Cup", SATUAN: "Cup" },
@@ -151,6 +156,36 @@ function createDefaultGasMock() {
           },
         }),
       });
+    }
+
+    if (action === "update_master") {
+      const op = String(payload.operation || "").toLowerCase();
+      const target = String(payload.target || "").toLowerCase();
+      const d = payload.data || {};
+      if (op === "create" && target === "user") {
+        const created = {
+          ID: `USR-${100 + dynamicUsers.length}`,
+          "NAMA / USERNAME": d["NAMA / USERNAME"] || d.USERNAME || "",
+          USERNAME: d.USERNAME || d["NAMA / USERNAME"] || "",
+          "NO. TELEPON": d["NO. TELEPON"] || "-",
+          ROLE: d.ROLE || "Staff",
+          STATUS: d.STATUS || "Aktif",
+          CABANG: d.CABANG || "cabang_01",
+        };
+        dynamicUsers.push(created);
+        return mockSuccess(created);
+      }
+      if (op === "create" && target === "cabang") {
+        const created = {
+          ID_CABANG: `CAB-${10 + dynamicCabang.length}`,
+          NAMA_CABANG: d.NAMA_CABANG || "",
+          ALAMAT: d.ALAMAT || "-",
+          STATUS: d.STATUS || "Aktif",
+        };
+        dynamicCabang.push(created);
+        return mockSuccess(created);
+      }
+      return mockSuccess(null);
     }
 
     if (action === "create" || action === "create_report") {

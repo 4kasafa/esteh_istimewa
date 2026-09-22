@@ -22,6 +22,33 @@ const MONTH_MAP = {
   desember: 11,
 };
 
+export function getTodayDateString() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+export function formatShortDate(ts) {
+  if (!(ts instanceof Date) || Number.isNaN(ts.getTime())) return "-";
+  const dd = String(ts.getDate()).padStart(2, "0");
+  const mm = String(ts.getMonth() + 1).padStart(2, "0");
+  const hh = String(ts.getHours()).padStart(2, "0");
+  const mi = String(ts.getMinutes()).padStart(2, "0");
+  return `${dd}/${mm} ${hh}:${mi}`;
+}
+
+export function formatTimestamp(ts) {
+  if (!(ts instanceof Date) || Number.isNaN(ts.getTime())) return "-";
+  const dd = String(ts.getDate()).padStart(2, "0");
+  const mm = String(ts.getMonth() + 1).padStart(2, "0");
+  const yyyy = ts.getFullYear();
+  const hh = String(ts.getHours()).padStart(2, "0");
+  const mi = String(ts.getMinutes()).padStart(2, "0");
+  return `${dd}-${mm}-${yyyy} ${hh}.${mi}`;
+}
+
 export function parseLooseNumber(value) {
   if (value === null || value === undefined || value === "") return 0;
   if (typeof value === "number") return Number.isFinite(value) ? value : 0;
@@ -125,24 +152,6 @@ export function generateTrxId(date = new Date(), counter = "") {
   const minutes = String(now.getMinutes()).padStart(2, "0");
   const seconds = String(now.getSeconds()).padStart(2, "0");
   return `TRX-${dateStr}-${hours}${minutes}${seconds}`;
-}
-
-export function toFormattedTimestamp(date = new Date()) {
-  const days = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
-  const months = [
-    "Januari", "Februari", "Maret", "April", "Mei", "Juni",
-    "Juli", "Agustus", "September", "Oktober", "November", "Desember"
-  ];
-
-  const dayName = days[date.getDay()];
-  const day = date.getDate();
-  const monthName = months[date.getMonth()];
-  const year = date.getFullYear();
-  const hours = String(date.getHours()).padStart(2, "0");
-  const minutes = String(date.getMinutes()).padStart(2, "0");
-  const seconds = String(date.getSeconds()).padStart(2, "0");
-
-  return `${dayName}, ${day} ${monthName} ${year} ${hours}.${minutes}.${seconds}`;
 }
 
 export function toShortIndonesianDay(value) {

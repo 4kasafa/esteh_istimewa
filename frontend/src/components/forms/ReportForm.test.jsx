@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import ReportForm from "./ReportForm";
-import { getTodayDateString } from "../../constants/forms";
+import { getTodayDateString } from "../../utils/formatters";
 
 describe("ReportForm Component", () => {
   const defaultProps = {

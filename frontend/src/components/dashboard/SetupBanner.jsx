@@ -21,7 +21,7 @@ export default function SetupBanner({ onStartWizard, onDismiss }) {
               </span>
             </div>
             <p className="text-xs font-semibold text-white/75 mt-0.5 max-w-xl leading-relaxed">
-              Daftarkan cabang, staf, bahan baku, dan kategori pengeluaran Anda dengan panduan langkah-demi-langkah.
+              Daftarkan cabang, staf, dan bahan baku Anda dengan panduan langkah-demi-langkah.
             </p>
           </div>
         </div>
@@ -32,7 +32,7 @@ export default function SetupBanner({ onStartWizard, onDismiss }) {
             onClick={onStartWizard}
             className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-[#14381C] text-xs font-black shadow-lg shadow-emerald-500/25 active:scale-95 transition-all cursor-pointer"
           >
-            <span>Mulai Setup Wizard</span>
+            <span>Mulai Set data awal</span>
             <ArrowRight size={15} />
           </button>
 

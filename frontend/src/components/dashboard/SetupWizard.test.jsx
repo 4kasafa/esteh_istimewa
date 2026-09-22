@@ -167,7 +167,7 @@ describe("SetupBanner Component", () => {
     expect(screen.getByText(/Setup Awal Operasional Belum Lengkap/i)).toBeInTheDocument();
 
     // Click Mulai
-    const startBtn = screen.getByRole("button", { name: /Mulai Setup Wizard/i });
+    const startBtn = screen.getByRole("button", { name: /Mulai Set data awal/i });
     fireEvent.click(startBtn);
     expect(handleStart).toHaveBeenCalledTimes(1);
 

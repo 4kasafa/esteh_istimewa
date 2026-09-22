@@ -261,6 +261,9 @@ export default function DashboardPage({
 
   function handleSelectMenu(menuKey) {
     if (menuKey === "pemasukan") {
+      // Refresh master data to ensure yesterdayStock is up-to-date saat buka tab pemasukan
+      onReloadMaster?.().catch?.(() => {});
+
       const defaultBranch = selectedBranch.toLowerCase() !== "semua" ? selectedBranch : (branchList[0] || "");
       if (!isStaff) {
         setIsEditMode(false);
@@ -529,6 +532,7 @@ export default function DashboardPage({
                       <KaryawanPanel
                         selectedBranch={selectedBranch}
                         branches={branchList}
+                        users={masterData?.users || []}
                         request={request}
                         user={user}
                         onReloadMaster={onReloadMaster}
@@ -541,6 +545,7 @@ export default function DashboardPage({
                       <CabangPanel
                         selectedBranch={selectedBranch}
                         branches={branchList}
+                        rawCabang={masterData?.cabang || []}
                         request={request}
                         onReloadMaster={onReloadMaster}
                       />

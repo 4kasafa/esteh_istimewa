@@ -8,39 +8,51 @@ describe("KaryawanPanel", () => {
     vi.restoreAllMocks();
   });
 
-  it("handles numeric and empty nama without throwing k.nama.split is not a function", async () => {
-    const mockRequest = vi.fn().mockResolvedValue({
-      users: [
-        { ID: "USR-1", "NAMA / USERNAME": 12345, ROLE: "Staff", CABANG: "cabang_01", "NO. TELEPON": 812345678 },
-        { ID: "USR-2", "NAMA / USERNAME": null, ROLE: "Admin", CABANG: "cabang_02" },
-        { ID: "USR-3", "NAMA / USERNAME": "", ROLE: "Staff", CABANG: "cabang_01" },
-        { ID: "USR-4", "NAMA / USERNAME": "Siti Rahma", ROLE: "Staff", CABANG: "cabang_01" },
-      ],
-    });
+  it("renders users from props without fetching read_master", async () => {
+    const mockRequest = vi.fn().mockResolvedValue({});
 
-    render(<KaryawanPanel selectedBranch="Semua" branches={["cabang_01", "cabang_02"]} request={mockRequest} />);
+    render(
+      <KaryawanPanel
+        selectedBranch="Semua"
+        branches={["cabang_01", "cabang_02"]}
+        users={[
+          { ID: "USR-1", "NAMA / USERNAME": 12345, ROLE: "Staff", CABANG: "cabang_01", "NO. TELEPON": 812345678 },
+          { ID: "USR-2", "NAMA / USERNAME": null, ROLE: "Admin", CABANG: "cabang_02" },
+          { ID: "USR-3", "NAMA / USERNAME": "", ROLE: "Staff", CABANG: "cabang_01" },
+          { ID: "USR-4", "NAMA / USERNAME": "Siti Rahma", ROLE: "Staff", CABANG: "cabang_01" },
+        ]}
+        request={mockRequest}
+      />
+    );
 
-    await waitFor(() => {
-      expect(screen.getByText("Siti Rahma")).toBeInTheDocument();
-    });
+    expect(screen.getByText("Siti Rahma")).toBeInTheDocument();
 
     // Verify initials for numeric name '12345'
     expect(screen.getByText("12")).toBeInTheDocument();
     // Verify initials for "Siti Rahma"
     expect(screen.getByText("SR")).toBeInTheDocument();
+
+    // Panel tidak lagi memanggil read_master sendiri saat mount.
+    expect(mockRequest).not.toHaveBeenCalledWith(
+      expect.objectContaining({ action: "read_master" })
+    );
   });
 
-  it("handles corrupted data loaded from localStorage gracefully", () => {
-    localStorage.setItem(
-      "esteh_karyawan_list",
-      JSON.stringify([
-        { id: 99, nama: 998877, role: null, cabang: 123, shift: null, telepon: 8213344 },
-        { id: "EMP-2", nama: undefined },
-      ])
-    );
+  it("renders raw rows with unusual shapes without throwing", () => {
+    const mockRequest = vi.fn().mockResolvedValue({});
 
     expect(() => {
-      render(<KaryawanPanel selectedBranch="Semua" branches={[]} />);
+      render(
+        <KaryawanPanel
+          selectedBranch="Semua"
+          branches={[]}
+          users={[
+            { id: 99, nama: 998877, role: null, cabang: 123, shift: null, telepon: 8213344 },
+            { id: "EMP-2", nama: undefined },
+          ]}
+          request={mockRequest}
+        />
+      );
     }).not.toThrow();
 
     expect(screen.getByText("998877")).toBeInTheDocument();
@@ -49,14 +61,6 @@ describe("KaryawanPanel", () => {
 
   it("allows deleting an employee with confirmation dialog", async () => {
     const mockRequest = vi.fn().mockImplementation((payload) => {
-      if (payload.action === "read_master") {
-        return Promise.resolve({
-          users: [
-            { ID: "USR-1", "NAMA / USERNAME": "Admin Bos", ROLE: "Admin", CABANG: "cabang_01" },
-            { ID: "USR-2", "NAMA / USERNAME": "Budi Staff", ROLE: "Staff", CABANG: "cabang_01" },
-          ],
-        });
-      }
       if (payload.action === "update_master" && payload.operation === "delete") {
         return Promise.resolve({ success: true });
       }
@@ -69,15 +73,17 @@ describe("KaryawanPanel", () => {
       <KaryawanPanel
         selectedBranch="Semua"
         branches={["cabang_01"]}
+        users={[
+          { ID: "USR-1", "NAMA / USERNAME": "Admin Bos", ROLE: "Admin", CABANG: "cabang_01" },
+          { ID: "USR-2", "NAMA / USERNAME": "Budi Staff", ROLE: "Staff", CABANG: "cabang_01" },
+        ]}
         request={mockRequest}
         user={{ nama: "Admin Bos", role: "Admin" }}
         onReloadMaster={mockReload}
       />
     );
 
-    await waitFor(() => {
-      expect(screen.getByText("Budi Staff")).toBeInTheDocument();
-    });
+    expect(screen.getByText("Budi Staff")).toBeInTheDocument();
 
     // Delete button should not exist for Admin Bos (self)
     expect(screen.queryByLabelText("Hapus Admin Bos")).not.toBeInTheDocument();
@@ -112,5 +118,7 @@ describe("KaryawanPanel", () => {
     await waitFor(() => {
       expect(screen.getByText(/berhasil dihapus/i)).toBeInTheDocument();
     });
+
+    expect(mockReload).toHaveBeenCalled();
   });
 });

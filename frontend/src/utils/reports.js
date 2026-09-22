@@ -5,7 +5,6 @@ const REPORT_TIMESTAMP_KEYS = ["TIME STAMP INPUT", "TIMESTAMP INPUT", "TANGGAL",
 const REPORT_ARUS_DANA_KEYS = ["CABANG", "ARUS DANA", "ARUS_DANA"];
 const REPORT_STAFF_KEYS = ["STAFF", "NAMA STAFF"];
 const REPORT_TOTAL_NOTA_KEYS = ["TOTAL PENJUALAN", "TOTAL NOTA", "TOTAL_NOTA"];
-const REPORT_UANG_MASUK_KEYS = ["TOTAL PENJUALAN", "UANG SETORAN", "UANG MASUK", "UNAG MASUK"];
 const REPORT_PENGELUARAN_KEYS = ["TOTAL PENGELUARAN", "PENGELUARAN", "UANG KELUAR"];
 const REPORT_GELAS_LAKU_KEYS = ["GELAS TERPAKAI", "GELAS LAKU", "GELAS_LAKU"];
 const REPORT_GELAS_AWAL_KEYS = ["GELAS AWAL", "GELAS_AWAL", "STOK AWAL GELAS"];
@@ -169,48 +168,6 @@ export function applyReportFilters(rows, { range = "month", period = toPeriodVal
   });
 
   return filtered.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
-}
-
-export function buildReportStats(rows) {
-  const stats = {
-    gelasAwal: 0,
-    gelasSisa: 0,
-    gelasLaku: 0,
-    gelasRusak: 0,
-    gelasMasuk: 0,
-    esBatuDepo: 0,
-    esBatuBeli: 0,
-    gula: 0,
-    teh: 0,
-    totalPenjualan: 0,
-    uangSetoran: 0,
-    pengeluaran: 0,
-    count: rows.length,
-  };
-
-  rows.forEach((item) => {
-    stats.gelasAwal += item.gelasAwal || 0;
-    stats.gelasSisa += item.gelasSisa || 0;
-    stats.gelasLaku += item.gelasLaku || 0;
-    stats.gelasRusak += item.gelasRusak || 0;
-    stats.gelasMasuk += item.gelasMasuk || 0;
-    stats.esBatuDepo += item.esBatuDepo || 0;
-    stats.esBatuBeli += item.esBatuBeli || 0;
-    stats.gula += item.gula || 0;
-    stats.teh += item.teh || 0;
-    stats.totalPenjualan += item.totalNota || 0;
-    stats.uangSetoran += item.uangSetoran || 0;
-    stats.pengeluaran += item.pengeluaran || 0;
-  });
-
-  return {
-    ...stats,
-    gula: Number(stats.gula.toFixed(2)),
-    teh: Number(stats.teh.toFixed(2)),
-    gelasTotal: stats.gelasLaku,
-    esBatuTotal: stats.esBatuDepo + stats.esBatuBeli,
-    totalPenjualan: stats.totalPenjualan,
-  };
 }
 
 export function buildTransactionList(reportRows = [], dbRows = []) {

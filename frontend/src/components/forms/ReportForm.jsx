@@ -10,8 +10,7 @@ import {
   Calendar,
   CheckCircle2,
 } from "lucide-react";
-import { toCurrency, generateTrxId } from "../../utils/formatters";
-import { getTodayDateString } from "../../constants/forms";
+import { toCurrency, generateTrxId, getTodayDateString } from "../../utils/formatters";
 import CustomSelect from "../common/CustomSelect";
 
 export default function ReportForm({
@@ -28,6 +27,7 @@ export default function ReportForm({
   availableTipePengeluaran = [],
   availableBranches = [],
   availableStaff = [],
+  yesterdayStock = {},
 }) {
   const isWizard = viewportMode === "mobile" || viewportMode === "wizard";
   const [currentStep, setCurrentStep] = useState(1);
@@ -146,7 +146,26 @@ export default function ReportForm({
   };
 
   // Bahan Baku calculations
-  const stokBahan = value.stokBahan || {};
+  const stokBahan = useMemo(() => value.stokBahan || {}, [value.stokBahan]);
+
+  // Prefill stok awal dari yesterdayStock saat form baru (create mode) dan stokBahan kosong
+  useEffect(() => {
+    if (!isEdit && Object.keys(stokBahan).length === 0 && Object.keys(yesterdayStock || {}).length > 0) {
+      const nextStokBahan = {};
+      let gelasAwalVal = "";
+      for (const [namaBahan, jumlah] of Object.entries(yesterdayStock)) {
+        nextStokBahan[namaBahan] = { awal: jumlah, sisa: jumlah };
+        if (namaBahan.toLowerCase().includes("gelas") || namaBahan.toLowerCase().includes("cup")) {
+          gelasAwalVal = jumlah;
+        }
+      }
+      onChange("stokBahan", nextStokBahan);
+      if (gelasAwalVal !== "") {
+        onChange("GELAS AWAL", gelasAwalVal);
+        onChange("GELAS SISA", gelasAwalVal);
+      }
+    }
+  }, [isEdit, stokBahan, yesterdayStock, onChange]);
 
   const handleBahanChange = (namaBahan, field, val) => {
     const current = stokBahan[namaBahan] || { awal: 0, sisa: 0 };

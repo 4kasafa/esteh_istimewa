@@ -12,6 +12,10 @@ function handleReadMaster_(session) {
   const tipeExpSheet = getMasterSheet_(APP_CONFIG.MASTER_TABS.TIPE_PENGELUARAN);
   const sumberSheet = getMasterSheet_(APP_CONFIG.MASTER_TABS.SUMBER_PEMASUKAN);
 
+  // Self-healing: backfill missing IDs on every read
+  backfillSheetIds_(cabangSheet, "ID_CABANG", "CAB-", 2);
+  backfillSheetIds_(bahanSheet, "ID_BAHAN", "BAHAN-", 2);
+
   const rawUsers = readTable_(userSheet);
   const safeUsers = rawUsers.map(u => {
     const rawRole = String(u.ROLE || u.role || "Staff").trim().toLowerCase();
@@ -330,17 +334,36 @@ function handleUpdateMaster_(payload, session) {
 
   if (operation === "delete") {
     const targetId = sanitize_(item[idField] || item.id || payload.id);
-    const existing = rows.find(r => {
-      if (String(r[idField] || "").toLowerCase() === targetId.toLowerCase()) return true;
+    const rowIndex = parseNumber_(payload.rowIndex || payload._rowIndex || item.rowIndex || item._rowIndex || 0);
+
+    // Primary lookup by Stable ID
+    let existing = rows.find(r => {
+      if (targetId && String(r[idField] || "").toLowerCase() === targetId.toLowerCase()) return true;
       if (target === "user") {
         const uName = String(r["NAMA / USERNAME"] || r.USERNAME || "").toLowerCase();
-        return uName === targetId.toLowerCase();
+        return uName && uName === targetId.toLowerCase();
       }
       return false;
     });
 
+    // Fallback: physical row index (for legacy or strictly indexed rows)
+    if (!existing && rowIndex > 1) {
+      existing = rows.find(r => r._rowIndex === rowIndex);
+    }
+
+    // Last resort: natural name match (best effort)
     if (!existing) {
-      return jsonResponse_(false, null, "Data master " + target + " dengan ID " + targetId + " tidak ditemukan.");
+      const targetName = String(item.NAMA_CABANG || item.NAMA_BAHAN || item["NAMA / USERNAME"] || item.USERNAME || "").trim().toLowerCase();
+      if (targetName) {
+        existing = rows.find(r => {
+          const rowName = String(r.NAMA_CABANG || r.NAMA_BAHAN || r["NAMA / USERNAME"] || r.USERNAME || "").trim().toLowerCase();
+          return rowName && rowName === targetName;
+        });
+      }
+    }
+
+    if (!existing) {
+      return jsonResponse_(false, null, "Data master " + target + " dengan ID " + (targetId || rowIndex) + " tidak ditemukan.");
     }
 
     // Proteksi khusus user
@@ -493,6 +516,112 @@ function syncBahanBakuToTipePengeluaran_(namaBahan, oldNamaBahan = null) {
     }
   } catch (err) {
     console.error("Gagal sinkronisasi Bahan Baku ke Tipe Pengeluaran:", err);
+  }
+}
+
+/**
+ * One-off migration: backfill missing IDs in all master tabs
+ * Scans each master tab, finds rows with blank ID columns, assigns next sequential ID
+ * Run once from Apps Script editor, then delete or mark complete
+ */
+function backfillMissingIds() {
+  const ss = SpreadsheetApp.openById(APP_CONFIG.SPREADSHEET_ID);
+  const logs = [];
+
+  const tabs = [
+    { name: APP_CONFIG.MASTER_TABS.USER, idField: "ID", prefix: "USR-", padLen: 3 },
+    { name: APP_CONFIG.MASTER_TABS.CABANG, idField: "ID_CABANG", prefix: "CAB-", padLen: 2 },
+    { name: APP_CONFIG.MASTER_TABS.BAHAN_BAKU, idField: "ID_BAHAN", prefix: "BAHAN-", padLen: 2 },
+    { name: APP_CONFIG.MASTER_TABS.TIPE_PENGELUARAN, idField: "ID_TIPE", prefix: "EXP-", padLen: 2 },
+    { name: APP_CONFIG.MASTER_TABS.SUMBER_PEMASUKAN, idField: "ID_SUMBER", prefix: "INC-", padLen: 2 }
+  ];
+
+  tabs.forEach(tab => {
+    try {
+      const sheet = ss.getSheetByName(tab.name);
+      if (!sheet || sheet.getLastRow() <= 1) return;
+
+      const rows = readTable_(sheet);
+      const headers = getTableHeaders_(sheet);
+      const idColIdx = headers.indexOf(tab.idField);
+      if (idColIdx < 0) {
+        logs.push(`${tab.name}: kolom ${tab.idField} tidak ditemukan`);
+        return;
+      }
+
+      let maxNum = 0;
+      let needsBackfill = [];
+
+      rows.forEach((r, idx) => {
+        const idVal = String(r[tab.idField] || "").trim();
+        const regex = new RegExp(tab.prefix.replace("-", "\\-") + "(\\d+)", "i");
+        const m = idVal.match(regex);
+        if (m) {
+          const n = parseInt(m[1], 10);
+          if (n > maxNum) maxNum = n;
+        }
+        if (!idVal) {
+          needsBackfill.push(r._rowIndex);
+        }
+      });
+
+      if (needsBackfill.length === 0) {
+        logs.push(`${tab.name}: semua baris sudah punya ID (${rows.length} baris)`);
+        return;
+      }
+
+      needsBackfill.forEach(rowIdx => {
+        maxNum++;
+        sheet.getRange(rowIdx, idColIdx + 1).setValue(tab.prefix + String(maxNum).padStart(tab.padLen, "0"));
+      });
+
+      logs.push(`${tab.name}: berhasil backfill ${needsBackfill.length} baris (${rows.length} total)`);
+    } catch (err) {
+      logs.push(`${tab.name}: ERROR - ${err.message}`);
+    }
+  });
+
+  return logs.join("\n");
+}
+
+/**
+ * Internal helper: backfill missing IDs in a specific sheet
+ */
+function backfillSheetIds_(sheet, idField, prefix, padLen) {
+  if (!sheet || sheet.getLastRow() <= 1) return 0;
+  try {
+    const rows = readTable_(sheet);
+    const headers = getTableHeaders_(sheet);
+    const idColIdx = headers.indexOf(idField);
+    if (idColIdx < 0) return 0;
+
+    let maxNum = 0;
+    let backfilled = 0;
+
+    rows.forEach(r => {
+      const idVal = String(r[idField] || "").trim();
+      const regex = new RegExp(prefix.replace("-", "\\-") + "(\\d+)", "i");
+      const m = idVal.match(regex);
+      if (m) {
+        const n = parseInt(m[1], 10);
+        if (n > maxNum) maxNum = n;
+      }
+    });
+
+    rows.forEach(r => {
+      const idVal = String(r[idField] || "").trim();
+      if (!idVal && r._rowIndex > 1) {
+        maxNum++;
+        sheet.getRange(r._rowIndex, idColIdx + 1).setValue(prefix + String(maxNum).padStart(padLen, "0"));
+        backfilled++;
+      }
+    });
+
+    if (backfilled > 0) SpreadsheetApp.flush();
+    return backfilled;
+  } catch (err) {
+    console.warn(`backfillSheetIds_ gagal di ${sheet.getName()}:`, err);
+    return 0;
   }
 }
 
