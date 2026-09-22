@@ -7,16 +7,14 @@ import {
   MessageSquareWarning,
   RefreshCw,
   Send,
-  Sparkles,
   UserRound,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 
-const DEV_CONTACT = import.meta.env.VITE_DEV_CONTACT || "6285156704029";
+const DEV_CONTACT = import.meta.env.VITE_DEV_CONTACT || "";
 
 export default function SettingPanel({
   user,
-  onOpenWizard,
 }) {
   const [activeSub, setActiveSub] = useState("main"); // main, account, download, report, about
   const [reportMessage, setReportMessage] = useState("");
@@ -75,17 +73,6 @@ export default function SettingPanel({
       description: "Refresh data aplikasi terbaru",
       action: () => window.location.reload(),
     },
-    ...(String(user?.role || "").toLowerCase() === "admin" && onOpenWizard
-      ? [
-          {
-            key: "wizard",
-            label: "Setup Wizard Operasional",
-            icon: Sparkles,
-            description: "Jalankan ulang panduan input cabang, staf & stok awal",
-            action: onOpenWizard,
-          },
-        ]
-      : []),
     ...(!isPWA
       ? [
           {
@@ -111,7 +98,7 @@ export default function SettingPanel({
   ];
 
   const handleSendReport = () => {
-    if (!reportMessage.trim()) return;
+    if (!reportMessage.trim() || !DEV_CONTACT) return;
     const encoded = encodeURIComponent(
       `*LAPOR ERROR - Es Teh Istimewa App*\n\nUser: ${user?.nama} (${user?.email})\n\nPesan:\n${reportMessage}`
     );
@@ -200,7 +187,7 @@ export default function SettingPanel({
           />
           <button
             onClick={handleSendReport}
-            disabled={!reportMessage.trim()}
+            disabled={!reportMessage.trim() || !DEV_CONTACT}
             className="w-full bg-[#25D366] text-white py-4 rounded-2xl font-black shadow-lg shadow-green-500/20 flex items-center justify-center gap-3 disabled:opacity-50 hover:bg-[#20bd5a] transition-all"
           >
             <Send size={20} />
