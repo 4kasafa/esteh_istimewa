@@ -2,7 +2,7 @@ const ERROR_MAP = [
   { match: /missing bearer token|unauthorized|token/i, message: "Session tidak valid. Silakan login ulang." },
   { match: /session not found|session.*revoked|token expired/i, message: "Session habis. Silakan login ulang." },
   { match: /forbidden action|admin-only|forbidden role/i, message: "Akses ditolak. Fitur ini khusus admin." },
-  { match: /failed to fetch|network|koneksi internet/i, message: "Gagal terhubung ke server. Cek koneksi dan deploy GAS." },
+  { match: /failed to fetch|network|koneksi internet|timeout|abort/i, message: "Gagal terhubung ke server. Cek koneksi dan deploy GAS." },
   { match: /invalid json|bukan json|tidak valid|response.*json/i, message: "Server sedang sinkronisasi data. Silakan coba klik MASUK sekali lagi." },
 ];
 

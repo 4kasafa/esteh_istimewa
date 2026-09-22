@@ -707,7 +707,6 @@ function TransactionTable({
 
 export default function ReportPanel({
   reportRows,
-  dbRows = [],
   loading,
   isAdmin,
   onEditRow,
@@ -729,8 +728,8 @@ export default function ReportPanel({
 
   const transactionRows = useMemo(() => {
     if (!isAdmin) return [];
-    return buildTransactionList(reportRows, dbRows);
-  }, [isAdmin, reportRows, dbRows]);
+    return buildTransactionList(reportRows);
+  }, [isAdmin, reportRows]);
 
   // Untuk staff, batasi hanya pada data laporan hari ini
   const scopedRows = useMemo(() => {

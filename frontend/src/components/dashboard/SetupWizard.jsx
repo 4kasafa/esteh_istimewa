@@ -168,19 +168,18 @@ export default function SetupWizard({
       if (unsaved.length > 0 && request) {
         setIsSaving(true);
         try {
-          for (const c of unsaved) {
-            setSavingText(`Menyimpan cabang "${c.nama.trim()}"...`);
-            await request({
-              action: "update_master",
-              target: "cabang",
-              operation: "create",
-              data: {
-                NAMA_CABANG: c.nama.trim(),
-                ALAMAT: c.alamat.trim() || "-",
-                STATUS: "Aktif",
-              },
-            });
-          }
+          // ponytail: 1 bulk request ganti N request serial (backend create_many).
+          setSavingText(`Menyimpan ${unsaved.length} cabang...`);
+          await request({
+            action: "update_master",
+            target: "cabang",
+            operation: "create",
+            data: unsaved.map((c) => ({
+              NAMA_CABANG: c.nama.trim(),
+              ALAMAT: c.alamat.trim() || "-",
+              STATUS: "Aktif",
+            })),
+          });
 
           const savedNames = unsaved.map((c) => c.nama.trim());
           setSavedBranchNames((prev) => Array.from(new Set([...prev, ...savedNames])));
@@ -213,23 +212,22 @@ export default function SetupWizard({
         setIsSaving(true);
         try {
           const fallbackBranch = branchOptions[0] || "-";
-          for (const k of unsaved) {
-            setSavingText(`Menyimpan staf "${k.nama.trim()}"...`);
-            await request({
-              action: "update_master",
-              target: "user",
-              operation: "create",
-              data: {
-                "NAMA / USERNAME": k.nama.trim(),
-                USERNAME: k.nama.trim(),
-                CABANG: k.cabang.trim() || fallbackBranch,
-                "NO. TELEPON": k.telepon.trim() || "-",
-                PASSWORD: k.password.trim() || "123456",
-                ROLE: "Staff",
-                STATUS: "Aktif",
-              },
-            });
-          }
+          // ponytail: 1 bulk request ganti N request serial (backend create_many).
+          setSavingText(`Menyimpan ${unsaved.length} staf...`);
+          await request({
+            action: "update_master",
+            target: "user",
+            operation: "create",
+            data: unsaved.map((k) => ({
+              "NAMA / USERNAME": k.nama.trim(),
+              USERNAME: k.nama.trim(),
+              CABANG: k.cabang.trim() || fallbackBranch,
+              "NO. TELEPON": k.telepon.trim() || "-",
+              PASSWORD: k.password.trim() || "123456",
+              ROLE: "Staff",
+              STATUS: "Aktif",
+            })),
+          });
 
           setKaryawanList((prev) =>
             prev.map((k) => (k.nama.trim() ? { ...k, isSaved: true } : k))
@@ -254,18 +252,17 @@ export default function SetupWizard({
       if (unsaved.length > 0 && request) {
         setIsSaving(true);
         try {
-          for (const b of unsaved) {
-            setSavingText(`Menyimpan bahan baku "${b.nama.trim()}"...`);
-            await request({
-              action: "update_master",
-              target: "bahan_baku",
-              operation: "create",
-              data: {
-                NAMA_BAHAN: b.nama.trim(),
-                SATUAN: b.satuan.trim() || "Pcs",
-              },
-            });
-          }
+          // ponytail: 1 bulk request ganti N request serial (backend create_many).
+          setSavingText(`Menyimpan ${unsaved.length} bahan baku...`);
+          await request({
+            action: "update_master",
+            target: "bahan_baku",
+            operation: "create",
+            data: unsaved.map((b) => ({
+              NAMA_BAHAN: b.nama.trim(),
+              SATUAN: b.satuan.trim() || "Pcs",
+            })),
+          });
 
           setBahanList((prev) =>
             prev.map((b) => (b.nama.trim() ? { ...b, isSaved: true } : b))

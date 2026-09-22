@@ -85,3 +85,14 @@ function getCurrentTime_() {
 function getCurrentPeriod_() {
   return Utilities.formatDate(new Date(), APP_CONFIG.TIMEZONE, "yyyy-MM");
 }
+
+function matchStaffName_(a, b) {
+  return String(a || "").trim().toLowerCase() === String(b || "").trim().toLowerCase();
+}
+
+function normalizeTanggal_(tanggal) {
+  if (!tanggal) return "";
+  const d = new Date(tanggal);
+  if (isNaN(d.getTime())) return String(tanggal).trim().substring(0, 10);
+  return Utilities.formatDate(d, APP_CONFIG.TIMEZONE, "yyyy-MM-dd");
+}

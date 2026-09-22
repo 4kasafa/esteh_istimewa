@@ -67,9 +67,9 @@ describe("SetupWizard Component (Per-Step Saving)", () => {
           action: "update_master",
           target: "cabang",
           operation: "create",
-          data: expect.objectContaining({
-            NAMA_CABANG: "Outlet Pattimura Baru",
-          }),
+          data: expect.arrayContaining([
+            expect.objectContaining({ NAMA_CABANG: "Outlet Pattimura Baru" }),
+          ]),
         })
       );
     });
@@ -96,9 +96,9 @@ describe("SetupWizard Component (Per-Step Saving)", () => {
           action: "update_master",
           target: "user",
           operation: "create",
-          data: expect.objectContaining({
-            USERNAME: "Siti Rahma",
-          }),
+          data: expect.arrayContaining([
+            expect.objectContaining({ USERNAME: "Siti Rahma" }),
+          ]),
         })
       );
     });
@@ -120,9 +120,9 @@ describe("SetupWizard Component (Per-Step Saving)", () => {
           action: "update_master",
           target: "bahan_baku",
           operation: "create",
-          data: expect.objectContaining({
-            NAMA_BAHAN: "Teh Melati",
-          }),
+          data: expect.arrayContaining([
+            expect.objectContaining({ NAMA_BAHAN: "Teh Melati" }),
+          ]),
         })
       );
     });

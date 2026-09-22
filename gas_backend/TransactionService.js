@@ -29,7 +29,8 @@ function handleGetInitialFormData_(payload, session) {
 
   try {
     const currentPeriod = sanitize_(payload.period || (payload.tanggal ? payload.tanggal.substring(0, 7) : "") || getCurrentPeriod_());
-    const monthlySs = getOrCreateMonthlySpreadsheet_(currentPeriod);
+    // ponytail: baca saja — tanpa reformat tab (disinkron saat tulis/setup)
+    const monthlySs = getOrCreateMonthlySpreadsheet_(currentPeriod, { skipEnsure: true });
     const transSheet = monthlySs.getSheetByName(APP_CONFIG.MONTHLY_TABS.TRANSAKSI);
     const transRows = readTable_(transSheet);
 
@@ -91,7 +92,7 @@ function handleCreateReport_(payload, session) {
   const cabang = sanitize_(data.cabang || data.CABANG || data["ARUS DANA"] || session.cabang || "cabang_01");
   const tanggal = sanitize_(data.tanggal || data.TANGGAL || getCurrentDate_());
   const waktuInput = sanitize_(data.waktuInput || data["WAKTU INPUT"] || getCurrentTime_());
-  const staff = sanitize_(session.nama || data.staff || data.STAFF || session.username);
+  const staff = sanitize_(session.nama || session.username);
   const keterangan = sanitize_(data.keterangan || data.KETERANGAN || "");
 
   // Finansial: Setoran + Total Pengeluaran = Total Penjualan
@@ -131,50 +132,8 @@ function handleCreateReport_(payload, session) {
     totalPengeluaran = parseNumber_(data.PENGELUARAN);
   }
 
-  const isPengeluaranOnly = Boolean(
-    data.isPengeluaranOnly ||
-    String(data["JENIS TRANSAKSI"] || "").toLowerCase() === "pengeluaran" ||
-    payload.action === "create_database" ||
-    (uangSetoran === 0 && !data["UANG SETORAN"] && !data["UANG MASUK"] && !data["TOTAL PENJUALAN"] && totalPengeluaran > 0 && usedBahan.length === 0)
-  );
-
-  const totalPenjualan = isPengeluaranOnly ? 0 : (uangSetoran + totalPengeluaran);
-
-  const periode = tanggal.substring(0, 7) || getCurrentPeriod_();
-  const monthlySs = getOrCreateMonthlySpreadsheet_(periode);
-  const transSheet = monthlySs.getSheetByName(APP_CONFIG.MONTHLY_TABS.TRANSAKSI);
-  const headers = getTableHeaders_(transSheet);
-  const existingRows = readTable_(transSheet);
-
-  let idTransaksi = sanitize_(data.id || data["ID TRANSAKSI"] || data["NO TRANSAKSI"]);
-  const isLegacyId = !idTransaksi || !String(idTransaksi).toUpperCase().startsWith("TRX-") || String(idTransaksi).includes(",") || /\s/.test(String(idTransaksi).trim());
-  if (isLegacyId) {
-    const existingIds = new Set(existingRows.map(r => String(r["ID TRANSAKSI"] || r["NO TRANSAKSI"] || "").toLowerCase()));
-    const baseDate = tanggal ? tanggal.replace(/-/g, "") : Utilities.formatDate(new Date(), APP_CONFIG.TIMEZONE, "yyyyMMdd");
-    const dateStr = baseDate.length >= 8 ? baseDate.substring(0, 8) : baseDate;
-    const baseId = "TRX-" + dateStr + "-";
-    let uniqueCount = new Set(existingRows.map(r => String(r["ID TRANSAKSI"] || r["NO TRANSAKSI"] || "").toUpperCase())).size;
-    let newIdStr = baseId + String(uniqueCount + 1).padStart(3, "0");
-    while (existingIds.has(newIdStr.toLowerCase())) {
-        uniqueCount++;
-        newIdStr = baseId + String(uniqueCount + 1).padStart(3, "0");
-    }
-    idTransaksi = newIdStr;
-  }
-
-  const rowObj = {
-    "ID TRANSAKSI": idTransaksi,
-    "TANGGAL": tanggal,
-    "WAKTU INPUT": waktuInput,
-    "CABANG": cabang,
-    "STAFF": staff,
-    "JENIS TRANSAKSI": "Pemasukan",
-    "KATEGORI": "Penjualan",
-    "NOMINAL": totalPenjualan,
-    "UANG SETORAN": uangSetoran,
-    "KETERANGAN": keterangan
-  };
-
+  // ponytail: stok dihitung DULU (dulu dipakai di isPengeluaranOnly sebelum
+  // dideklarasi = ReferenceError untuk payload tertentu).
   const stokBahan = data.stokBahan || {};
   const activeBahan = readActiveBahanBaku_();
 
@@ -189,6 +148,59 @@ function handleCreateReport_(payload, session) {
       usedBahan.push({ bahan: b, pfx: pfx });
     }
   });
+
+  const isPengeluaranOnly = Boolean(
+    data.isPengeluaranOnly ||
+    String(data["JENIS TRANSAKSI"] || "").toLowerCase() === "pengeluaran" ||
+    payload.action === "create_database" ||
+    (uangSetoran === 0 && !data["UANG SETORAN"] && !data["UANG MASUK"] && !data["TOTAL PENJUALAN"] && totalPengeluaran > 0 && usedBahan.length === 0)
+  );
+
+  const totalPenjualan = isPengeluaranOnly ? 0 : (uangSetoran + totalPengeluaran);
+
+  const periode = tanggal.substring(0, 7) || getCurrentPeriod_();
+  // ponytail: tulis tanpa reformat tab (skipEnsure) + tanpa full-scan tabel.
+  const monthlySs = getOrCreateMonthlySpreadsheet_(periode, { skipEnsure: true });
+  const transSheet = monthlySs.getSheetByName(APP_CONFIG.MONTHLY_TABS.TRANSAKSI);
+  const headers = getTableHeaders_(transSheet);
+  const existingIds = readIdColumnSet_(transSheet);
+
+  let idTransaksi = sanitize_(data.id || data["ID TRANSAKSI"] || data["NO TRANSAKSI"]);
+  const isLegacyId = !idTransaksi || !String(idTransaksi).toUpperCase().startsWith("TRX-") || String(idTransaksi).includes(",") || /\s/.test(String(idTransaksi).trim());
+  if (isLegacyId) {
+    const baseDate = tanggal ? tanggal.replace(/-/g, "") : Utilities.formatDate(new Date(), APP_CONFIG.TIMEZONE, "yyyyMMdd");
+    const dateStr = baseDate.length >= 8 ? baseDate.substring(0, 8) : baseDate;
+    const baseId = "TRX-" + dateStr + "-";
+    let uniqueCount = existingIds.size;
+    let newIdStr = baseId + String(uniqueCount + 1).padStart(3, "0");
+    while (existingIds.has(newIdStr.toLowerCase())) {
+        uniqueCount++;
+        newIdStr = baseId + String(uniqueCount + 1).padStart(3, "0");
+    }
+    idTransaksi = newIdStr;
+  } else if (existingIds.has(idTransaksi.toLowerCase())) {
+    // ponytail: idempoten — retry/abort yang dobel tidak append 2x.
+    return jsonResponse_(true, {
+      "ID TRANSAKSI": idTransaksi,
+      "NO TRANSAKSI": idTransaksi,
+      "ARUS DANA": cabang,
+      "CABANG": cabang,
+      "TANGGAL": tanggal
+    }, "Laporan sudah tersimpan sebelumnya.");
+  }
+
+  const rowObj = {
+    "ID TRANSAKSI": idTransaksi,
+    "TANGGAL": tanggal,
+    "WAKTU INPUT": waktuInput,
+    "CABANG": cabang,
+    "STAFF": staff,
+    "JENIS TRANSAKSI": "Pemasukan",
+    "KATEGORI": "Penjualan",
+    "NOMINAL": totalPenjualan,
+    "UANG SETORAN": uangSetoran,
+    "KETERANGAN": keterangan
+  };
 
   usedBahan.forEach(({ bahan, pfx }) => {
     const itemStok = stokBahan[bahan.NAMA_BAHAN] || stokBahan[bahan.ID_BAHAN] || {};
@@ -230,8 +242,12 @@ function handleCreateReport_(payload, session) {
     }
   });
 
+  // ponytail: kumpulkan semua baris lalu 1x setValues per sheet —
+  // ganti N appendRow satuan yang bikin submit timeout.
+  const transBatch = [];
+  const expBatch = [];
   if (!isPengeluaranOnly) {
-    appendTableRow_(transSheet, headers, rowObj);
+    transBatch.push(rowObj);
   }
 
   // Catat rincian pengeluaran ke tab Pengeluaran resmi (kolom terpisah) dan tab Transaksi (formula)
@@ -247,7 +263,7 @@ function handleCreateReport_(payload, session) {
 
         // 1. Tulis ke tab Pengeluaran resmi: Nominal dan Keterangan terpisah rapi (termasuk kolom STAFF)
         if (expSheet) {
-          appendTableRow_(expSheet, expHeaders, {
+          expBatch.push({
             "ID_TRANSAKSI": idTransaksi,
             "TANGGAL": tanggal,
             "CABANG": cabang,
@@ -259,7 +275,7 @@ function handleCreateReport_(payload, session) {
         }
 
         // 2. Tulis ke tab Transaksi untuk kalkulasi formula Rekapitulasi
-        const expObj = {
+        transBatch.push({
           "ID TRANSAKSI": idTransaksi,
           "TANGGAL": tanggal,
           "WAKTU INPUT": waktuInput,
@@ -274,14 +290,13 @@ function handleCreateReport_(payload, session) {
           "TOTAL PENJUALAN": 0,
           "UANG SETORAN": 0,
           "KETERANGAN": itemKet
-        };
-        appendTableRow_(transSheet, headers, expObj);
+        });
       }
     });
   } else if (totalPengeluaran > 0) {
     const fallbackKet = sanitize_(keterangan || "");
     if (expSheet) {
-      appendTableRow_(expSheet, expHeaders, {
+      expBatch.push({
         "ID_TRANSAKSI": idTransaksi,
         "TANGGAL": tanggal,
         "CABANG": cabang,
@@ -292,7 +307,7 @@ function handleCreateReport_(payload, session) {
       });
     }
 
-    appendTableRow_(transSheet, headers, {
+    transBatch.push({
       "ID TRANSAKSI": idTransaksi,
       "TANGGAL": tanggal,
       "WAKTU INPUT": waktuInput,
@@ -310,10 +325,14 @@ function handleCreateReport_(payload, session) {
     });
   }
 
-  // Refresh Rekapitulasi to update new categories
-  try {
-    setupRekapitulasiSheet_(monthlySs, periode);
-  } catch (err) {}
+  appendRowsBatch_(transSheet, headers, transBatch);
+  if (expSheet) appendRowsBatch_(expSheet, expHeaders, expBatch);
+
+  // ponytail: nilai Rekapitulasi live via SUMIFS — rebuild hanya bila ada
+  // cabang/tipe baru; manual refresh_rekap tetap tersedia sebagai fallback.
+  const newTipes = pengeluaranList.map(item => sanitize_(item.tipe || "Operasional Lain-lain"));
+  if (newTipes.length === 0 && totalPengeluaran > 0) newTipes.push("Operasional Lain-lain");
+  maybeRefreshRekapitulasi_(monthlySs, periode, cabang, newTipes);
 
   writeAppLog_(monthlySs, "CREATE_REPORT", session.username, cabang, "ID: " + idTransaksi, "SUCCESS");
 
@@ -333,7 +352,7 @@ function handleUpdateReport_(payload, session) {
 
   const tanggal = sanitize_(data.tanggal || data.TANGGAL || getCurrentDate_());
   const periode = tanggal.substring(0, 7) || getCurrentPeriod_();
-  const monthlySs = getOrCreateMonthlySpreadsheet_(periode);
+  const monthlySs = getOrCreateMonthlySpreadsheet_(periode, { skipEnsure: true });
   const transSheet = monthlySs.getSheetByName(APP_CONFIG.MONTHLY_TABS.TRANSAKSI);
   const headers = getTableHeaders_(transSheet);
   const rows = readTable_(transSheet);
@@ -345,6 +364,20 @@ function handleUpdateReport_(payload, session) {
 
   if (!existing) {
     return jsonResponse_(false, null, "Laporan dengan ID " + id + " tidak ditemukan.");
+  }
+
+  const userRole = String(session.role || "").toLowerCase();
+  const today = getCurrentDate_();
+  const rowStaff = existing["STAFF"] || "";
+  const rowTanggal = normalizeTanggal_(existing["TANGGAL"] || "");
+
+  if (userRole === "staff") {
+    if (!matchStaffName_(rowStaff, session.nama)) {
+      return jsonResponse_(false, null, "Forbidden: Staff hanya dapat mengubah laporan miliknya sendiri.");
+    }
+    if (rowTanggal !== today) {
+      return jsonResponse_(false, null, "Forbidden: Staff hanya dapat mengubah laporan tanggal hari ini.");
+    }
   }
 
   // Finansial
@@ -469,9 +502,11 @@ function handleUpdateReport_(payload, session) {
 
   updateTableRow_(transSheet, headers, existing._rowIndex, updatedObj);
 
-  // Re-insert pengeluaran ke tab Pengeluaran dan tab Transaksi
+  // Re-insert pengeluaran ke tab Pengeluaran dan tab Transaksi (1x setValues per sheet)
   const expHeaders = expSheet ? getTableHeaders_(expSheet) : [];
   const pengeluaranList = data.pengeluaranList || [];
+  const transBatch = [];
+  const expBatch = [];
   if (pengeluaranList.length > 0) {
     pengeluaranList.forEach(item => {
       const expNominal = parseNumber_(item.nominal);
@@ -481,7 +516,7 @@ function handleUpdateReport_(payload, session) {
 
         // 1. Tulis ke tab Pengeluaran (termasuk kolom STAFF)
         if (expSheet) {
-          appendTableRow_(expSheet, expHeaders, {
+          expBatch.push({
             "ID_TRANSAKSI": id,
             "TANGGAL": tanggal,
             "CABANG": updatedObj.CABANG,
@@ -493,7 +528,7 @@ function handleUpdateReport_(payload, session) {
         }
 
         // 2. Tulis ke tab Transaksi
-        const expObj = {
+        transBatch.push({
           "ID TRANSAKSI": id,
           "TANGGAL": tanggal,
           "WAKTU INPUT": updatedObj["WAKTU INPUT"],
@@ -504,14 +539,13 @@ function handleUpdateReport_(payload, session) {
           "NOMINAL": expNominal,
           "UANG SETORAN": 0,
           "KETERANGAN": itemKet
-        };
-        appendTableRow_(transSheet, headers, expObj);
+        });
       }
     });
   } else if (totalPengeluaran > 0) {
     const fallbackKet = sanitize_(data.keterangan || updatedObj.KETERANGAN || "");
     if (expSheet) {
-      appendTableRow_(expSheet, expHeaders, {
+      expBatch.push({
         "ID_TRANSAKSI": id,
         "TANGGAL": tanggal,
         "CABANG": updatedObj.CABANG,
@@ -522,7 +556,7 @@ function handleUpdateReport_(payload, session) {
       });
     }
 
-    appendTableRow_(transSheet, headers, {
+    transBatch.push({
       "ID TRANSAKSI": id,
       "TANGGAL": tanggal,
       "WAKTU INPUT": updatedObj["WAKTU INPUT"],
@@ -535,10 +569,13 @@ function handleUpdateReport_(payload, session) {
       "KETERANGAN": fallbackKet
     });
   }
+  appendRowsBatch_(transSheet, headers, transBatch);
+  if (expSheet) appendRowsBatch_(expSheet, expHeaders, expBatch);
 
-  try {
-    setupRekapitulasiSheet_(monthlySs, periode);
-  } catch (err) {}
+  // ponytail: rebuild Rekapitulasi hanya bila ada cabang/tipe baru (nilai live via SUMIFS).
+  const updatedTipes = pengeluaranList.map(item => sanitize_(item.tipe || "Operasional Lain-lain"));
+  if (updatedTipes.length === 0 && totalPengeluaran > 0) updatedTipes.push("Operasional Lain-lain");
+  maybeRefreshRekapitulasi_(monthlySs, periode, updatedObj.CABANG, updatedTipes);
 
   writeAppLog_(monthlySs, "UPDATE_REPORT", session.username, updatedObj.CABANG, "ID: " + id, "SUCCESS");
 
@@ -621,96 +658,214 @@ function handleDeleteReport_(payload, session) {
     }
   }
 
-  try {
-    setupRekapitulasiSheet_(monthlySs, periode);
-  } catch (err) {
-    console.warn("Gagal rebuild rekapitulasi setelah delete:", err);
-  }
-
+  // ponytail: tanpa rebuild Rekapitulasi sinkron — refresh eksplisit via refresh_rekap.
   writeAppLog_(monthlySs, "DELETE_REPORT", session.username, cabang, "ID: " + (id || rowIndex) + " (" + rowsToDelete.length + " baris)", "SUCCESS");
 
   return jsonResponse_(true, { deletedId: id || rowIndex, deletedCount: rowsToDelete.length }, "Transaksi berhasil dihapus.");
+}
+
+/**
+ * Normalisasi baris Transaksi mentah menjadi baris laporan siap frontend.
+ * Dipakai bersama handleReadReports_ & handleDashboardInit_ agar 1x scan.
+ */
+function buildReportRows_(rows, session, cabangFilter, idFilter) {
+  const expRows = rows.filter(r => String(r["JENIS TRANSAKSI"] || "").toLowerCase() === "pengeluaran");
+  const incomeRows = rows.filter(r => String(r["JENIS TRANSAKSI"] || "").toLowerCase() !== "pengeluaran"); // Termasuk Pemasukan atau data lama yang kosong
+
+  // Indeks pengeluaran per ID transaksi, dibangun sekali (bukan filter per baris pemasukan)
+  const expByTrx = new Map();
+  expRows.forEach(e => {
+    const eId = String(e["ID TRANSAKSI"] || e["NO TRANSAKSI"] || "").toLowerCase();
+    if (!expByTrx.has(eId)) expByTrx.set(eId, []);
+    expByTrx.get(eId).push({
+      tipe: e.KATEGORI || "Operasional Lain-lain",
+      nominal: parseNumber_(e.NOMINAL || 0),
+      keterangan: e.KETERANGAN || ""
+    });
+  });
+
+  let filtered = incomeRows.map(r => {
+    const trxId = String(r["ID TRANSAKSI"] || r["NO TRANSAKSI"] || "").toLowerCase();
+    const pList = expByTrx.get(trxId) || [];
+
+    // Calculate total pengeluaran and string representation
+    let rowPengeluaran = parseNumber_(r["TOTAL PENGELUARAN"] || 0);
+    let rowRincian = r["RINCIAN PENGELUARAN"] || "";
+
+    if (pList.length > 0) {
+      if (rowPengeluaran === 0) {
+        rowPengeluaran = pList.reduce((acc, curr) => acc + curr.nominal, 0);
+      }
+      rowRincian = pList.map(item => {
+        const nomStr = "Rp " + parseNumber_(item.nominal).toLocaleString("id-ID");
+        const ketStr = item.keterangan ? " - " + item.keterangan : "";
+        return "[" + item.tipe + ": " + nomStr + ketStr + "]";
+      }).join(", ");
+    }
+
+    let rowPemasukan = parseNumber_(r["NOMINAL"] || r["TOTAL PENJUALAN"] || 0);
+
+    // Normalisasi alias untuk kemudahan konsumsi frontend
+    return Object.assign({}, r, {
+      "NO TRANSAKSI": r["ID TRANSAKSI"] || r._rowIndex,
+      "ARUS DANA": r["CABANG"] || "",
+      "STAFF": r["STAFF"] || "",
+      "UANG MASUK": rowPemasukan,
+      "PENGELUARAN": rowPengeluaran,
+      "RINCIAN PENGELUARAN": rowRincian,
+      "GELAS AWAL": r["GELAS AWAL"] || 0,
+      "GELAS SISA": r["GELAS SISA"] || 0,
+      "GELAS LAKU": r["GELAS TERPAKAI"] || 0,
+      "TIME STAMP INPUT": (r["TANGGAL"] || "") + " " + (r["WAKTU INPUT"] || ""),
+      "pengeluaranList": pList
+    });
+  });
+
+  if (idFilter) {
+    filtered = filtered.filter(r =>
+      String(r["ID TRANSAKSI"] || r["NO TRANSAKSI"] || "").toLowerCase() === idFilter.toLowerCase()
+    );
+  }
+
+  if (cabangFilter && cabangFilter.toLowerCase() !== "semua") {
+    filtered = filtered.filter(r =>
+      String(r.CABANG || "").toLowerCase() === cabangFilter.toLowerCase()
+    );
+  }
+
+  // Jika user adalah staff, batasi laporan ke cabang tempat staff bertugas
+  const userRole = String(session.role || "").toLowerCase();
+  if (userRole === "staff") {
+    const today = getCurrentDate_();
+    filtered = filtered.filter(r => {
+      const rowStaff = r["STAFF"] || "";
+      const rowTanggal = normalizeTanggal_(r["TANGGAL"] || "");
+      return matchStaffName_(rowStaff, session.nama) && rowTanggal === today;
+    });
+  }
+
+  return filtered;
 }
 
 function handleReadReports_(payload, session) {
   const period = sanitize_(payload.period || getCurrentPeriod_());
   const cabangFilter = sanitize_(payload.cabang || payload["ARUS DANA"] || "");
   const idFilter = sanitize_(payload.id || payload["NO TRANSAKSI"] || "");
+  const limit = parseInt(payload.limit, 10);
+  const offset = parseInt(payload.offset, 10) || 0;
 
   try {
-    const monthlySs = getOrCreateMonthlySpreadsheet_(period);
+    // ponytail: baca saja — tanpa reformat tab (disinkron saat tulis/setup)
+    const monthlySs = getOrCreateMonthlySpreadsheet_(period, { skipEnsure: true });
     const transSheet = monthlySs.getSheetByName(APP_CONFIG.MONTHLY_TABS.TRANSAKSI);
+    // ponytail: validasi sesi (limit kecil) cukup auth lolos — tanpa scan tabel
+    if (!isNaN(limit) && limit <= 1) {
+      return jsonResponse_(true, [], "Sesi valid.");
+    }
     const rows = readTable_(transSheet);
+    let filtered = buildReportRows_(rows, session, cabangFilter, idFilter);
 
-    const expRows = rows.filter(r => String(r["JENIS TRANSAKSI"] || "").toLowerCase() === "pengeluaran");
-    const incomeRows = rows.filter(r => String(r["JENIS TRANSAKSI"] || "").toLowerCase() !== "pengeluaran"); // Termasuk Pemasukan atau data lama yang kosong
-
-    let filtered = incomeRows.map(r => {
-      const trxId = String(r["ID TRANSAKSI"] || r["NO TRANSAKSI"] || "").toLowerCase();
-      const pList = expRows
-        .filter(e => String(e["ID TRANSAKSI"] || e["NO TRANSAKSI"] || "").toLowerCase() === trxId)
-        .map(e => ({
-          tipe: e.KATEGORI || "Operasional Lain-lain",
-          nominal: parseNumber_(e.NOMINAL || 0),
-          keterangan: e.KETERANGAN || ""
-        }));
-
-      // Calculate total pengeluaran and string representation
-      let rowPengeluaran = parseNumber_(r["TOTAL PENGELUARAN"] || 0);
-      let rowRincian = r["RINCIAN PENGELUARAN"] || "";
-
-      if (pList.length > 0) {
-        if (rowPengeluaran === 0) {
-          rowPengeluaran = pList.reduce((acc, curr) => acc + curr.nominal, 0);
-        }
-        rowRincian = pList.map(item => {
-          const nomStr = "Rp " + parseNumber_(item.nominal).toLocaleString("id-ID");
-          const ketStr = item.keterangan ? " - " + item.keterangan : "";
-          return "[" + item.tipe + ": " + nomStr + ketStr + "]";
-        }).join(", ");
-      }
-      
-      let rowPemasukan = parseNumber_(r["NOMINAL"] || r["TOTAL PENJUALAN"] || 0);
-
-      // Normalisasi alias untuk kemudahan konsumsi frontend
-      return Object.assign({}, r, {
-        "NO TRANSAKSI": r["ID TRANSAKSI"] || r._rowIndex,
-        "ARUS DANA": r["CABANG"] || "",
-        "STAFF": r["STAFF"] || "",
-        "UANG MASUK": rowPemasukan,
-        "PENGELUARAN": rowPengeluaran,
-        "RINCIAN PENGELUARAN": rowRincian,
-        "GELAS AWAL": r["GELAS AWAL"] || 0,
-        "GELAS SISA": r["GELAS SISA"] || 0,
-        "GELAS LAKU": r["GELAS TERPAKAI"] || 0,
-        "TIME STAMP INPUT": (r["TANGGAL"] || "") + " " + (r["WAKTU INPUT"] || ""),
-        "pengeluaranList": pList
-      });
-    });
-
-    if (idFilter) {
-      filtered = filtered.filter(r => 
-        String(r["ID TRANSAKSI"] || r["NO TRANSAKSI"] || "").toLowerCase() === idFilter.toLowerCase()
-      );
-    }
-
-    if (cabangFilter && cabangFilter.toLowerCase() !== "semua") {
-      filtered = filtered.filter(r => 
-        String(r.CABANG || "").toLowerCase() === cabangFilter.toLowerCase()
-      );
-    }
-
-    // Jika user adalah staff, batasi laporan ke cabang tempat staff bertugas
-    const userRole = String(session.role || "").toLowerCase();
-    if (userRole === "staff" && session.cabang && session.cabang.toLowerCase() !== "semua cabang") {
-      filtered = filtered.filter(r => 
-        String(r.CABANG || "").toLowerCase() === session.cabang.toLowerCase()
-      );
+    // ponytail: limit/offset beneran agar filter tidak selalu kirim full 1 bulan.
+    if (!isNaN(limit) && limit > 1) {
+      filtered = filtered.slice(offset, offset + limit);
+    } else if (offset > 0) {
+      filtered = filtered.slice(offset);
     }
 
     return jsonResponse_(true, filtered, "Data laporan transaksi.");
   } catch (err) {
     console.error("Gagal membaca laporan bulanan:", err);
     return jsonResponse_(true, [], "Belum ada data untuk periode ini.");
+  }
+}
+
+/**
+ * Batch init 1 round-trip ganti 3 request serial (laporan + master + initial).
+ * 1x auth + 1x open master + 1x open bulanan, tanpa backfill/tanpa fallback bulan lalu.
+ */
+function handleDashboardInit_(payload, session) {
+  const period = sanitize_(payload.period || getCurrentPeriod_());
+  const cabangFilter = sanitize_(payload.cabang || payload["ARUS DANA"] || "");
+  const isAdmin = String(session.role || "").toLowerCase() === "admin";
+
+  try {
+    // ponytail: baca saja — tanpa reformat tab (disinkron saat tulis/setup)
+    const monthlySs = getOrCreateMonthlySpreadsheet_(period, { skipEnsure: true });
+    const transSheet = monthlySs.getSheetByName(APP_CONFIG.MONTHLY_TABS.TRANSAKSI);
+    const transRows = transSheet ? readTable_(transSheet) : [];
+    const reports = buildReportRows_(transRows, session, cabangFilter, "");
+
+    const cabangSheet = getMasterSheet_(APP_CONFIG.MASTER_TABS.CABANG);
+    const bahanSheet = getMasterSheet_(APP_CONFIG.MASTER_TABS.BAHAN_BAKU);
+    const tipeSheet = getMasterSheet_(APP_CONFIG.MASTER_TABS.TIPE_PENGELUARAN);
+    const cabangRows = readTable_(cabangSheet);
+    const bahanRows = readTable_(bahanSheet);
+    const tipeRows = readTable_(tipeSheet);
+
+    const cabangList = cabangRows.filter(r => {
+      const st = String(r.STATUS || "").trim().toLowerCase();
+      return st === "aktif" || st === "active";
+    });
+    const bahanBakuList = bahanRows.filter(r => String(r.NAMA_BAHAN || r.ID_BAHAN || "").trim() !== "");
+    const tipePengeluaranList = tipeRows.filter(r => String(r.NAMA_TIPE || r.ID_TIPE || "").trim() !== "");
+
+    // yesterdayStock dari scan yang sama (tanpa baca ulang / tanpa bulan lalu).
+    const requestedCabang = cabangFilter && cabangFilter.toLowerCase() !== "semua"
+      ? cabangFilter
+      : sanitize_(session.cabang || (cabangList[0] ? cabangList[0].NAMA_CABANG : ""));
+    const yesterdayStock = {};
+    const branchRows = requestedCabang
+      ? transRows.filter(r => String(r.CABANG || "").toLowerCase() === requestedCabang.toLowerCase())
+      : [];
+    if (branchRows.length > 0) {
+      const lastReport = branchRows[branchRows.length - 1];
+      bahanBakuList.forEach(b => {
+        const pfx = getBahanHeaderPrefix_(b.NAMA_BAHAN);
+        yesterdayStock[b.NAMA_BAHAN] = parseNumber_(lastReport[pfx + " SISA"]);
+      });
+    } else {
+      bahanBakuList.forEach(b => { yesterdayStock[b.NAMA_BAHAN] = 0; });
+    }
+
+    let master = null;
+    if (isAdmin) {
+      const userSheet = getMasterSheet_(APP_CONFIG.MASTER_TABS.USER);
+      const sumberSheet = getMasterSheet_(APP_CONFIG.MASTER_TABS.SUMBER_PEMASUKAN);
+      const rawUsers = readTable_(userSheet);
+      const users = rawUsers.map(u => {
+        const rawRole = String(u.ROLE || u.role || "Staff").trim().toLowerCase();
+        return {
+          _rowIndex: u._rowIndex,
+          ID: String(u.ID ?? u.id ?? "").trim(),
+          "NAMA / USERNAME": String(u["NAMA / USERNAME"] ?? u.USERNAME ?? u.username ?? "").trim(),
+          USERNAME: String(u["NAMA / USERNAME"] ?? u.USERNAME ?? u.username ?? "").trim(),
+          ROLE: rawRole.includes("admin") ? "Admin" : "Staff",
+          role: rawRole.includes("admin") ? "Admin" : "Staff",
+          CABANG: String(u.CABANG || u.cabang || "").trim(),
+          STATUS: String(u.STATUS || u.status || "Aktif").trim()
+        };
+      });
+      master = {
+        users: users,
+        cabang: cabangRows,
+        bahanBaku: bahanRows,
+        tipePengeluaran: tipeRows,
+        sumberPemasukan: readTable_(sumberSheet)
+      };
+    }
+
+    return jsonResponse_(true, {
+      reports: reports,
+      master: master,
+      initial: {
+        cabangList: cabangList,
+        bahanBakuList: bahanBakuList,
+        tipePengeluaranList: tipePengeluaranList,
+        yesterdayStock: yesterdayStock
+      }
+    }, "Dashboard init berhasil dimuat.");
+  } catch (err) {
+    console.error("Gagal dashboard init:", err);
+    return jsonResponse_(true, { reports: [], master: null, initial: null }, "Belum ada data untuk periode ini.");
   }
 }

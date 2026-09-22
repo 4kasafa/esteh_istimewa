@@ -203,7 +203,17 @@ export default function KasKeluarPanel({
 
       if (onReload) {
         const targetPeriod = tanggal.substring(0, 7) || period;
-        await onReload(targetPeriod);
+        try {
+          await onReload(targetPeriod);
+        } catch {
+          // ponytail: simpan sudah sukses — reload gagal bukan kegagalan input.
+          setAlert({
+            type: "success",
+            message: `Pengeluaran sebesar ${toCurrency(
+              totalPengeluaran
+            )} berhasil disimpan. Daftar gagal dimuat ulang — ganti filter/periode untuk memuat ulang.`,
+          });
+        }
       }
     } catch (err) {
       setAlert({ type: "error", message: mapApiErrorMessage(err?.message || err) });

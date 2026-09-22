@@ -1,57 +1,51 @@
 import { useState } from "react";
 import { UserPlus, X } from "lucide-react";
 
-export default function AddKaryawanModal({ open, onClose, onSave, branches = [] }) {
+const labelStyle =
+  "block text-[10px] font-black uppercase tracking-widest text-brand-muted mb-1.5";
+const inputStyle =
+  "w-full rounded-xl border border-brand-green/15 bg-brand-bg/50 px-3.5 py-2.5 text-xs font-bold text-brand-green-dark focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-green/20 transition";
+
+export default function AddKaryawanModal({ open, onClose, onSave, branches = [], loading = false, defaultCabang = "" }) {
   const [form, setForm] = useState(() => ({
     nama: "",
-    nik: "",
     role: "Staff",
-    cabang: branches[0] || "",
-    shift: "Pagi",
+    cabang: defaultCabang || branches[0] || "",
     telepon: "",
-    email: "",
-    status: "Aktif",
+    password: "",
   }));
   const [error, setError] = useState("");
 
   if (!open) return null;
 
-  function handleSubmit(e) {
+  async function handleSubmit(e) {
     e.preventDefault();
+    if (loading) return;
     if (!form.nama.trim()) {
       setError("Nama karyawan wajib diisi.");
       return;
     }
 
-    const todayStr = new Intl.DateTimeFormat("id-ID", {
-      day: "2-digit",
-      month: "short",
-      year: "numeric",
-    }).format(new Date());
-
     const newKaryawan = {
       id: `EMP-${Date.now()}`,
-      nik: form.nik.trim() || `EMP-${Date.now().toString().slice(-4)}`,
       nama: form.nama.trim(),
       role: form.role,
       cabang: form.cabang,
       telepon: form.telepon.trim() || "-",
-      email:
-        form.email.trim() ||
-        `${form.nama.toLowerCase().replace(/[^a-z0-9]/g, "")}@estehistimewa.com`,
-      status: form.status,
-      shift: form.shift,
-      tglBergabung: todayStr,
-      posisi: `${form.role} Outlet ${form.cabang}`,
+      password: form.password.trim() || "123456",
     };
 
-    onSave(newKaryawan);
-    onClose();
+    try {
+      await onSave(newKaryawan);
+      onClose();
+    } catch (err) {
+      setError(err?.message || "Gagal menyimpan karyawan.");
+    }
   }
 
   return (
     <div className="fixed inset-0 z-100 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-brand-green-dark/40 backdrop-blur-sm" onClick={onClose} />
+      <div className="absolute inset-0 bg-brand-green-dark/40 backdrop-blur-sm" onClick={loading ? undefined : onClose} />
 
       <div className="relative w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-3xl border border-brand-green/15 bg-white p-5 sm:p-7 shadow-2xl shadow-brand-green-dark/20 animate-fade-in no-scrollbar">
         {/* Header */}
@@ -68,8 +62,9 @@ export default function AddKaryawanModal({ open, onClose, onSave, branches = [] 
             </div>
           </div>
           <button
-            className="rounded-xl border border-brand-green/15 p-1.5 text-brand-muted hover:bg-brand-bg transition-colors"
+            className="rounded-xl border border-brand-green/15 p-1.5 text-brand-muted hover:bg-brand-bg transition-colors disabled:opacity-50"
             onClick={onClose}
+            disabled={loading}
             title="Tutup"
           >
             <X size={16} />
@@ -83,145 +78,116 @@ export default function AddKaryawanModal({ open, onClose, onSave, branches = [] 
         )}
 
         <form onSubmit={handleSubmit} className="mt-5 space-y-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {/* Nama */}
-            <div className="sm:col-span-2">
-              <label className="block text-[10px] font-black uppercase tracking-widest text-brand-muted mb-1.5">
-                Nama Lengkap <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="text"
-                required
-                placeholder="Contoh: Budi Pratama"
-                value={form.nama}
-                onChange={(e) => {
-                  setError("");
-                  setForm((prev) => ({ ...prev, nama: e.target.value }));
-                }}
-                className="w-full rounded-xl border border-brand-green/15 bg-brand-bg/50 px-3.5 py-2.5 text-xs font-bold text-brand-green-dark focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-green/20 transition"
-              />
+          <div className="p-3 sm:p-3.5 rounded-xl sm:rounded-2xl bg-brand-bg/60 border border-brand-green/10 space-y-2.5">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-black uppercase tracking-widest text-brand-muted">
+                  Staff Baru
+                </span>
+              </div>
             </div>
 
-            {/* NIK */}
-            <div>
-              <label className="block text-[10px] font-black uppercase tracking-widest text-brand-muted mb-1.5">
-                NIK Karyawan
-              </label>
-              <input
-                type="text"
-                value={form.nik}
-                onChange={(e) => setForm((prev) => ({ ...prev, nik: e.target.value }))}
-                className="w-full rounded-xl border border-brand-green/15 bg-brand-bg/50 px-3.5 py-2.5 text-xs font-bold text-brand-green-dark focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-green/20 transition"
-              />
-            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+              {/* Nama */}
+              <div className="sm:col-span-2">
+                <label className={labelStyle}>
+                  Nama / Username <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  placeholder="Contoh: Budi Pratama"
+                  value={form.nama}
+                  onChange={(e) => {
+                    setError("");
+                    setForm((prev) => ({ ...prev, nama: e.target.value }));
+                  }}
+                  disabled={loading}
+                  className={inputStyle}
+                />
+              </div>
 
-            {/* Role */}
-            <div>
-              <label className="block text-[10px] font-black uppercase tracking-widest text-brand-muted mb-1.5">
-                Peran / Role
-              </label>
-              <select
-                value={form.role}
-                onChange={(e) => setForm((prev) => ({ ...prev, role: e.target.value }))}
-                className="w-full rounded-xl border border-brand-green/15 bg-brand-bg/50 px-3.5 py-2.5 text-xs font-bold text-brand-green-dark focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-green/20 transition"
-              >
-                <option value="Staff">Staff</option>
-                <option value="Admin">Admin</option>
-              </select>
-            </div>
+              {/* Role */}
+              <div>
+                <label className="block text-[10px] font-black uppercase tracking-widest text-brand-muted mb-1.5">
+                  Peran / Role
+                </label>
+                <select
+                  value={form.role}
+                  onChange={(e) => setForm((prev) => ({ ...prev, role: e.target.value }))}
+                  disabled={loading}
+                  className={inputStyle}
+                >
+                  <option value="Staff">Staff</option>
+                  <option value="Admin">Admin</option>
+                </select>
+              </div>
 
-            {/* Cabang */}
-            <div>
-              <label className="block text-[10px] font-black uppercase tracking-widest text-brand-muted mb-1.5">
-                Cabang Penugasan
-              </label>
-              <select
-                value={form.cabang}
-                onChange={(e) => setForm((prev) => ({ ...prev, cabang: e.target.value }))}
-                className="w-full rounded-xl border border-brand-green/15 bg-brand-bg/50 px-3.5 py-2.5 text-xs font-bold text-brand-green-dark focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-green/20 transition"
-              >
-                {branches.map((b) => (
-                  <option key={b} value={b}>
-                    {b}
-                  </option>
-                ))}
-              </select>
-            </div>
+              {/* Cabang */}
+              <div>
+                <label className={labelStyle}>Cabang Penugasan</label>
+                <select
+                  value={form.cabang}
+                  onChange={(e) => setForm((prev) => ({ ...prev, cabang: e.target.value }))}
+                  disabled={loading}
+                  className={inputStyle}
+                >
+                  {branches.length > 0 ? (
+                    branches.map((b) => (
+                      <option key={b} value={b}>
+                        {b}
+                      </option>
+                    ))
+                  ) : (
+                    <option value="">(Belum ada cabang terdaftar)</option>
+                  )}
+                </select>
+              </div>
 
-            {/* Shift */}
-            <div>
-              <label className="block text-[10px] font-black uppercase tracking-widest text-brand-muted mb-1.5">
-                Shift Kerja
-              </label>
-              <select
-                value={form.shift}
-                onChange={(e) => setForm((prev) => ({ ...prev, shift: e.target.value }))}
-                className="w-full rounded-xl border border-brand-green/15 bg-brand-bg/50 px-3.5 py-2.5 text-xs font-bold text-brand-green-dark focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-green/20 transition"
-              >
-                <option value="Pagi">Shift Pagi</option>
-                <option value="Siang">Shift Siang</option>
-                <option value="Sore">Shift Sore</option>
-              </select>
-            </div>
+              {/* Telepon */}
+              <div>
+                <label className={labelStyle}>No. WhatsApp / Telepon</label>
+                <input
+                  type="tel"
+                  placeholder="Contoh: 0812-3456-7890"
+                  value={form.telepon}
+                  onChange={(e) => setForm((prev) => ({ ...prev, telepon: e.target.value }))}
+                  disabled={loading}
+                  className={inputStyle}
+                />
+              </div>
 
-            {/* Telepon */}
-            <div>
-              <label className="block text-[10px] font-black uppercase tracking-widest text-brand-muted mb-1.5">
-                No. Telepon / WhatsApp
-              </label>
-              <input
-                type="tel"
-                placeholder="0812-xxxx-xxxx"
-                value={form.telepon}
-                onChange={(e) => setForm((prev) => ({ ...prev, telepon: e.target.value }))}
-                className="w-full rounded-xl border border-brand-green/15 bg-brand-bg/50 px-3.5 py-2.5 text-xs font-bold text-brand-green-dark focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-green/20 transition"
-              />
-            </div>
-
-            {/* Status */}
-            <div>
-              <label className="block text-[10px] font-black uppercase tracking-widest text-brand-muted mb-1.5">
-                Status
-              </label>
-              <select
-                value={form.status}
-                onChange={(e) => setForm((prev) => ({ ...prev, status: e.target.value }))}
-                className="w-full rounded-xl border border-brand-green/15 bg-brand-bg/50 px-3.5 py-2.5 text-xs font-bold text-brand-green-dark focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-green/20 transition"
-              >
-                <option value="Aktif">Aktif</option>
-                <option value="Non Aktif">Non Aktif</option>
-              </select>
-            </div>
-
-            {/* Email */}
-            <div className="sm:col-span-2">
-              <label className="block text-[10px] font-black uppercase tracking-widest text-brand-muted mb-1.5">
-                Email
-              </label>
-              <input
-                type="email"
-                placeholder="budi@estehistimewa.com"
-                value={form.email}
-                onChange={(e) => setForm((prev) => ({ ...prev, email: e.target.value }))}
-                className="w-full rounded-xl border border-brand-green/15 bg-brand-bg/50 px-3.5 py-2.5 text-xs font-bold text-brand-green-dark focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-green/20 transition"
-              />
+              {/* Password */}
+              <div>
+                <label className={labelStyle}>Password (Opsional)</label>
+                <input
+                  type="text"
+                  placeholder="Default: 123456"
+                  value={form.password}
+                  onChange={(e) => setForm((prev) => ({ ...prev, password: e.target.value }))}
+                  disabled={loading}
+                  className={inputStyle}
+                />
+              </div>
             </div>
           </div>
 
           {/* Actions */}
-          <div className="mt-6 flex flex-col-reverse sm:flex-row sm:justify-end gap-2 pt-3 border-t border-brand-green/10">
+          <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-brand-green/10">
             <button
               type="button"
-              className="rounded-xl border border-brand-green/15 bg-white px-4 py-2.5 text-xs font-black text-brand-green-dark hover:bg-brand-bg transition-colors cursor-pointer"
+              className="px-4 py-2.5 rounded-2xl border border-brand-green/20 text-xs font-bold text-brand-muted hover:bg-brand-bg transition-colors cursor-pointer disabled:opacity-50"
               onClick={onClose}
+              disabled={loading}
             >
               Batal
             </button>
             <button
               type="submit"
-              className="rounded-xl bg-brand-green px-5 py-2.5 text-xs font-black text-white hover:bg-brand-green-dark shadow-md shadow-brand-green/20 transition-colors cursor-pointer"
+              disabled={loading}
+              className="px-5 py-2.5 rounded-2xl bg-brand-green text-white text-xs font-black shadow-md shadow-brand-green/20 hover:bg-emerald-700 active:scale-98 transition-all cursor-pointer disabled:opacity-50 flex items-center gap-2"
             >
-              Simpan Karyawan
+              {loading && <div className="h-3.5 w-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />}
+              <span>{loading ? "Menyimpan..." : "Simpan Karyawan"}</span>
             </button>
           </div>
         </form>

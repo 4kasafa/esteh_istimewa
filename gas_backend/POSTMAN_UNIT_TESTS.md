@@ -301,6 +301,38 @@ pm.test("Staff forbidden setup_rekap", function () {
 });
 ```
 
+## 10b) Endpoint administratif GET hanya untuk admin
+
+Jalankan skenario ini untuk setiap action berikut: `sync_monthly_sheets`, `sync_headers`, `fix_headers`, `format_headers`, `cleanup_duplicates`, `reset_all_sheets`, `clean_all_sheets`, dan `setup`. Gunakan lingkungan Spreadsheet uji untuk action yang mengubah data.
+
+### Tanpa token dan token staff
+
+```text
+{{base_url}}?action=sync_headers
+{{base_url}}?action=sync_headers&authorization=Bearer%20{{staff_token}}
+```
+
+```javascript
+const res = pm.response.json();
+pm.test("Administrative GET is rejected", function () {
+  pm.expect(res.success).to.eql(false);
+  pm.expect(res.message).to.match(/Unauthorized|Forbidden/);
+});
+```
+
+### Token admin
+
+```text
+{{base_url}}?action=sync_headers&authorization=Bearer%20{{admin_token}}
+```
+
+```javascript
+const res = pm.response.json();
+pm.test("Admin may call administrative GET", function () {
+  pm.expect(res.success).to.eql(true);
+});
+```
+
 ## 11) Negative Test `create` tanpa token
 
 ### Request
@@ -378,14 +410,13 @@ pm.test("Revoked token rejected", function () {
 });
 ```
 
-## 14) Opsional - Jalankan otomatis via Collection Runner
+## 15) Test Akses Staff (Tahap 2)
 
-1. Urutkan request sesuai nomor 3 sampai 13.
-2. Buka `Runner`.
-3. Pilih collection `Gas Backend API Tests`.
-4. Pilih environment `Gas Backend Local`.
-5. Klik `Run`.
-6. Pastikan semua assertion `PASS`.
+- Staff hanya bisa baca/update laporannya sendiri hari ini.
+- Admin bisa semua.
+
+(skenario test diimplementasikan di environment untuk verifikasi manual sesuai permintaan audit)
+
 
 ## Catatan
 

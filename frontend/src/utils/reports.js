@@ -109,6 +109,7 @@ export function sanitizeReportRows(rows) {
         pengeluaran,
         totalPengeluaran: pengeluaran,
         rincianPengeluaran: raw["RINCIAN PENGELUARAN"] || "",
+        pengeluaranList: raw.pengeluaranList || [],
         selisih,
         gelasAwal,
         gelasSisa,
@@ -170,8 +171,8 @@ export function applyReportFilters(rows, { range = "month", period = toPeriodVal
   return filtered.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
 }
 
-export function buildTransactionList(reportRows = [], dbRows = []) {
-  const sanitizedReports = sanitizeReportRows(reportRows);
+export function buildTransactionList(reportRows = []) {
+  const sanitizedReports = sanitizeReportRows(reportRows).filter((item) => item.id);
 
   const reportTransactions = sanitizedReports.map((item) => ({
     type: "PEMASUKAN",
@@ -185,29 +186,30 @@ export function buildTransactionList(reportRows = [], dbRows = []) {
     raw: item.raw,
   }));
 
-  const expenseTransactions = (dbRows || [])
-    .filter((row) => parseLooseNumber(row["UANG KELUAR"]) > 0)
-    .map((row, index) => {
-      const tsStr = row["TIMESTAMP INPUT"] || row["TIME STAMP INPUT"] || row.TIMESTAMP || row.timestamp || row.TANGGAL;
-      const timestamp = parseTimestamp(tsStr) || new Date();
-      const arusDana = String(row["ARUS DANA"] || row.CABANG || row.ARUS_DANA || "Tanpa Area").trim() || "Tanpa Area";
-      const staff = String(row.STAFF || row["INPUT STAFF"] || "Staff").trim() || "Staff";
-      const nominal = parseLooseNumber(row["UANG KELUAR"]);
-      const keterangan = String(row.KETERANGAN || "Pengeluaran Kas").trim();
-      const id = String(row["NO TRANSAKSI"] || row["ID TRANSAKSI"] || `EXP-${timestamp.getTime()}-${index}`);
-
-      return {
-        type: "PENGELUARAN",
-        id,
-        timestamp,
-        arusDana,
-        cabang: arusDana,
-        staff,
-        keterangan,
-        nominal,
-        raw: row,
-      };
-    });
+  // Use pengeluaranList from report rows (already includes detailed expenses)
+  const expenseTransactions = sanitizedReports
+    .filter((item) => (item.pengeluaranList || []).length > 0)
+    .flatMap((item) =>
+      (item.pengeluaranList || []).map((exp, idx) => {
+        const ts = item.timestamp;
+        const arusDana = item.arusDana;
+        const staff = item.staff;
+        const nominal = parseLooseNumber(exp.nominal);
+        const keterangan = exp.tipe || "Pengeluaran";
+        const id = `${item.id}-EXP-${idx}`;
+        return {
+          type: "PENGELUARAN",
+          id,
+          timestamp: ts,
+          arusDana,
+          cabang: arusDana,
+          staff,
+          keterangan,
+          nominal,
+          raw: { ...item.raw, "TYPE_PENGELUARAN": exp.tipe, "NOMINAL": exp.nominal, "KETERANGAN": exp.keterangan }
+        };
+      })
+    );
 
   const merged = [...reportTransactions, ...expenseTransactions];
   return merged.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());

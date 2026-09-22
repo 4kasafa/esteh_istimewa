@@ -122,25 +122,43 @@ function handleLogin_(payload) {
   // 1. Bersihkan sesi lama dari Cache
   removeSessionCache_(null, username);
 
-  // 2. Bersihkan sesi lama dari Sheet (hapus baris fisik dari bawah ke atas)
+  // 2. Tandai sesi lama user ini sebagai expired di Sheet.
+  // ponytail: 1 batch setValue + flush, bukan N deleteRow (tiap deleteRow
+  // menggeser baris = mahal). Baris expired diabaikan requireAuthSession_.
   const sessionsSheet = getMasterSheet_(APP_CONFIG.MASTER_TABS.SESSIONS);
   const sessions = readTable_(sessionsSheet);
-  const rowsToDelete = [];
+  const sessionHeaders = getTableHeaders_(sessionsSheet);
+  const statusColIdx = sessionHeaders.indexOf("STATUS");
+  const staleRows = sessions.filter(s =>
+    String(s.USERNAME || s.username || s.email || "").toLowerCase() === username
+  );
 
-  sessions.forEach(s => {
-    const sUser = String(s.USERNAME || s.username || s.email || "").toLowerCase();
-    if (sUser === username) {
-      rowsToDelete.push(s._rowIndex);
+  if (statusColIdx >= 0) {
+    // ponytail: batasi 100 sesi terbaru + 1x flush (tanpa flush per baris).
+    // Baris expired diabaikan requireAuthSession_.
+    const capped = staleRows
+      .sort((a, b) => (b._rowIndex || 0) - (a._rowIndex || 0))
+      .slice(0, 100);
+    capped.forEach(s => {
+      try {
+        sessionsSheet.getRange(s._rowIndex, statusColIdx + 1).setValue("expired");
+      } catch (e) {}
+    });
+    if (capped.length > 0) {
+      try {
+        SpreadsheetApp.flush();
+      } catch (e) {}
     }
-  });
-
-  rowsToDelete.sort((a, b) => b - a).forEach(rIdx => {
-    try {
-      sessionsSheet.deleteRow(rIdx);
-    } catch (e) {
-      console.error("Gagal menghapus baris sesi lama:", e);
-    }
-  });
+  } else {
+    // Fallback skema lama tanpa kolom STATUS: hapus fisik dari bawah ke atas
+    staleRows.sort((a, b) => b._rowIndex - a._rowIndex).forEach(s => {
+      try {
+        sessionsSheet.deleteRow(s._rowIndex);
+      } catch (e) {
+        console.error("Gagal menghapus baris sesi lama:", e);
+      }
+    });
+  }
 
   // 3. Buat sesi baru
   const token = Utilities.getUuid();
@@ -170,7 +188,6 @@ function handleLogin_(payload) {
   putSessionCache_(token, sessionData);
 
   // 5. Simpan ke Sheet Sessions sebagai persistent fallback
-  const sessionHeaders = getTableHeaders_(sessionsSheet);
   appendTableRow_(sessionsSheet, sessionHeaders, {
     TOKEN: token,
     USERNAME: resolvedUsername,
@@ -304,4 +321,20 @@ function ensureAdmin_(session) {
   if (!session || String(session.role || "").toLowerCase() !== "admin") {
     throw new Error("Forbidden: Operasi ini hanya diizinkan untuk Admin.");
   }
+}
+
+/**
+ * Ping ringan untuk validasi sesi — tanpa buka Spreadsheet sama sekali
+ * (auth cache-hit = 0 I/O). Pengganti read_reports limit:1 yang berat.
+ */
+function handlePing_(session) {
+  return jsonResponse_(true, {
+    ok: true,
+    user: {
+      username: session.username,
+      nama: session.nama || session.username,
+      role: session.role,
+      cabang: session.cabang || ""
+    }
+  }, "OK");
 }

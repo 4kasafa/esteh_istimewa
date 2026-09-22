@@ -3,6 +3,12 @@
  * Sistem Operasional & Laporan Staff "Es Teh Istimewa"
  */
 
+function requireAdminRequest_(e, payload) {
+  const session = requireAuthSession_(e, payload);
+  ensureAdmin_(session);
+  return session;
+}
+
 function doGet(e) {
   try {
     const payload = e && e.parameter ? e.parameter : {};
@@ -32,6 +38,16 @@ function doGet(e) {
       return handleReadMaster_(session);
     }
 
+    if (action === "ping") {
+      const session = requireAuthSession_(e, payload);
+      return handlePing_(session);
+    }
+
+    if (action === "dashboard_init") {
+      const session = requireAuthSession_(e, payload);
+      return handleDashboardInit_(payload, session);
+    }
+
     if (action === "refresh_rekap" || action === "setup_rekap") {
       const session = requireAuthSession_(e, payload);
       ensureAdmin_(session);
@@ -42,22 +58,27 @@ function doGet(e) {
     }
 
     if (action === "sync_monthly_sheets" || action === "sync_headers") {
+      requireAdminRequest_(e, payload);
       return jsonResponse_(true, null, syncAndMigrateMonthlySheets());
     }
 
     if (action === "fix_headers" || action === "format_headers") {
+      requireAdminRequest_(e, payload);
       return jsonResponse_(true, null, fixAllHeadersAndColumnWidths());
     }
 
     if (action === "cleanup_duplicates") {
+      requireAdminRequest_(e, payload);
       return jsonResponse_(true, null, cleanupDuplicateMonthlySpreadsheets());
     }
 
     if (action === "reset_all_sheets" || action === "clean_all_sheets") {
+      requireAdminRequest_(e, payload);
       return jsonResponse_(true, null, resetAndCleanAllSheets());
     }
 
     if (action === "setup") {
+      requireAdminRequest_(e, payload);
       return jsonResponse_(true, null, setupMasterSpreadsheet());
     }
 
@@ -113,6 +134,12 @@ function doPost(e) {
 
       case "read_master":
         return handleReadMaster_(session);
+
+      case "ping":
+        return handlePing_(session);
+
+      case "dashboard_init":
+        return handleDashboardInit_(payload, session);
 
       case "update_master":
         return handleUpdateMaster_(payload, session);

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import LoginPage from "./pages/LoginPage";
 import DashboardPage from "./pages/DashboardPage";
 import { useAuthSession } from "./hooks/useAuthSession";
@@ -61,27 +61,37 @@ export default function App() {
     });
   }, [validateSession]);
 
+  // ponytail: init sekali per token. user dibaca via ref agar tidak memicu
+  // fetch ulang saat object user berganti identitas.
+  const initTokenRef = useRef("");
+  const userRef = useRef(user);
   useEffect(() => {
-    if (isLoggedIn && !isValidating) {
-      const now = new Date();
-      const period = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-      if (isAdmin) {
-        loadData({ monthly: true, period, refreshMaster: true }).catch(() => {});
+    userRef.current = user;
+  }, [user]);
+  useEffect(() => {
+    if (!isLoggedIn || isValidating) return;
+    if (initTokenRef.current === token) return;
+    initTokenRef.current = token;
+    const now = new Date();
+    const period = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+    const u = userRef.current;
+    if (isAdmin) {
+      loadData({ monthly: true, period, refreshMaster: true }).catch(() => {});
+    } else {
+      const role = String(u?.role || "").toLowerCase();
+      if (!role) return;
+      const lastTodayReportId = String(u?.lastTodayReport || "").trim();
+      if (lastTodayReportId) {
+        loadData({ reportId: lastTodayReportId, refreshMaster: true }).catch(() => {});
       } else {
-        const role = String(user?.role || "").toLowerCase();
-        if (!role) return;
-        const lastTodayReportId = String(user?.lastTodayReport || "").trim();
-        if (lastTodayReportId) {
-          loadData({ reportId: lastTodayReportId, refreshMaster: true }).catch(() => {});
-        } else {
-          loadData({ monthly: false, refreshMaster: true }).catch(() => {});
-        }
+        loadData({ monthly: false, refreshMaster: true }).catch(() => {});
       }
     }
-  }, [isAdmin, isLoggedIn, isValidating, loadData, user?.lastTodayReport, user?.role]);
+  }, [isAdmin, isLoggedIn, isValidating, loadData, token]);
 
   useEffect(() => {
     if (!isLoggedIn) {
+      initTokenRef.current = "";
       clearData();
     }
   }, [clearData, isLoggedIn]);
@@ -147,8 +157,8 @@ export default function App() {
       reportRows={reportRows}
       dbRows={dbRows}
       masterData={masterData}
-      onRefreshMonthly={(period) => loadData({ monthly: isAdmin, period })}
-      onRefreshAll={() => loadData({ monthly: false })}
+      onRefreshMonthly={(period, opts) => loadData({ monthly: isAdmin, period, silent: Boolean(opts?.silent) })}
+      onRefreshAll={(opts) => loadData({ monthly: false, silent: Boolean(opts?.silent) })}
       onCreateReport={createReport}
       onUpdateReport={updateReport}
       onDeleteReport={deleteReport}

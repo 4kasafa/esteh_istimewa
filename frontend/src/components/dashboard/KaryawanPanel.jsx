@@ -90,6 +90,9 @@ export default function KaryawanPanel({
     [users],
   );
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  // ponytail: ingat cabang terakhir agar reset parsial (nama dsb. bersih,
+  // cabang pilihan dipertahankan).
+  const [lastCabang, setLastCabang] = useState("");
   const [deletingKaryawan, setDeletingKaryawan] = useState(null);
   const [actionLoading, setActionLoading] = useState(false);
   const [feedback, setFeedback] = useState(null);
@@ -115,8 +118,9 @@ export default function KaryawanPanel({
         data: {
           "NAMA / USERNAME": nextItem.nama,
           USERNAME: nextItem.nama,
+          CABANG: nextItem.cabang || "-",
           "NO. TELEPON": nextItem.telepon || "-",
-          PASSWORD: "123",
+          PASSWORD: nextItem.password || "123456",
           ROLE: role,
           STATUS: nextItem.status || "Aktif",
         },
@@ -131,12 +135,14 @@ export default function KaryawanPanel({
         type: "success",
         message: `Karyawan "${nextItem.nama}" berhasil ditambahkan.`,
       });
+      setLastCabang(nextItem.cabang || "");
       setIsAddModalOpen(false);
     } catch (err) {
       setFeedback({
         type: "error",
         message: err?.message || "Gagal menambahkan data karyawan.",
       });
+      throw err;
     } finally {
       setActionLoading(false);
     }
@@ -420,10 +426,13 @@ export default function KaryawanPanel({
       </div>
 
       <AddKaryawanModal
+        key={isAddModalOpen ? `open-${lastCabang}` : "closed"}
         open={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
         onSave={handleSaveKaryawan}
         branches={availableBranches}
+        defaultCabang={lastCabang}
+        loading={actionLoading}
       />
 
       <ConfirmDialog

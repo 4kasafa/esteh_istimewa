@@ -116,18 +116,14 @@ describe("buildTransactionList", () => {
     "UANG SETORAN": 465000,
     "TOTAL PENGELUARAN": 35000,
     "TOTAL PENJUALAN": 500000,
+    "GELAS TERPAKAI": 160,
+    pengeluaranList: [
+      { tipe: "Operasional", nominal: 25000, keterangan: "Beli Es Batu" }
+    ]
   };
 
-  const expenseRow = {
-    "TIMESTAMP INPUT": "19-03-2026 12:00:00",
-    "ARUS DANA": "cabang_01",
-    STAFF: "Joko",
-    KETERANGAN: "Beli Es Batu",
-    "UANG KELUAR": 25000,
-  };
-
-  it("merges pemasukan from reports and pengeluaran from dbRows", () => {
-    const list = buildTransactionList([incomeRow], [expenseRow]);
+  it("merges pemasukan from reports and pengeluaran from reportRows.pengeluaranList", () => {
+    const list = buildTransactionList([incomeRow]);
 
     expect(list).toHaveLength(2);
     expect(list.filter((t) => t.type === "PEMASUKAN")).toHaveLength(1);
@@ -139,26 +135,47 @@ describe("buildTransactionList", () => {
 
     const pengeluaran = list.find((t) => t.type === "PENGELUARAN");
     expect(pengeluaran.nominal).toBe(25000);
-    expect(pengeluaran.keterangan).toBe("Beli Es Batu");
+    expect(pengeluaran.keterangan).toBe("Operasional");
   });
 
-  it("hanya mengambil record UANG KELUAR > 0 sebagai pengeluaran", () => {
-    const list = buildTransactionList([], [expenseRow, { ...expenseRow, "UANG KELUAR": 0 }, { ...expenseRow, "UANG KELUAR": "" }]);
-    expect(list).toHaveLength(1);
-    expect(list[0].type).toBe("PENGELUARAN");
+  it("hanya mengambil record dengan pengeluaranList sebagai pengeluaran", () => {
+    const noExpenseRow = {
+      "ID TRANSAKSI": "TRX-NO-EXP",
+      "TIME STAMP INPUT": "19-03-2026 10:00:00",
+      "ARUS DANA": "cabang_01",
+      STAFF: "Joko",
+      "TOTAL PENJUALAN": 300000,
+      "UANG SETORAN": 300000
+    };
+    const list = buildTransactionList([incomeRow, noExpenseRow]);
+    expect(list).toHaveLength(3);
+    expect(list.filter((t) => t.type === "PENGELUARAN")).toHaveLength(1);
   });
 
   it("mengurutkan berdasarkan timestamp menurun", () => {
-    const list = buildTransactionList([incomeRow], [expenseRow]);
-    const pemasukan = list.find((t) => t.type === "PEMASUKAN");
-    const pengeluaran = list.find((t) => t.type === "PENGELUARAN");
-    expect(pemasukan.timestamp.getTime()).toBeLessThan(pengeluaran.timestamp.getTime());
-    expect(list[0].type).toBe("PENGELUARAN");
-    expect(list[1].type).toBe("PEMASUKAN");
+    const morningIncome = {
+      ...incomeRow,
+      "ID TRANSAKSI": "TRX-MORNING",
+      "TIME STAMP INPUT": "19-03-2026 09:00:00",
+      "TOTAL PENJUALAN": 300000,
+      "UANG SETORAN": 300000,
+      pengeluaranList: []
+    };
+    const afternoonIncome = {
+      ...incomeRow,
+      "ID TRANSAKSI": "TRX-AFTERNOON",
+      "TIME STAMP INPUT": "19-03-2026 14:00:00",
+      "TOTAL PENJUALAN": 500000,
+      "UANG SETORAN": 500000,
+      pengeluaranList: []
+    };
+    const list = buildTransactionList([afternoonIncome, morningIncome]);
+    expect(list[0].id).toBe("TRX-AFTERNOON");
+    expect(list[1].id).toBe("TRX-MORNING");
   });
 
   it("bisa di-filter dengan applyReportFilters (cabang + staff)", () => {
-    const list = buildTransactionList([incomeRow], [expenseRow]);
+    const list = buildTransactionList([incomeRow]);
     const filtered = applyReportFilters(
       list,
       { range: "month", period: "2026-03", arusDana: "cabang_01", staff: "Budi" },
@@ -169,6 +186,6 @@ describe("buildTransactionList", () => {
   it("mengembalikan array kosong saat tidak ada data", () => {
     expect(buildTransactionList([])).toEqual([]);
     expect(buildTransactionList()).toEqual([]);
-    expect(buildTransactionList([], [])).toEqual([]);
+    expect(buildTransactionList([{}])).toEqual([]);
   });
 });

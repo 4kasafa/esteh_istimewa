@@ -12,10 +12,8 @@ function handleReadMaster_(session) {
   const tipeExpSheet = getMasterSheet_(APP_CONFIG.MASTER_TABS.TIPE_PENGELUARAN);
   const sumberSheet = getMasterSheet_(APP_CONFIG.MASTER_TABS.SUMBER_PEMASUKAN);
 
-  // Self-healing: backfill missing IDs on every read
-  backfillSheetIds_(cabangSheet, "ID_CABANG", "CAB-", 2);
-  backfillSheetIds_(bahanSheet, "ID_BAHAN", "BAHAN-", 2);
-
+  // ponytail: tanpa backfill tulis di jalur baca (hemat 2 scan + N setValue + flush).
+  // Backfill eksplisit via update_master / setup saja.
   const rawUsers = readTable_(userSheet);
   const safeUsers = rawUsers.map(u => {
     const rawRole = String(u.ROLE || u.role || "Staff").trim().toLowerCase();
@@ -102,6 +100,11 @@ function handleUpdateMaster_(payload, session) {
   const sheet = getMasterSheet_(tabName);
   const headers = getTableHeaders_(sheet);
   const rows = readTable_(sheet);
+
+  // ponytail: bulk create (SetupWizard) — 1 request ganti N request serial.
+  if (Array.isArray(payload.data)) {
+    return handleCreateManyMaster_(session, target, tabName, idField, sheet, headers, rows, payload.data);
+  }
 
   // Normalisasi data khusus per target
   // Normalisasi data khusus per target
@@ -226,7 +229,8 @@ function handleUpdateMaster_(payload, session) {
     });
 
     if (existing) {
-      return jsonResponse_(false, null, "Data " + target + " dengan nama atau ID tersebut sudah terdaftar.");
+      // ponytail: idempoten — retry yang dobel dianggap sukses, bukan error.
+      return jsonResponse_(true, existing, "Data " + target + " sudah tersimpan sebelumnya.");
     }
 
     appendTableRow_(sheet, headers, item);
@@ -240,7 +244,7 @@ function handleUpdateMaster_(payload, session) {
     if (target === "bahan_baku" || target === "bahan") {
       syncBahanBakuToTipePengeluaran_(item.NAMA_BAHAN);
       try {
-        const curSs = getOrCreateMonthlySpreadsheet_(getCurrentPeriod_());
+        const curSs = getOrCreateMonthlySpreadsheet_(getCurrentPeriod_(), { skipEnsure: true });
         const tSheet = curSs.getSheetByName(APP_CONFIG.MONTHLY_TABS.TRANSAKSI);
         if (tSheet) syncMonthlyTransaksiHeaders_(tSheet);
       } catch (eBahanSync) {
@@ -321,7 +325,7 @@ function handleUpdateMaster_(payload, session) {
     if (target === "bahan_baku" || target === "bahan") {
       syncBahanBakuToTipePengeluaran_(updated.NAMA_BAHAN, existing.NAMA_BAHAN);
       try {
-        const curSs = getOrCreateMonthlySpreadsheet_(getCurrentPeriod_());
+        const curSs = getOrCreateMonthlySpreadsheet_(getCurrentPeriod_(), { skipEnsure: true });
         const tSheet = curSs.getSheetByName(APP_CONFIG.MONTHLY_TABS.TRANSAKSI);
         if (tSheet) syncMonthlyTransaksiHeaders_(tSheet);
       } catch (eBahanSync) {
@@ -415,6 +419,121 @@ function handleUpdateMaster_(payload, session) {
   }
 
   return jsonResponse_(false, null, "Operasi master tidak valid: " + operation);
+}
+
+/**
+ * ponytail: bulk create 1 request (SetupWizard) — 1x baca + 1x setValues + sync 1x.
+ * Item duplikat (nama/ID sudah ada, termasuk retry) dilewati sebagai skipped,
+ * bukan error, sehingga retry aman dan wizard bisa lanjut.
+ */
+function masterIdPrefix_(target) {
+  if (target === "user") return "USR-";
+  if (target === "cabang") return "CAB-";
+  if (target === "bahan_baku" || target === "bahan") return "BAHAN-";
+  if (target === "tipe_pengeluaran" || target === "pengeluaran") return "EXP-";
+  return "INC-";
+}
+
+function masterNameKey_(target, obj) {
+  if (!obj) return "";
+  if (target === "user") return String(obj["NAMA / USERNAME"] || obj.USERNAME || obj.username || "").trim().toLowerCase();
+  if (target === "cabang") return String(obj.NAMA_CABANG || "").trim().toLowerCase();
+  if (target === "bahan_baku" || target === "bahan") return String(obj.NAMA_BAHAN || "").trim().toLowerCase();
+  if (target === "tipe_pengeluaran" || target === "pengeluaran") return String(obj.NAMA_TIPE || "").trim().toLowerCase();
+  return String(obj.NAMA_SUMBER || "").trim().toLowerCase();
+}
+
+function normalizeBulkMasterItem_(target, raw) {
+  const item = Object.assign({}, raw);
+  if (target === "user") {
+    const namaVal = item["NAMA / USERNAME"] || item.nama || item.USERNAME || item.username || "";
+    item["NAMA / USERNAME"] = String(namaVal).trim();
+    item["NO. TELEPON"] = String(item["NO. TELEPON"] || item.telepon || "-").trim() || "-";
+    const rawRole = String(item.ROLE || item.role || "Staff").toLowerCase();
+    item.ROLE = rawRole.includes("admin") ? "Admin" : "Staff";
+    const rawStatus = String(item.STATUS || item.status || "Aktif").toLowerCase();
+    item.STATUS = rawStatus.includes("non") ? "Non Aktif" : "Aktif";
+    item.PASSWORD = String(item.PASSWORD || item.password || "123456").trim();
+  } else if (target === "cabang") {
+    item.NAMA_CABANG = String(item.NAMA_CABANG || item.nama || item.NAMA || "").trim();
+    item.ALAMAT = String(item.ALAMAT || item.alamat || "-").trim() || "-";
+    const rawStatus = String(item.STATUS || item.status || "Aktif").toLowerCase();
+    item.STATUS = rawStatus.includes("non") ? "Non Aktif" : "Aktif";
+  } else if (target === "bahan_baku" || target === "bahan") {
+    item.NAMA_BAHAN = String(item.NAMA_BAHAN || item.nama || item.NAMA || "").trim();
+    item.SATUAN = String(item.SATUAN || item.satuan || "Pcs").trim() || "Pcs";
+  } else if (target === "tipe_pengeluaran" || target === "pengeluaran") {
+    item.NAMA_TIPE = String(item.NAMA_TIPE || item.nama || item.NAMA || "").trim();
+  } else {
+    item.NAMA_SUMBER = String(item.NAMA_SUMBER || item.nama || item.NAMA || "").trim();
+    const rawStatus = String(item.STATUS || item.status || "Aktif").toLowerCase();
+    item.STATUS = rawStatus.includes("non") ? "Non Aktif" : "Aktif";
+  }
+  return item;
+}
+
+function handleCreateManyMaster_(session, target, tabName, idField, sheet, headers, rows, rawItems) {
+  const prefix = masterIdPrefix_(target);
+  const padLen = target === "user" ? 3 : 2;
+
+  const seen = new Set();
+  let counter = 0;
+  const idRe = new RegExp(prefix.replace("-", "\\-") + "(\\d+)", "i");
+  rows.forEach(r => {
+    const idk = String(r[idField] || "").trim().toLowerCase();
+    if (idk) seen.add("id:" + idk);
+    const nk = masterNameKey_(target, r);
+    if (nk) seen.add("nm:" + nk);
+    const m = String(r[idField] || "").match(idRe);
+    if (m) {
+      const n = parseInt(m[1], 10);
+      if (n > counter) counter = n;
+    }
+  });
+
+  const added = [];
+  const skipped = [];
+  (rawItems || []).forEach(raw => {
+    if (!raw || typeof raw !== "object") return;
+    const item = normalizeBulkMasterItem_(target, raw);
+    const nameKey = masterNameKey_(target, item);
+    if (!nameKey) return; // baris kosong → abaikan
+    const idKey = String(item[idField] || "").trim().toLowerCase();
+    if ((idKey && seen.has("id:" + idKey)) || seen.has("nm:" + nameKey)) {
+      skipped.push(nameKey);
+      return;
+    }
+    if (!String(item[idField] || "").toUpperCase().startsWith(prefix)) {
+      counter++;
+      item[idField] = prefix + String(counter).padStart(padLen, "0");
+    }
+    seen.add("nm:" + nameKey);
+    seen.add("id:" + String(item[idField] || "").trim().toLowerCase());
+    added.push(item);
+  });
+
+  if (added.length > 0) {
+    appendRowsBatch_(sheet, headers, added);
+  }
+
+  // Side-sync sekali saja (bukan per item)
+  try {
+    if (target === "cabang") {
+      added.forEach(a => syncCabangToSumberPemasukan_(a.NAMA_CABANG, a.STATUS || "Aktif"));
+    }
+    if (target === "bahan_baku" || target === "bahan") {
+      added.forEach(a => syncBahanBakuToTipePengeluaran_(a.NAMA_BAHAN));
+      const curSs = getOrCreateMonthlySpreadsheet_(getCurrentPeriod_(), { skipEnsure: true });
+      const tSheet = curSs.getSheetByName(APP_CONFIG.MONTHLY_TABS.TRANSAKSI);
+      if (tSheet) syncMonthlyTransaksiHeaders_(tSheet);
+    }
+  } catch (syncErr) {
+    console.warn("Gagal sinkronisasi bulk master " + target + ":", syncErr);
+  }
+
+  return jsonResponse_(true, { added: added, skipped: skipped },
+    "Data master " + target + " berhasil ditambahkan (" + added.length + " baru" +
+    (skipped.length > 0 ? ", " + skipped.length + " sudah ada" : "") + ").");
 }
 
 /**

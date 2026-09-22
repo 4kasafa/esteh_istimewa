@@ -189,6 +189,34 @@ function appendTableRow_(sheet, headers, obj) {
   return sheet.getLastRow();
 }
 
+/**
+ * ponytail: 1x setValues untuk N baris — ganti N appendRow satuan yang lambat.
+ * Dipakai jalur tulis (create/update) agar submit tidak timeout.
+ */
+function appendRowsBatch_(sheet, headers, objs) {
+  if (!sheet || !objs || objs.length === 0) return 0;
+  const values = objs.map(obj => headers.map(header => getFieldCaseInsensitive_(obj, header)));
+  sheet.getRange(sheet.getLastRow() + 1, 1, values.length, headers.length).setValues(values);
+  return values.length;
+}
+
+/**
+ * ponytail: baca kolom ID saja (kolom A) untuk cek duplikat/generate ID —
+ * ganti full readTable_ yang makin lambat seiring tabel membesar.
+ */
+function readIdColumnSet_(sheet) {
+  const ids = new Set();
+  if (!sheet || sheet.getLastRow() <= 1) return ids;
+  try {
+    const vals = sheet.getRange(2, 1, sheet.getLastRow() - 1, 1).getValues();
+    vals.forEach(v => {
+      const s = String(v[0] || "").trim().toLowerCase();
+      if (s) ids.add(s);
+    });
+  } catch (e) {}
+  return ids;
+}
+
 function updateTableRow_(sheet, headers, rowIndex, obj) {
   const rowValues = headers.map(header => getFieldCaseInsensitive_(obj, header));
   sheet.getRange(rowIndex, 1, 1, headers.length).setValues([rowValues]);
@@ -487,8 +515,23 @@ function renameCabangInSheetColumn_(sheet, headerName, oldName, newName) {
  * Jika belum ada, otomatis dibuat di folder yang sama dengan Master Spreadsheet.
  * Dilengkapi ScriptLock dan pengecekan folder Drive agar TIDAK terjadi duplikasi file.
  */
-function getOrCreateMonthlySpreadsheet_(periode) {
+function getOrCreateMonthlySpreadsheet_(periode, options) {
   const targetPeriod = normalizePeriod_(periode) || getCurrentPeriod_();
+  const skipEnsure = Boolean(options && options.skipEnsure);
+
+  // ponytail: jalur cepat — ID file diingat di cache sehingga request baca
+  // (read_reports/get_summary/form) cukup 1x openById tanpa scan Drive + reformat.
+  try {
+    const idCache = CacheService.getScriptCache();
+    const cachedId = idCache.get("monthly_id_" + targetPeriod);
+    if (cachedId) {
+      try {
+        const cachedSs = SpreadsheetApp.openById(cachedId);
+        if (cachedSs) return cachedSs;
+      } catch (e) { /* ID basi, lanjut ke jalur lambat */ }
+    }
+  } catch (e) {}
+
   const lock = LockService.getScriptLock();
 
   // Kunci script hingga 30 detik untuk mencegah race-condition saat multiple request bersamaan
@@ -508,7 +551,9 @@ function getOrCreateMonthlySpreadsheet_(periode) {
       try {
         const ss = SpreadsheetApp.openById(found.SPREADSHEET_ID);
         if (ss) {
-          ensureMonthlyTabsExist_(ss, targetPeriod);
+          rememberMonthlyId_(targetPeriod, found.SPREADSHEET_ID);
+          // ponytail: path baca tidak reformat — header disinkron saat tulis/setup saja
+          if (!skipEnsure) ensureMonthlyTabsExist_(ss, targetPeriod);
           return ss;
         }
       } catch (e) {
@@ -546,8 +591,9 @@ function getOrCreateMonthlySpreadsheet_(periode) {
 
       if (bestFile) {
         const existingSs = SpreadsheetApp.openById(bestFile.getId());
-        ensureMonthlyTabsExist_(existingSs, targetPeriod);
+        if (!skipEnsure) ensureMonthlyTabsExist_(existingSs, targetPeriod);
         syncMonthlyFileListRecord_(listSheet, targetPeriod, bestFile.getId(), targetFileName, bestFile.getUrl());
+        rememberMonthlyId_(targetPeriod, bestFile.getId());
         return existingSs;
       }
     }
@@ -611,6 +657,7 @@ function getOrCreateMonthlySpreadsheet_(periode) {
 
     // Catat ke List_File_Bulanan di Master
     syncMonthlyFileListRecord_(listSheet, targetPeriod, newSs.getId(), targetFileName, newSs.getUrl());
+    rememberMonthlyId_(targetPeriod, newSs.getId());
 
     return newSs;
   } finally {
@@ -618,6 +665,16 @@ function getOrCreateMonthlySpreadsheet_(periode) {
       lock.releaseLock();
     } catch (e) {}
   }
+}
+
+/**
+ * Ingat ID file bulanan di cache agar request baca berikutnya tanpa scan Drive.
+ */
+function rememberMonthlyId_(periode, spreadsheetId) {
+  try {
+    if (!periode || !spreadsheetId) return;
+    CacheService.getScriptCache().put("monthly_id_" + periode, spreadsheetId, 21600);
+  } catch (e) {}
 }
 
 function writeAppLog_(monthlySs, action, user, cabang, detail, status = "SUCCESS") {
@@ -882,6 +939,40 @@ function setupRekapitulasiSheet_(ss, targetPeriod) {
     }
   } catch (err) {
     console.error("Gagal setup sheet rekapitulasi:", err);
+  }
+}
+
+/**
+ * ponytail: nilai Rekapitulasi live via SUMIFS — rebuild penuh hanya bila
+ * struktur berubah (kolom cabang baru / baris tipe baru). Cek 2 baca kecil;
+ * gagal = lewati diam-diam, simpan transaksi tidak boleh gagal karenanya.
+ */
+function maybeRefreshRekapitulasi_(ss, period, cabangName, tipeNames) {
+  try {
+    if (!ss) return;
+    const rekap = ss.getSheetByName(APP_CONFIG.MONTHLY_TABS.REKAPITULASI);
+    if (!rekap || rekap.getLastRow() <= 1) {
+      setupRekapitulasiSheet_(ss, period);
+      return;
+    }
+    const cabangKey = String(cabangName || "").trim().toLowerCase();
+    const tipes = (tipeNames || []).map(t => String(t || "").trim()).filter(Boolean);
+    if (!cabangKey && tipes.length === 0) return;
+
+    let needRebuild = false;
+    if (cabangKey) {
+      const headerVals = rekap.getRange(3, 1, 1, Math.max(2, rekap.getLastColumn())).getValues()[0]
+        .map(v => String(v || "").trim().toLowerCase());
+      if (headerVals.indexOf(cabangKey) === -1) needRebuild = true;
+    }
+    if (!needRebuild && tipes.length > 0) {
+      const colA = rekap.getRange(1, 1, rekap.getLastRow(), 1).getValues()
+        .map(r => String(r[0] || "").trim().toLowerCase());
+      if (tipes.some(t => colA.indexOf(t.toLowerCase()) === -1)) needRebuild = true;
+    }
+    if (needRebuild) setupRekapitulasiSheet_(ss, period);
+  } catch (e) {
+    console.warn("Lewati refresh Rekapitulasi:", e);
   }
 }
 

@@ -3,11 +3,13 @@
  */
 
 function handleGetSummary_(payload, session) {
+  ensureAdmin_(session);
   const period = sanitize_(payload.period || getCurrentPeriod_());
   const cabangFilter = sanitize_(payload.cabang || payload["ARUS DANA"] || "");
 
   try {
-    const monthlySs = getOrCreateMonthlySpreadsheet_(period);
+    // ponytail: baca saja — tanpa reformat tab (disinkron saat tulis/setup)
+    const monthlySs = getOrCreateMonthlySpreadsheet_(period, { skipEnsure: true });
     const transSheet = monthlySs.getSheetByName(APP_CONFIG.MONTHLY_TABS.TRANSAKSI);
     const allRows = readTable_(transSheet);
 
@@ -111,6 +113,7 @@ function handleGetSummary_(payload, session) {
       // Abaikan jika sheet rekap tidak ada
     }
 
+    // ponytail: tidak mengirim rows normalisasi — frontend sudah punya reportRows dari read_reports
     return jsonResponse_(true, {
       periode: period,
       kpi: {
@@ -122,8 +125,7 @@ function handleGetSummary_(payload, session) {
       },
       perCabang: perCabang,
       rekapitulasi: rekapRows,
-      trendHarian: trendHarian,
-      rows: normalizedRows
+      trendHarian: trendHarian
     }, "Data ringkasan berhasil dihitung.");
   } catch (err) {
     console.error("Gagal mendapatkan ringkasan bulanan:", err);

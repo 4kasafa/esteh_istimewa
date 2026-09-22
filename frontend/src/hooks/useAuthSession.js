@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { gasRequest } from "../services/gasApi";
 import { isAuthErrorMessage, mapApiErrorMessage } from "../utils/errors";
 
@@ -34,13 +34,29 @@ export function useAuthSession(apiUrl) {
   const isLoggedIn = Boolean(token);
   const isAdmin = useMemo(() => String(user?.role || "").toLowerCase() === "admin", [user]);
 
-  const request = useCallback(async (body, tokenOverride = token) => {
-    return gasRequest({ apiUrl, body, token: tokenOverride });
-  }, [apiUrl, token]);
+  // ponytail: request stabil (identitas tidak berubah saat token ganti) agar tidak
+  // memicu cascade useEffect di App/useDashboardData. Token dibaca via ref.
+  const tokenRef = useRef(token);
+  const apiUrlRef = useRef(apiUrl);
+  useEffect(() => {
+    tokenRef.current = token;
+  }, [token]);
+  useEffect(() => {
+    apiUrlRef.current = apiUrl;
+  }, [apiUrl]);
+  const validatingRef = useRef(null);
+  const validatedTokenRef = useRef("");
+
+  const request = useCallback(async (body, tokenOverride) => {
+    const t = tokenOverride !== undefined ? tokenOverride : tokenRef.current;
+    return gasRequest({ apiUrl: apiUrlRef.current, body, token: t });
+  }, []);
 
   const logout = useCallback(async (force = false) => {
-    const tokenAtLogout = token;
+    const tokenAtLogout = tokenRef.current;
 
+    validatedTokenRef.current = "";
+    validatingRef.current = null;
     setToken("");
     setUser(null);
     setError("");
@@ -62,24 +78,41 @@ export function useAuthSession(apiUrl) {
         // API logout gagal tidak perlu menghambat clear session lokal.
       });
     }
-  }, [request, token]);
+  }, [request]);
 
   const validateSession = useCallback(async () => {
-    if (!token) {
+    const t = tokenRef.current;
+    if (!t) {
       setIsValidating(false);
       return;
     }
+    // Skip jika token ini sudah tervalidasi (mis. tepat setelah login) atau
+    // validasi sedang berjalan (StrictMode double-invoke).
+    if (validatedTokenRef.current === t) {
+      setIsValidating(false);
+      return;
+    }
+    if (validatingRef.current === t) return;
+    validatingRef.current = t;
 
     try {
-      await request({ action: "read_reports", limit: 1 });
+      // ping ringan (tanpa buka Sheet bulanan). Fallback ke read_reports limit:1
+      // agar tetap kompatibel dengan GAS lama sebelum action ping ada.
+      try {
+        await request({ action: "ping" }, t);
+      } catch {
+        await request({ action: "read_reports", limit: 1 }, t);
+      }
+      validatedTokenRef.current = t;
     } catch (err) {
       if (isAuthErrorMessage(err.message)) {
         await logout(true);
       }
     } finally {
+      if (validatingRef.current === t) validatingRef.current = null;
       setIsValidating(false);
     }
-  }, [logout, request, token]);
+  }, [logout, request]);
 
   const login = useCallback(async (credentials) => {
     setLoading(true);
@@ -99,6 +132,9 @@ export function useAuthSession(apiUrl) {
         lastTodayReport: loginData.lastTodayReport || "",
       };
 
+      // Tandai tervalidasi agar effect App tidak mengulang validate tepat setelah login.
+      validatedTokenRef.current = loginData.token;
+      setIsValidating(false);
       setToken(loginData.token);
       setUser(normalizedUser);
       

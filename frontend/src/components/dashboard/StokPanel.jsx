@@ -462,6 +462,7 @@ export default function StokPanel({
 
       {/* Add / Edit Modal */}
       <AddBahanModal
+        key={isAddModalOpen ? `open-${editingItem?.id || editingItem?.ID_BAHAN || "new"}` : "closed"}
         open={isAddModalOpen}
         onClose={() => {
           setIsAddModalOpen(false);

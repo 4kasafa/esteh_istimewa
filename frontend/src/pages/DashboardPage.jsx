@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { DASHBOARD_MENU } from "../constants/menu";
 import { REPORT_FORM_DEFAULT } from "../constants/forms";
 import Alert from "../components/common/Alert";
@@ -31,7 +31,6 @@ export default function DashboardPage({
   message,
   error,
   reportRows,
-  dbRows,
   masterData,
   onRefreshMonthly,
   onRefreshAll,
@@ -44,6 +43,18 @@ export default function DashboardPage({
 }) {
   const isStaff = String(user?.role || "").toLowerCase() === "staff";
   const [activeMenu, setActiveMenu] = useState(() => (isStaff ? "laporan" : "dashboard"));
+  // ponytail: panel berat (overview/laporan/form) di-mount saat pertama dikunjungi
+  // saja — bukan semuanya sekaligus. Setelah dikunjungi tetap mounted agar state
+  // form tidak hilang. Memotong cascade ~20 useMemo O(n) saat data tiba.
+  const [visitedMenus, setVisitedMenus] = useState(() => new Set([isStaff ? "laporan" : "dashboard"]));
+  useEffect(() => {
+    setVisitedMenus((prev) => {
+      if (prev.has(activeMenu)) return prev;
+      const next = new Set(prev);
+      next.add(activeMenu);
+      return next;
+    });
+  }, [activeMenu]);
   const [mode, setMode] = useState(getViewportMode);
   const [isCollapsed, setIsCollapsed] = useState(mode === "tablet");
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -102,14 +113,6 @@ export default function DashboardPage({
     });
   }, [reportRows, selectedBranch]);
 
-  const filteredDbRows = useMemo(() => {
-    if (!selectedBranch || selectedBranch.toLowerCase() === "semua") return dbRows;
-    return (dbRows || []).filter((r) => {
-      const branchVal = String(r["ARUS DANA"] || r.ARUS_DANA || "").trim().toLowerCase();
-      return branchVal === selectedBranch.toLowerCase();
-    });
-  }, [dbRows, selectedBranch]);
-
   useEffect(() => {
     function handleResize() {
       const nextMode = getViewportMode();
@@ -141,14 +144,20 @@ export default function DashboardPage({
     return DASHBOARD_MENU.filter((item) => item.key !== "pengeluaran" && item.key !== "stok");
   }, [isAdmin, isStaff]);
 
+  // ponytail: reload pasca-simpan silent (sukses sudah tampil, data menyusul).
   const reloadPengeluaran = useCallback(
-    (overridePeriod) => onRefreshMonthly(overridePeriod || periodFilter.period || period),
+    (overridePeriod) => onRefreshMonthly(overridePeriod || periodFilter.period || period, { silent: true }),
     [onRefreshMonthly, period, periodFilter.period],
   );
 
+  // ponytail: dedup filter identik beruntun (month input bisa fire >1x).
+  const lastFilterRef = useRef("");
   const handlePeriodFilterChange = useCallback(
     async (nextFilter) => {
+      const key = `${nextFilter.range}|${nextFilter.period || ""}`;
       setPeriodFilter(nextFilter);
+      if (lastFilterRef.current === key) return;
+      lastFilterRef.current = key;
       if (nextFilter.range === "month") {
         await onRefreshMonthly(nextFilter.period || toPeriodValue());
       } else {
@@ -176,10 +185,11 @@ export default function DashboardPage({
   }, [isAdmin, masterData?.cabang, masterData?.cabangList, masterData?.users]);
 
   // Otomatis buka wizard saat pertama kali login admin jika data masih kosong & belum pernah dilewati di sesi ini
+  // ponytail: deps pakai panjang array (stabil), bukan identitas array yang baru tiap fetch.
+  const usersLength = (masterData?.users || []).length;
   useEffect(() => {
     if (!isAdmin || loading) return;
-    const hasFetchedMaster = (masterData?.users || []).length > 0;
-    if (!hasFetchedMaster) return;
+    if (usersLength === 0) return;
 
     try {
       const isSkipped = sessionStorage.getItem("esteh_wizard_skipped") === "true";
@@ -190,7 +200,7 @@ export default function DashboardPage({
     } catch {
       /* ignore storage errors */
     }
-  }, [isAdmin, isMasterIncomplete, loading, masterData?.users]);
+  }, [isAdmin, isMasterIncomplete, loading, usersLength]);
 
   const handleOpenWizard = useCallback(() => {
     setIsWizardOpen(true);
@@ -261,8 +271,11 @@ export default function DashboardPage({
 
   function handleSelectMenu(menuKey) {
     if (menuKey === "pemasukan") {
-      // Refresh master data to ensure yesterdayStock is up-to-date saat buka tab pemasukan
-      onReloadMaster?.().catch?.(() => {});
+      // ponytail: tanpa refetch tiap buka tab (hemat 1-2 request berat).
+      // yesterdayStock sudah diupdate lokal pasca-simpan; refresh hanya jika kosong.
+      if (Object.keys(masterData?.yesterdayStock || {}).length === 0) {
+        onReloadMaster?.().catch?.(() => {});
+      }
 
       const defaultBranch = selectedBranch.toLowerCase() !== "semua" ? selectedBranch : (branchList[0] || "");
       if (!isStaff) {
@@ -450,33 +463,34 @@ export default function DashboardPage({
 
             <div className="animate-fade-in">
               <div hidden={activeMenu !== "dashboard"} style={{ display: activeMenu === "dashboard" ? "block" : "none" }}>
+                {visitedMenus.has("dashboard") && (
                 <OverviewPanel
                   reportRows={filteredReportRows}
-                  dbRows={filteredReportRows.length > 0 ? filteredReportRows : filteredDbRows}
+                  dbRows={filteredReportRows}
                   loading={loading}
                   periodFilter={periodFilter}
                   onPeriodFilterChange={handlePeriodFilterChange}
                 />
+                )}
               </div>
 
               <div hidden={activeMenu !== "laporan"} style={{ display: activeMenu === "laporan" ? "block" : "none" }}>
-                <ReportPanel
-                  reportRows={filteredReportRows}
-                  dbRows={filteredDbRows}
-                  loading={loading}
-                  isAdmin={isAdmin}
-                  availableBahan={availableBahan}
-                  onRefreshMonthly={onRefreshMonthly}
-                  onRefreshAll={onRefreshAll}
-                  onEditRow={handleEditReportRow}
-                  onAddReport={handleAddReport}
-                  onDeleteReport={onDeleteReport}
-                  period={periodFilter.period || period}
-                  todayReport={todayStaffReport}
-                />
+                  {visitedMenus.has("laporan") && (
+                  <ReportPanel
+                    reportRows={filteredReportRows}
+                    loading={loading}
+                    isAdmin={isAdmin}
+                    onEditRow={handleEditReportRow}
+                    onAddReport={handleAddReport}
+                    onDeleteReport={onDeleteReport}
+                    period={periodFilter.period || period}
+                    todayReport={todayStaffReport}
+                  />
+                  )}
               </div>
 
               <div hidden={activeMenu !== "pemasukan"} style={{ display: activeMenu === "pemasukan" ? "block" : "none" }}>
+                {visitedMenus.has("pemasukan") && (
                 <ReportForm
                   value={reportForm}
                   loading={loading}
@@ -493,6 +507,7 @@ export default function DashboardPage({
                   onCancel={() => setActiveMenu("laporan")}
                   onChange={(key, value) => setReportForm((prev) => ({ ...prev, [key]: value }))}
                 />
+                )}
               </div>
 
               <div hidden={activeMenu !== "pengeluaran"} style={{ display: activeMenu === "pengeluaran" ? "block" : "none" }}>
@@ -520,7 +535,7 @@ export default function DashboardPage({
                         branches={branchList}
                         masterBahan={availableBahan}
                         reportRows={filteredReportRows}
-                        dbRows={filteredDbRows}
+                        dbRows={filteredReportRows}
                         request={request}
                         onReloadMaster={onReloadMaster}
                       />

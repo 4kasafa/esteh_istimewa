@@ -649,9 +649,12 @@ describe("App smoke", () => {
     fireEvent.click(screen.getByRole("button", { name: /masuk/i }));
 
     await waitFor(() => {
-      expect(screen.getByText("Admin Istimewa")).toBeInTheDocument();
       expect(localStorage.getItem("gas_token")).toBe("token-admin");
     });
+
+    // Nama admin tampil di popup Info Akun (panel form lazy-mount).
+    fireEvent.click(screen.getByTitle("Info Akun"));
+    expect(screen.getByText("Admin Istimewa")).toBeInTheDocument();
   });
 
   it("can login with dummy staff account (joko / joko)", async () => {

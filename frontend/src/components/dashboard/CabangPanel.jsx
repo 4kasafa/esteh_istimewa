@@ -67,25 +67,26 @@ export default function CabangPanel({
   const [actionLoading, setActionLoading] = useState(false);
   const [feedback, setFeedback] = useState(null);
 
-  const handleSaveCabang = useCallback(async (newCabang) => {
+  // ponytail: 1 bulk request ganti N request serial (backend create_many) —
+  // payload sama persis dengan Step 1 SetupWizard.
+  const handleSaveCabang = useCallback(async (rows) => {
     if (!request) return;
+    const filled = (Array.isArray(rows) ? rows : []).filter((r) => String(r?.nama || "").trim());
+    if (filled.length === 0) {
+      throw new Error("Isi minimal satu nama cabang.");
+    }
     setActionLoading(true);
     setFeedback(null);
     try {
-      const nextItem = {
-        ...newCabang,
-        status: newCabang.status || "Aktif",
-        jumlahStaff: 0,
-      };
       await request({
         action: "update_master",
         target: "cabang",
         operation: "create",
-        data: {
-          NAMA_CABANG: nextItem.kode || nextItem.nama,
-          ALAMAT: nextItem.alamat,
-          STATUS: nextItem.status || "Aktif",
-        },
+        data: filled.map((r) => ({
+          NAMA_CABANG: String(r.nama).trim(),
+          ALAMAT: String(r.alamat || "").trim() || "-",
+          STATUS: "Aktif",
+        })),
       });
 
       // Daftar diperbarui lewat onReloadMaster -> prop rawCabang (tanpa optimis lokal).
@@ -95,7 +96,9 @@ export default function CabangPanel({
 
       setFeedback({
         type: "success",
-        message: `Cabang "${nextItem.nama}" berhasil ditambahkan.`,
+        message: filled.length === 1
+          ? `Cabang "${filled[0].nama.trim()}" berhasil ditambahkan.`
+          : `${filled.length} cabang berhasil ditambahkan.`,
       });
       setIsAddModalOpen(false);
     } catch (err) {
@@ -103,6 +106,7 @@ export default function CabangPanel({
         type: "error",
         message: err?.message || "Gagal menambahkan data cabang.",
       });
+      throw err;
     } finally {
       setActionLoading(false);
     }
@@ -410,10 +414,11 @@ export default function CabangPanel({
       </div>
 
       <AddCabangModal
+        key={isAddModalOpen ? `open-${cabangList.length}` : "closed"}
         open={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
         onSave={handleSaveCabang}
-        nextBranchIndex={cabangList.length + 1}
+        loading={actionLoading}
       />
 
       <ConfirmDialog
