@@ -35,8 +35,8 @@ export default function KasKeluarPanel({
   user,
 }) {
   const branchList = useMemo(() => {
-    return branches.length > 0 ? branches : [user?.cabang || "Cabang Utama"];
-  }, [branches, user?.cabang]);
+    return branches.length > 0 ? branches : ["Cabang Utama"];
+  }, [branches]);
 
   const staffList = useMemo(() => {
     return staff.length > 0 ? staff : [user?.nama || "Staff"];
@@ -60,8 +60,8 @@ export default function KasKeluarPanel({
 
   const defaultBranch = useMemo(() => {
     if (selectedBranch && selectedBranch.toLowerCase() !== "semua") return selectedBranch;
-    return user?.cabang || branchList[0] || "";
-  }, [selectedBranch, user?.cabang, branchList]);
+    return branchList[0] || "";
+  }, [selectedBranch, branchList]);
 
   const defaultStaff = user?.nama || staffList[0] || "";
 
@@ -276,18 +276,12 @@ export default function KasKeluarPanel({
             {/* Cabang */}
             <div>
               <label className={labelStyle}>Cabang Outlet</label>
-              {!isAdmin && user?.cabang ? (
-                <div className="rounded-2xl border border-brand-green/20 bg-brand-bg/60 px-4 py-2.5 text-sm font-bold text-brand-green-dark">
-                  {user.cabang}
-                </div>
-              ) : (
-                <CustomSelect
-                  value={cabang}
-                  options={branchList}
-                  onChange={setCabang}
-                  disabled={submitLoading}
-                />
-              )}
+              <CustomSelect
+                value={cabang}
+                options={branchList}
+                onChange={setCabang}
+                disabled={submitLoading}
+              />
             </div>
 
             {/* Staff Bertugas */}

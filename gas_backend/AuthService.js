@@ -19,12 +19,7 @@ function putSessionCache_(token, sessionData) {
   try {
     const ttl = APP_CONFIG.CACHE_TTL_SECONDS || 21600;
     const sessionKey = (APP_CONFIG.CACHE_PREFIX || "esteh_sess_") + token;
-    const userKey = (APP_CONFIG.CACHE_USER_PREFIX || "esteh_user_") + String(sessionData.username || "").toLowerCase();
-
     cache.put(sessionKey, JSON.stringify(sessionData), ttl);
-    if (sessionData.username) {
-      cache.put(userKey, token, ttl);
-    }
   } catch (err) {
     console.error("Gagal menyimpan sesi ke cache:", err);
   }
@@ -46,7 +41,7 @@ function getCachedSession_(token) {
     if (data.expiresAt) {
       const expTime = new Date(data.expiresAt).getTime();
       if (!isNaN(expTime) && Date.now() > expTime) {
-        removeSessionCache_(token, data.username);
+        removeSessionCache_(token);
         return null;
       }
     }
@@ -58,29 +53,12 @@ function getCachedSession_(token) {
   }
 }
 
-function removeSessionCache_(token, username) {
+function removeSessionCache_(token) {
   const cache = getSessionCache_();
-  if (!cache) return;
+  if (!cache || !token) return;
 
   try {
-    const keysToRemove = [];
-    if (token) {
-      keysToRemove.push((APP_CONFIG.CACHE_PREFIX || "esteh_sess_") + token);
-    }
-    if (username) {
-      const userKey = (APP_CONFIG.CACHE_USER_PREFIX || "esteh_user_") + String(username).toLowerCase();
-      if (!token) {
-        const cachedToken = cache.get(userKey);
-        if (cachedToken) {
-          keysToRemove.push((APP_CONFIG.CACHE_PREFIX || "esteh_sess_") + cachedToken);
-        }
-      }
-      keysToRemove.push(userKey);
-    }
-
-    if (keysToRemove.length > 0) {
-      cache.removeAll(keysToRemove);
-    }
+    cache.remove((APP_CONFIG.CACHE_PREFIX || "esteh_sess_") + token);
   } catch (err) {
     console.error("Gagal menghapus sesi dari cache:", err);
   }
@@ -119,59 +97,17 @@ function handleLogin_(payload) {
     return jsonResponse_(false, null, "Akun ini sedang nonaktif. Hubungi admin.");
   }
 
-  // 1. Bersihkan sesi lama dari Cache
-  removeSessionCache_(null, username);
-
-  // 2. Tandai sesi lama user ini sebagai expired di Sheet.
-  // ponytail: 1 batch setValue + flush, bukan N deleteRow (tiap deleteRow
-  // menggeser baris = mahal). Baris expired diabaikan requireAuthSession_.
-  const sessionsSheet = getMasterSheet_(APP_CONFIG.MASTER_TABS.SESSIONS);
-  const sessions = readTable_(sessionsSheet);
-  const sessionHeaders = getTableHeaders_(sessionsSheet);
-  const statusColIdx = sessionHeaders.indexOf("STATUS");
-  const staleRows = sessions.filter(s =>
-    String(s.USERNAME || s.username || s.email || "").toLowerCase() === username
-  );
-
-  if (statusColIdx >= 0) {
-    // ponytail: batasi 100 sesi terbaru + 1x flush (tanpa flush per baris).
-    // Baris expired diabaikan requireAuthSession_.
-    const capped = staleRows
-      .sort((a, b) => (b._rowIndex || 0) - (a._rowIndex || 0))
-      .slice(0, 100);
-    capped.forEach(s => {
-      try {
-        sessionsSheet.getRange(s._rowIndex, statusColIdx + 1).setValue("expired");
-      } catch (e) {}
-    });
-    if (capped.length > 0) {
-      try {
-        SpreadsheetApp.flush();
-      } catch (e) {}
-    }
-  } else {
-    // Fallback skema lama tanpa kolom STATUS: hapus fisik dari bawah ke atas
-    staleRows.sort((a, b) => b._rowIndex - a._rowIndex).forEach(s => {
-      try {
-        sessionsSheet.deleteRow(s._rowIndex);
-      } catch (e) {
-        console.error("Gagal menghapus baris sesi lama:", e);
-      }
-    });
-  }
-
-  // 3. Buat sesi baru
+  // Buat sesi baru — murni CacheService, 0 I/O Sheet.
+  // ponytail: sesi lama mati sendiri saat TTL habis (relogin ≤6h = modelnya).
   const token = Utilities.getUuid();
   const now = new Date();
-  const expireDate = new Date(now.getTime() + (APP_CONFIG.SESSION_RETENTION_DAYS * 24 * 60 * 60 * 1000));
-  const createAtStr = Utilities.formatDate(now, APP_CONFIG.TIMEZONE, "yyyy-MM-dd HH:mm:ss");
+  const expireDate = new Date(now.getTime() + (APP_CONFIG.CACHE_TTL_SECONDS || 21600) * 1000);
   const expireAtStr = Utilities.formatDate(expireDate, APP_CONFIG.TIMEZONE, "yyyy-MM-dd HH:mm:ss");
 
   const resolvedUsername = matchedUser["NAMA / USERNAME"] || matchedUser.USERNAME || matchedUser.username || matchedUser.Email || username;
   const rawRole = String(matchedUser.ROLE || matchedUser.role || "staff").toLowerCase();
   const resolvedRole = rawRole.includes("admin") ? "admin" : "staff";
   const resolvedNama = matchedUser.NAMA || matchedUser["NAMA / USERNAME"] || matchedUser.nama || resolvedUsername;
-  const resolvedCabang = matchedUser.CABANG || matchedUser.cabang || "";
   const resolvedTelepon = matchedUser["NO. TELEPON"] || matchedUser.TELEPON || matchedUser.telepon || "";
 
   const sessionData = {
@@ -179,23 +115,12 @@ function handleLogin_(payload) {
     username: resolvedUsername,
     role: resolvedRole,
     nama: resolvedNama,
-    cabang: resolvedCabang,
     telepon: resolvedTelepon,
     expiresAt: expireAtStr
   };
 
-  // 4. Simpan ke CacheService (L1 Cache)
+  // Simpan ke CacheService (satu-satunya penyimpanan sesi)
   putSessionCache_(token, sessionData);
-
-  // 5. Simpan ke Sheet Sessions sebagai persistent fallback
-  appendTableRow_(sessionsSheet, sessionHeaders, {
-    TOKEN: token,
-    USERNAME: resolvedUsername,
-    ROLE: resolvedRole,
-    CREATE_AT: createAtStr,
-    EXPIRE_AT: expireAtStr,
-    STATUS: "active"
-  });
 
   return jsonResponse_(true, {
     token: token,
@@ -204,7 +129,6 @@ function handleLogin_(payload) {
       username: resolvedUsername,
       nama: resolvedNama,
       role: resolvedRole,
-      cabang: resolvedCabang,
       telepon: resolvedTelepon
     }
   }, "Login berhasil");
@@ -215,20 +139,7 @@ function handleLogout_(session) {
     return jsonResponse_(false, null, "Sesi tidak ditemukan.");
   }
 
-  // 1. Hapus seketika dari CacheService
-  removeSessionCache_(session.token, session.username);
-
-  // 2. Hapus baris fisik dari Sheet Sessions
-  try {
-    const sessionsSheet = getMasterSheet_(APP_CONFIG.MASTER_TABS.SESSIONS);
-    const sessions = readTable_(sessionsSheet);
-    const found = sessions.find(s => String(s.TOKEN || "") === session.token);
-    if (found && found._rowIndex) {
-      sessionsSheet.deleteRow(found._rowIndex);
-    }
-  } catch (err) {
-    console.error("Gagal menghapus baris sesi saat logout:", err);
-  }
+  removeSessionCache_(session.token);
 
   return jsonResponse_(true, null, "Logout berhasil.");
 }
@@ -239,81 +150,18 @@ function requireAuthSession_(e, payload) {
     throw new Error("Unauthorized: Bearer token tidak disertakan.");
   }
 
-  // LANGKAH 1: Cek CacheService (L1 Cache - Cepat ~5ms, 0 I/O Sheet)
+  // Murni cache — sheet tak pernah dibuka di jalur auth.
   const cached = getCachedSession_(token);
-  if (cached) {
-    return {
-      token: cached.token,
-      username: cached.username,
-      role: String(cached.role || "staff").toLowerCase(),
-      nama: cached.nama || cached.username,
-      cabang: cached.cabang || "",
-      telepon: cached.telepon || ""
-    };
+  if (!cached) {
+    throw new Error("Unauthorized: sesi berakhir, silakan login ulang");
   }
-
-  // LANGKAH 2: Fallback ke Sheet (Saat Cache Miss)
-  const sessionsSheet = getMasterSheet_(APP_CONFIG.MASTER_TABS.SESSIONS);
-  const sessions = readTable_(sessionsSheet);
-  const found = sessions.find(s => String(s.TOKEN || "") === token && String(s.STATUS || "").toLowerCase() === "active");
-
-  if (!found) {
-    throw new Error("Unauthorized: Sesi tidak ditemukan atau telah berakhir.");
-  }
-
-  const expireTime = new Date(found.EXPIRE_AT).getTime();
-  if (expireTime && Date.now() > expireTime) {
-    try {
-      sessionsSheet.deleteRow(found._rowIndex);
-    } catch (err) {}
-    removeSessionCache_(token, found.USERNAME);
-    throw new Error("Unauthorized: Token telah kadaluarsa. Silakan login kembali.");
-  }
-
-  // Dapatkan profil user lengkap
-  const userSheet = getMasterSheet_(APP_CONFIG.MASTER_TABS.USER);
-  const users = readTable_(userSheet);
-  const userProfile = users.find(u => {
-    const uName = String(u["NAMA / USERNAME"] || u["NAMA/USERNAME"] || u.USERNAME || "").toLowerCase();
-    const uId = String(u.ID || u.id || "").toLowerCase();
-    const fUser = String(found.USERNAME || "").toLowerCase();
-    return uName === fUser || uId === fUser;
-  });
-
-  // Pastikan user masih aktif
-  if (userProfile) {
-    const rawStatus = String(userProfile.STATUS || userProfile.status || "").trim().toLowerCase();
-    if (rawStatus && rawStatus !== "aktif" && rawStatus !== "active") {
-      try {
-        sessionsSheet.deleteRow(found._rowIndex);
-      } catch (err) {}
-      removeSessionCache_(token, found.USERNAME);
-      throw new Error("Unauthorized: Akun ini sedang nonaktif. Hubungi admin.");
-    }
-  }
-
-  const rawRole = String(userProfile?.ROLE || found.ROLE || "staff").toLowerCase();
-  const resolvedRole = rawRole.includes("admin") ? "admin" : "staff";
-
-  const sessionObj = {
-    token: token,
-    username: found.USERNAME,
-    role: resolvedRole,
-    nama: userProfile ? (userProfile["NAMA / USERNAME"] || userProfile.NAMA || userProfile.nama || found.USERNAME) : found.USERNAME,
-    cabang: userProfile ? (userProfile.CABANG || userProfile.cabang || "") : "",
-    telepon: userProfile ? (userProfile["NO. TELEPON"] || userProfile.TELEPON || userProfile.telepon || "") : "",
-    expiresAt: found.EXPIRE_AT
-  };
-
-  // Re-cache ke CacheService (Cache Warming untuk 6 jam ke depan)
-  putSessionCache_(token, sessionObj);
 
   return {
-    token: sessionObj.token,
-    username: sessionObj.username,
-    role: sessionObj.role,
-    nama: sessionObj.nama,
-    cabang: sessionObj.cabang
+    token: cached.token,
+    username: cached.username,
+    role: String(cached.role || "staff").toLowerCase(),
+    nama: cached.nama || cached.username,
+    telepon: cached.telepon || ""
   };
 }
 
@@ -333,8 +181,7 @@ function handlePing_(session) {
     user: {
       username: session.username,
       nama: session.nama || session.username,
-      role: session.role,
-      cabang: session.cabang || ""
+      role: session.role
     }
   }, "OK");
 }

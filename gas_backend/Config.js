@@ -4,10 +4,8 @@ const APP_CONFIG = {
   
   TIMEZONE: "Asia/Jakarta",
   HEADER_ROW: 1,
-  SESSION_RETENTION_DAYS: 7,
   CACHE_TTL_SECONDS: 21600, // 6 jam (maksimal CacheService di Google Apps Script)
   CACHE_PREFIX: "esteh_sess_",
-  CACHE_USER_PREFIX: "esteh_user_",
 
   // Tab Master di Master Spreadsheet
   MASTER_TABS: {
@@ -16,8 +14,7 @@ const APP_CONFIG = {
     BAHAN_BAKU: "Bahan_Baku",
     TIPE_PENGELUARAN: "Tipe_Pengeluaran",
     SUMBER_PEMASUKAN: "Sumber_Pemasukan",
-    LIST_FILE_BULANAN: "List_File_Bulanan",
-    SESSIONS: "Sessions"
+    LIST_FILE_BULANAN: "List_File_Bulanan"
   },
 
   // Tab di Spreadsheet Bulanan

@@ -24,7 +24,6 @@ function handleReadMaster_(session) {
     const rawTelepon = u["NO. TELEPON"] ?? u["NO_TELEPON"] ?? u.TELEPON ?? u.telepon ?? "";
     const telepon = String(rawTelepon || "").trim();
     const status = String(u.STATUS || u.status || "Aktif").trim();
-    const cabang = String(u.CABANG || u.cabang || "").trim();
 
     return {
       _rowIndex: u._rowIndex,
@@ -39,8 +38,6 @@ function handleReadMaster_(session) {
       telepon: telepon,
       ROLE: resolvedRole,
       role: resolvedRole,
-      CABANG: cabang,
-      cabang: cabang,
       STATUS: (status.toLowerCase() === "aktif" || status.toLowerCase() === "active") ? "Aktif" : "Non Aktif",
       status: (status.toLowerCase() === "aktif" || status.toLowerCase() === "active") ? "Aktif" : "Non Aktif"
     };

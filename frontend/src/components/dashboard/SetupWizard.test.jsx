@@ -38,7 +38,7 @@ describe("SetupWizard Component (Per-Step Saving)", () => {
     expect(screen.queryByText("Cabang #2")).not.toBeInTheDocument();
   });
 
-  it("saves data per step, making newly added branch immediately available in Step 2 employee dropdown", async () => {
+  it("saves data per step, creating cabang in step 1 then karyawan in step 2", async () => {
     const mockRequest = vi.fn().mockResolvedValue({ success: true });
     const mockFinish = vi.fn();
     const mockClose = vi.fn();
@@ -49,7 +49,6 @@ describe("SetupWizard Component (Per-Step Saving)", () => {
         onClose={mockClose}
         onFinish={mockFinish}
         request={mockRequest}
-        existingBranches={["Outlet Cabang Lama"]}
       />
     );
 
@@ -78,10 +77,6 @@ describe("SetupWizard Component (Per-Step Saving)", () => {
     await waitFor(() => {
       expect(screen.getByText(/2\. Daftarkan Akun Karyawan \/ Staff/i)).toBeInTheDocument();
     });
-
-    // Verifikasi bahwa cabang baru "Outlet Pattimura Baru" langsung ada di opsi dropdown karyawan!
-    expect(screen.getByRole("option", { name: "Outlet Pattimura Baru" })).toBeInTheDocument();
-    expect(screen.getByRole("option", { name: "Outlet Cabang Lama" })).toBeInTheDocument();
 
     const staffNameInput = screen.getByPlaceholderText(/Budi Santoso/i);
     fireEvent.change(staffNameInput, { target: { value: "Siti Rahma" } });

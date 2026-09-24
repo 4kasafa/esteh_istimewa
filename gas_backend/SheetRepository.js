@@ -57,11 +57,6 @@ function initMasterTabDefaults_(sheet, tabName) {
       headers: ["PERIODE", "SPREADSHEET_ID", "NAMA_FILE", "URL_FILE", "CREATED_AT"],
       color: "#2A9D8F",
       defaults: []
-    },
-    [APP_CONFIG.MASTER_TABS.SESSIONS]: {
-      headers: ["TOKEN", "USERNAME", "ROLE", "CREATE_AT", "EXPIRE_AT", "STATUS"],
-      color: "#4E8098",
-      defaults: []
     }
   };
 
@@ -1244,8 +1239,7 @@ function formatAllSpreadsheetsStyling_() {
       { name: APP_CONFIG.MASTER_TABS.BAHAN_BAKU, color: "#F6C945" },
       { name: APP_CONFIG.MASTER_TABS.TIPE_PENGELUARAN, color: "#E07A5F" },
       { name: APP_CONFIG.MASTER_TABS.SUMBER_PEMASUKAN, color: "#8E7DBE" },
-      { name: APP_CONFIG.MASTER_TABS.LIST_FILE_BULANAN, color: "#2A9D8F" },
-      { name: APP_CONFIG.MASTER_TABS.SESSIONS, color: "#4E8098" }
+      { name: APP_CONFIG.MASTER_TABS.LIST_FILE_BULANAN, color: "#2A9D8F" }
     ];
 
     masterTabs.forEach(t => {

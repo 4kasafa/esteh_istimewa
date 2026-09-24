@@ -80,12 +80,8 @@ export default function DashboardPage({
 
   const branchList = useMemo(() => {
     const raw = masterData?.cabang || masterData?.cabangList || [];
-    const names = raw.map((c) => (typeof c === "string" ? c : c.NAMA_CABANG || c.nama || c.ID_CABANG)).filter(Boolean);
-    if (user?.cabang && !names.includes(user.cabang)) {
-      names.push(user.cabang);
-    }
-    return names;
-  }, [masterData, user?.cabang]);
+    return raw.map((c) => (typeof c === "string" ? c : c.NAMA_CABANG || c.nama || c.ID_CABANG)).filter(Boolean);
+  }, [masterData]);
 
   const branches = useMemo(() => ["Semua", ...branchList], [branchList]);
 
@@ -545,14 +541,12 @@ export default function DashboardPage({
 
                   <div hidden={activeMenu !== "karyawan"} style={{ display: activeMenu === "karyawan" ? "block" : "none" }}>
                     {activeMenu === "karyawan" && (
-                      <KaryawanPanel
-                        selectedBranch={selectedBranch}
-                        branches={branchList}
-                        users={masterData?.users || []}
-                        request={request}
-                        user={user}
-                        onReloadMaster={onReloadMaster}
-                      />
+              <KaryawanPanel
+                users={masterData?.users || []}
+                request={request}
+                user={user}
+                onReloadMaster={onReloadMaster}
+              />
                     )}
                   </div>
 
@@ -594,7 +588,6 @@ export default function DashboardPage({
         onClose={handleCloseWizard}
         onFinish={handleFinishWizard}
         request={request}
-        existingBranches={branchList}
       />
     </div>
   );

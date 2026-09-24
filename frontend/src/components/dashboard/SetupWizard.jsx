@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import {
   ArrowLeft,
   ArrowRight,
@@ -20,7 +20,6 @@ export default function SetupWizard({
   onClose,
   onFinish,
   request,
-  existingBranches = [],
 }) {
   const [currentStep, setCurrentStep] = useState(1);
   const [stepError, setStepError] = useState("");
@@ -32,7 +31,7 @@ export default function SetupWizard({
 
   // Step 2: Karyawan / Staff
   const [karyawanList, setKaryawanList] = useState([
-    { id: "emp-temp-1", nama: "", cabang: "", telepon: "", password: "", isSaved: false },
+    { id: "emp-temp-1", nama: "", telepon: "", password: "", isSaved: false },
   ]);
 
   // Step 3: Master Bahan Baku
@@ -40,25 +39,9 @@ export default function SetupWizard({
     { id: "bhn-temp-1", nama: "", satuan: "", isSaved: false },
   ]);
 
-  // Saved branch names accumulator
-  const [savedBranchNames, setSavedBranchNames] = useState(() => {
-    return (existingBranches || []).map((b) =>
-      typeof b === "string" ? b : b.NAMA_CABANG || b.nama || ""
-    ).filter(Boolean);
-  });
-
   // Saving state per step
   const [isSaving, setIsSaving] = useState(false);
   const [savingText, setSavingText] = useState("");
-
-  // Combined branch options (saved branches + newly typed branches)
-  const branchOptions = useMemo(() => {
-    const fromNew = cabangList
-      .map((c) => c.nama.trim())
-      .filter(Boolean);
-    const combined = Array.from(new Set([...savedBranchNames, ...fromNew]));
-    return combined;
-  }, [cabangList, savedBranchNames]);
 
   if (!open) return null;
 
@@ -82,13 +65,11 @@ export default function SetupWizard({
 
   // --- Handlers Step 2: Karyawan ---
   const handleAddKaryawan = () => {
-    const defaultBranch = branchOptions[0] || "";
     setKaryawanList((prev) => [
       ...prev,
       {
         id: `emp-temp-${Date.now()}`,
         nama: "",
-        cabang: defaultBranch,
         telepon: "",
         password: "",
         isSaved: false,
@@ -181,15 +162,8 @@ export default function SetupWizard({
             })),
           });
 
-          const savedNames = unsaved.map((c) => c.nama.trim());
-          setSavedBranchNames((prev) => Array.from(new Set([...prev, ...savedNames])));
           setCabangList((prev) =>
             prev.map((c) => (c.nama.trim() ? { ...c, isSaved: true } : c))
-          );
-
-          const nextDefaultBranch = savedNames[0] || branchOptions[0] || "";
-          setKaryawanList((prev) =>
-            prev.map((k) => (!k.cabang ? { ...k, cabang: nextDefaultBranch } : k))
           );
         } catch (err) {
           setStepError(err?.message || "Gagal menyimpan cabang ke spreadsheet.");
@@ -211,7 +185,6 @@ export default function SetupWizard({
       if (unsaved.length > 0 && request) {
         setIsSaving(true);
         try {
-          const fallbackBranch = branchOptions[0] || "-";
           // ponytail: 1 bulk request ganti N request serial (backend create_many).
           setSavingText(`Menyimpan ${unsaved.length} staf...`);
           await request({
@@ -221,7 +194,6 @@ export default function SetupWizard({
             data: unsaved.map((k) => ({
               "NAMA / USERNAME": k.nama.trim(),
               USERNAME: k.nama.trim(),
-              CABANG: k.cabang.trim() || fallbackBranch,
               "NO. TELEPON": k.telepon.trim() || "-",
               PASSWORD: k.password.trim() || "123456",
               ROLE: "Staff",
@@ -515,7 +487,7 @@ export default function SetupWizard({
                   2. Daftarkan Akun Karyawan / Staff
                 </h3>
                 <p className="text-[11px] text-brand-muted font-medium">
-                  Cabang yang baru Anda simpan langsung tersedia di opsi penugasan.
+                  Akun staf dapat mengakses seluruh outlet.
                 </p>
               </div>
             </div>
@@ -564,27 +536,6 @@ export default function SetupWizard({
                         }
                         className={inputStyle}
                       />
-                    </div>
-
-                    <div>
-                      <label className={labelStyle}>Cabang Penugasan</label>
-                      <select
-                        value={karyawan.cabang || branchOptions[0] || ""}
-                        onChange={(e) =>
-                          handleKaryawanChange(karyawan.id, "cabang", e.target.value)
-                        }
-                        className={inputStyle}
-                      >
-                        {branchOptions.length > 0 ? (
-                          branchOptions.map((b) => (
-                            <option key={b} value={b}>
-                              {b}
-                            </option>
-                          ))
-                        ) : (
-                          <option value="">(Belum ada cabang terdaftar)</option>
-                        )}
-                      </select>
                     </div>
 
                     <div>
@@ -786,7 +737,7 @@ export default function SetupWizard({
                       <li key={k.id} className="py-1 flex justify-between gap-2">
                         <span className="truncate">{k.nama}</span>
                         <span className="text-brand-muted font-normal text-[10px] truncate">
-                          {k.cabang || "Cabang Utama"}
+                          {k.telepon || "-"}
                         </span>
                       </li>
                     ))}

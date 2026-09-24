@@ -18,7 +18,7 @@ function loadStoredUser() {
   }
 }
 
-export function useAuthSession(apiUrl) {
+export function useAuthSession(apiUrl, onSessionExpired) {
   const [token, setToken] = useState(() => {
     try {
       return localStorage.getItem("gas_token") || "";
@@ -46,6 +46,12 @@ export function useAuthSession(apiUrl) {
   }, [apiUrl]);
   const validatingRef = useRef(null);
   const validatedTokenRef = useRef("");
+  // ponytail: sesi expired saat buka aplikasi (validateSession) harus lewat
+  // jalur dialog yang sama dengan 401 di tengah pemakaian.
+  const onSessionExpiredRef = useRef(onSessionExpired);
+  useEffect(() => {
+    onSessionExpiredRef.current = onSessionExpired;
+  }, [onSessionExpired]);
 
   const request = useCallback(async (body, tokenOverride) => {
     const t = tokenOverride !== undefined ? tokenOverride : tokenRef.current;
@@ -65,6 +71,9 @@ export function useAuthSession(apiUrl) {
       localStorage.removeItem("gas_token");
       localStorage.removeItem("gas_user");
       localStorage.removeItem("gas_last_today_report");
+      // Logout = niatan keluar: credential relogin tak boleh nyangkut.
+      // (Sesi expired tidak lewat logout(), jadi gas_relogin selamat.)
+      localStorage.removeItem("gas_relogin");
       // ponytail: kunci cache master panel (P1 tidak lagi menulisnya, ini migrasi sekali).
       localStorage.removeItem("esteh_cabang_list");
       localStorage.removeItem("esteh_karyawan_list");
@@ -106,7 +115,11 @@ export function useAuthSession(apiUrl) {
       validatedTokenRef.current = t;
     } catch (err) {
       if (isAuthErrorMessage(err.message)) {
-        await logout(true);
+        if (onSessionExpiredRef.current) {
+          onSessionExpiredRef.current();
+        } else {
+          await logout(true);
+        }
       }
     } finally {
       if (validatingRef.current === t) validatingRef.current = null;
@@ -141,6 +154,8 @@ export function useAuthSession(apiUrl) {
       try {
         localStorage.setItem("gas_token", loginData.token);
         localStorage.setItem("gas_user", JSON.stringify(normalizedUser));
+        // ponytail: credential plaintext by choice — hanya dibaca tombol relogin.
+        localStorage.setItem("gas_relogin", JSON.stringify({ username, password }));
         if (normalizedUser.lastTodayReport) {
           localStorage.setItem("gas_last_today_report", normalizedUser.lastTodayReport);
         }

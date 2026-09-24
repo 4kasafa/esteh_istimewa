@@ -24,7 +24,7 @@ function handleGetInitialFormData_(payload, session) {
   const bahanBakuList = readActiveBahanBaku_();
   const tipePengeluaranList = readActiveTipePengeluaran_();
 
-  const requestedCabang = sanitize_(payload.cabang || session.cabang || (cabangList[0] ? cabangList[0].NAMA_CABANG : ""));
+  const requestedCabang = sanitize_(payload.cabang || (cabangList[0] ? cabangList[0].NAMA_CABANG : ""));
   const yesterdayStock = {};
 
   try {
@@ -89,7 +89,7 @@ function handleGetInitialFormData_(payload, session) {
 
 function handleCreateReport_(payload, session) {
   const data = payload.data || payload;
-  const cabang = sanitize_(data.cabang || data.CABANG || data["ARUS DANA"] || session.cabang || "cabang_01");
+  const cabang = sanitize_(data.cabang || data.CABANG || data["ARUS DANA"] || "cabang_01");
   const tanggal = sanitize_(data.tanggal || data.TANGGAL || getCurrentDate_());
   const waktuInput = sanitize_(data.waktuInput || data["WAKTU INPUT"] || getCurrentTime_());
   const staff = sanitize_(session.nama || session.username);
@@ -812,7 +812,7 @@ function handleDashboardInit_(payload, session) {
     // yesterdayStock dari scan yang sama (tanpa baca ulang / tanpa bulan lalu).
     const requestedCabang = cabangFilter && cabangFilter.toLowerCase() !== "semua"
       ? cabangFilter
-      : sanitize_(session.cabang || (cabangList[0] ? cabangList[0].NAMA_CABANG : ""));
+      : sanitize_(cabangList[0] ? cabangList[0].NAMA_CABANG : "");
     const yesterdayStock = {};
     const branchRows = requestedCabang
       ? transRows.filter(r => String(r.CABANG || "").toLowerCase() === requestedCabang.toLowerCase())
@@ -841,7 +841,6 @@ function handleDashboardInit_(payload, session) {
           USERNAME: String(u["NAMA / USERNAME"] ?? u.USERNAME ?? u.username ?? "").trim(),
           ROLE: rawRole.includes("admin") ? "Admin" : "Staff",
           role: rawRole.includes("admin") ? "Admin" : "Staff",
-          CABANG: String(u.CABANG || u.cabang || "").trim(),
           STATUS: String(u.STATUS || u.status || "Aktif").trim()
         };
       });

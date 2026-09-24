@@ -16,7 +16,7 @@ describe("ReportForm Component", () => {
       stokBahan: {},
     },
     loading: false,
-    user: { nama: "Budi", role: "staff", cabang: "Cabang Utama" },
+    user: { nama: "Budi", role: "staff" },
     isAdmin: false,
     viewportMode: "mobile",
     isEdit: false,

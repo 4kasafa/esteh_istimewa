@@ -420,7 +420,7 @@ describe("App smoke", () => {
     });
   });
 
-  it("filters Karyawan by selected branch in navbar", async () => {
+  it("does not filter Karyawan by navbar branch (penugasan dihapus)", async () => {
     render(<App />);
 
     // Login as admin
@@ -443,9 +443,9 @@ describe("App smoke", () => {
     fireEvent.click(branchTrigger);
     fireEvent.click(screen.getByRole("button", { name: /cabang_01/i }));
 
-    // Only Abu Arfan should be in Karyawan list
+    // Both employees remain — no per-penugasan filtering
     expect(screen.getByRole("heading", { level: 4, name: "Abu Arfan" })).toBeInTheDocument();
-    expect(screen.queryByRole("heading", { level: 4, name: "Arief Rahman" })).not.toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 4, name: "Arief Rahman" })).toBeInTheDocument();
   });
 
   it("displays Cabang menu and filters branches by selected branch in navbar", async () => {

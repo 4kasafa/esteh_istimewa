@@ -1,16 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  Building2,
-  Calendar,
   CheckCircle2,
-  Clock,
   MapPin,
-  Phone,
   Plus,
   Search,
   Store,
   Trash2,
-  User,
 } from "lucide-react";
 import AddCabangModal from "./AddCabangModal";
 import ConfirmDialog from "../common/ConfirmDialog";
@@ -23,9 +18,6 @@ function normalizeCabang(c, defaultIndex = 0) {
       nama: "Cabang Utama",
       alamat: "-",
       status: "Aktif",
-      penanggungJawab: "-",
-      telepon: "-",
-      jumlahStaff: 0,
     };
   }
   const rawName = String(c.NAMA_CABANG || c.nama || "Cabang");
@@ -42,9 +34,6 @@ function normalizeCabang(c, defaultIndex = 0) {
     nama: displayName,
     alamat: String(c.ALAMAT || c.alamat || "-"),
     status,
-    penanggungJawab: String(c.PENANGGUNG_JAWAB || c.penanggungJawab || "-"),
-    telepon: String(c.TELEPON || c.telepon || "-"),
-    jumlahStaff: Number(c.JUMLAH_STAFF || c.jumlahStaff) || 0,
     _rowIndex: c._rowIndex ?? null,
   };
 }
@@ -332,9 +321,6 @@ export default function CabangPanel({
                           {c.status}
                         </span>
                       </div>
-                      <p className="text-[11px] font-black text-brand-green mt-0.5 uppercase tracking-wide">
-                        Kode: {c.kode}
-                      </p>
                     </div>
                   </div>
 
@@ -359,53 +345,6 @@ export default function CabangPanel({
                     <MapPin size={15} className="text-brand-green shrink-0 mt-0.5" />
                     <span>{c.alamat}</span>
                   </div>
-
-                  <div className="grid grid-cols-2 gap-2 pt-1">
-                    <div className="flex items-center gap-2 text-brand-green-dark font-bold">
-                      <User size={14} className="text-brand-green shrink-0" />
-                      <span className="truncate">PJ: {c.penanggungJawab}</span>
-                    </div>
-
-                    <div className="flex items-center gap-2 text-brand-green-dark font-bold">
-                      <Clock size={14} className="text-brand-green shrink-0" />
-                      <span className="truncate">{c.jamOperasional}</span>
-                    </div>
-
-                    <div className="flex items-center gap-2 text-brand-muted font-semibold">
-                      <Phone size={14} className="text-brand-green shrink-0" />
-                      <a href={`tel:${c.telepon}`} className="hover:underline truncate">
-                        {c.telepon}
-                      </a>
-                    </div>
-
-                    <div className="flex items-center gap-2 text-brand-muted font-semibold">
-                      <Building2 size={14} className="text-brand-green shrink-0" />
-                      <span>{c.kapasitas}</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Facility Tags */}
-                <div className="flex flex-wrap gap-1.5 pt-1">
-                  {c.fasilitas?.map((f) => (
-                    <span
-                      key={f}
-                      className="rounded-lg bg-brand-green/5 border border-brand-green/10 px-2 py-0.5 text-[10px] font-bold text-brand-green-dark"
-                    >
-                      {f}
-                    </span>
-                  ))}
-                </div>
-
-                <div className="flex items-center justify-between text-[10px] font-bold text-brand-muted/80 pt-1 border-t border-brand-green/5">
-                  <span className="flex items-center gap-1">
-                    <Calendar size={12} className="text-brand-muted/70" />
-                    Buka sejak: {c.tanggalBuka}
-                  </span>
-                  <span className="flex items-center gap-1 text-emerald-700">
-                    <CheckCircle2 size={12} />
-                    Terverifikasi
-                  </span>
                 </div>
               </div>
             ))}

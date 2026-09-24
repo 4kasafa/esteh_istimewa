@@ -32,6 +32,7 @@ describe("CabangPanel", () => {
     );
 
     expect(screen.getByText("Cabang Timur")).toBeInTheDocument();
+    expect(screen.queryByText("Terverifikasi")).not.toBeInTheDocument();
     // Panel tidak lagi memanggil read_master sendiri saat mount.
     expect(mockRequest).not.toHaveBeenCalledWith(
       expect.objectContaining({ action: "read_master" })

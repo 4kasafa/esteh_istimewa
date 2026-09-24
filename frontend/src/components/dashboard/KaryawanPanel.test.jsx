@@ -16,16 +16,17 @@ describe("KaryawanPanel", () => {
         selectedBranch="Semua"
         branches={["cabang_01", "cabang_02"]}
         users={[
-          { ID: "USR-1", "NAMA / USERNAME": 12345, ROLE: "Staff", CABANG: "cabang_01", "NO. TELEPON": 812345678 },
-          { ID: "USR-2", "NAMA / USERNAME": null, ROLE: "Admin", CABANG: "cabang_02" },
-          { ID: "USR-3", "NAMA / USERNAME": "", ROLE: "Staff", CABANG: "cabang_01" },
-          { ID: "USR-4", "NAMA / USERNAME": "Siti Rahma", ROLE: "Staff", CABANG: "cabang_01" },
+          { ID: "USR-1", "NAMA / USERNAME": 12345, ROLE: "Staff", "NO. TELEPON": 812345678 },
+          { ID: "USR-2", "NAMA / USERNAME": null, ROLE: "Admin" },
+          { ID: "USR-3", "NAMA / USERNAME": "", ROLE: "Staff" },
+          { ID: "USR-4", "NAMA / USERNAME": "Siti Rahma", ROLE: "Staff" },
         ]}
         request={mockRequest}
       />
     );
 
     expect(screen.getByText("Siti Rahma")).toBeInTheDocument();
+    expect(screen.queryByText("Terverifikasi")).not.toBeInTheDocument();
 
     // Verify initials for numeric name '12345'
     expect(screen.getByText("12")).toBeInTheDocument();
@@ -47,7 +48,7 @@ describe("KaryawanPanel", () => {
           selectedBranch="Semua"
           branches={[]}
           users={[
-            { id: 99, nama: 998877, role: null, cabang: 123, shift: null, telepon: 8213344 },
+            { id: 99, nama: 998877, role: null, shift: null, telepon: 8213344 },
             { id: "EMP-2", nama: undefined },
           ]}
           request={mockRequest}
@@ -74,8 +75,8 @@ describe("KaryawanPanel", () => {
         selectedBranch="Semua"
         branches={["cabang_01"]}
         users={[
-          { ID: "USR-1", "NAMA / USERNAME": "Admin Bos", ROLE: "Admin", CABANG: "cabang_01" },
-          { ID: "USR-2", "NAMA / USERNAME": "Budi Staff", ROLE: "Staff", CABANG: "cabang_01" },
+          { ID: "USR-1", "NAMA / USERNAME": "Admin Bos", ROLE: "Admin" },
+          { ID: "USR-2", "NAMA / USERNAME": "Budi Staff", ROLE: "Staff" },
         ]}
         request={mockRequest}
         user={{ nama: "Admin Bos", role: "Admin" }}

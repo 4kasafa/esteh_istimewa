@@ -16,7 +16,7 @@ describe("KasKeluarPanel", () => {
     selectedBranch: "Cabang Utama",
     onReload: vi.fn().mockResolvedValue(),
     isAdmin: true,
-    user: { nama: "Admin", role: "admin", cabang: "Cabang Utama" },
+    user: { nama: "Admin", role: "admin" },
   };
 
   it("renders the expense form directly without any table", () => {

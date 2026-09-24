@@ -48,7 +48,7 @@ export default function ReportForm({
     return [];
   }, [availableStaff]);
 
-  const currentCabang = value.CABANG || value["ARUS DANA"] || user?.cabang || branchOptions[0] || "";
+  const currentCabang = value.CABANG || value["ARUS DANA"] || branchOptions[0] || "";
   const currentStaff = value.STAFF || user?.nama || user?.username || staffOptions[0] || "";
 
   useEffect(() => {

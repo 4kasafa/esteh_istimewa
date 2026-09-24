@@ -1,13 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  Building2,
-  Calendar,
-  Clock,
-  Mail,
   Phone,
   Plus,
   Search,
-  ShieldCheck,
   Trash2,
   UserCheck,
   Users,
@@ -34,12 +29,8 @@ function normalizeKaryawan(u, defaultIndex = 0) {
       nik: `EMP-${defaultIndex}`,
       nama: "Staff",
       role: "Staff",
-      cabang: "Cabang Utama",
       status: "Aktif",
-      shift: "Shift Pagi",
       telepon: "-",
-      email: "staff@estehistimewa.com",
-      tglBergabung: "-",
     };
   }
 
@@ -54,29 +45,19 @@ function normalizeKaryawan(u, defaultIndex = 0) {
   const telepon = String(rawNoTelp || "-");
   const rawStatus = String(u.status || u.STATUS || "Aktif").trim();
   const status = (rawStatus.toLowerCase() === "non aktif" || rawStatus.toLowerCase() === "nonaktif") ? "Non Aktif" : "Aktif";
-  const cabang = String(u.cabang || u.CABANG || "Cabang Utama");
-  const shift = String(u.shift || u.SHIFT || "Shift Pagi");
-  const email = u.email ? String(u.email) : `${username.toLowerCase().replace(/[^a-z0-9]/g, "")}@estehistimewa.com`;
-  const tglBergabung = String(u.tglBergabung || "-");
 
   return {
     id,
     nik: id,
     nama,
     role,
-    cabang,
     status,
-    shift,
     telepon,
-    email,
-    tglBergabung,
     _rowIndex: u._rowIndex ?? null,
   };
 }
 
 export default function KaryawanPanel({
-  selectedBranch = "Semua",
-  branches = [],
   users = [],
   request,
   user,
@@ -90,16 +71,9 @@ export default function KaryawanPanel({
     [users],
   );
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  // ponytail: ingat cabang terakhir agar reset parsial (nama dsb. bersih,
-  // cabang pilihan dipertahankan).
-  const [lastCabang, setLastCabang] = useState("");
   const [deletingKaryawan, setDeletingKaryawan] = useState(null);
   const [actionLoading, setActionLoading] = useState(false);
   const [feedback, setFeedback] = useState(null);
-
-  const availableBranches = useMemo(() => {
-    return branches.length > 0 ? branches : [];
-  }, [branches]);
 
   const handleSaveKaryawan = useCallback(async (newKaryawan) => {
     if (!request) return;
@@ -118,7 +92,6 @@ export default function KaryawanPanel({
         data: {
           "NAMA / USERNAME": nextItem.nama,
           USERNAME: nextItem.nama,
-          CABANG: nextItem.cabang || "-",
           "NO. TELEPON": nextItem.telepon || "-",
           PASSWORD: nextItem.password || "123456",
           ROLE: role,
@@ -135,7 +108,6 @@ export default function KaryawanPanel({
         type: "success",
         message: `Karyawan "${nextItem.nama}" berhasil ditambahkan.`,
       });
-      setLastCabang(nextItem.cabang || "");
       setIsAddModalOpen(false);
     } catch (err) {
       setFeedback({
@@ -192,17 +164,6 @@ export default function KaryawanPanel({
   const filteredKaryawan = useMemo(() => {
     return karyawanList.filter((k) => {
       if (!k) return false;
-      const cabang = String(k.cabang || "").toLowerCase();
-      // Filter by navbar selected branch
-      if (selectedBranch && selectedBranch.toLowerCase() !== "semua") {
-        const sel = selectedBranch.toLowerCase();
-        if (
-          cabang !== sel &&
-          !cabang.includes(sel)
-        ) {
-          return false;
-        }
-      }
 
       // Filter by search keyword
       if (!search.trim()) return true;
@@ -217,18 +178,16 @@ export default function KaryawanPanel({
         nama.includes(q) ||
         nik.includes(q) ||
         role.includes(q) ||
-        cabang.includes(q) ||
         shift.includes(q) ||
         telepon.includes(q)
       );
     });
-  }, [karyawanList, search, selectedBranch]);
+  }, [karyawanList, search]);
 
   const stats = useMemo(() => {
     const total = karyawanList.length;
     const aktif = karyawanList.filter((k) => String(k?.status || "").toLowerCase() === "aktif").length;
-    const branches = new Set(karyawanList.map((k) => String(k?.cabang || "").trim()).filter(Boolean)).size;
-    return { total, aktif, branches };
+    return { total, aktif };
   }, [karyawanList]);
 
   return (
@@ -253,7 +212,7 @@ export default function KaryawanPanel({
       )}
 
       {/* Stat Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
         <div className="rounded-3xl border border-brand-green/10 bg-white p-4 sm:p-5 card-shadow flex items-start justify-between">
           <div>
             <p className="text-[10px] sm:text-[11px] font-black uppercase tracking-wider text-brand-muted">
@@ -279,19 +238,6 @@ export default function KaryawanPanel({
             <UserCheck size={20} />
           </div>
         </div>
-
-        <div className="rounded-3xl border border-brand-green/10 bg-white p-4 sm:p-5 card-shadow flex items-start justify-between">
-          <div>
-            <p className="text-[10px] sm:text-[11px] font-black uppercase tracking-wider text-brand-muted">
-              Cabang Penugasan
-            </p>
-            <h3 className="mt-2 text-2xl font-black text-brand-green-dark">{stats.branches} Cabang</h3>
-            <p className="mt-1 text-[11px] font-semibold text-brand-muted">{stats.branches > 0 ? `Tersebar di ${stats.branches} cabang` : "Belum ada penugasan"}</p>
-          </div>
-          <div className="rounded-2xl bg-brand-yellow/20 p-3 text-amber-700">
-            <Building2 size={20} />
-          </div>
-        </div>
       </div>
 
       {/* Main Content Area */}
@@ -306,9 +252,7 @@ export default function KaryawanPanel({
               </span>
             </div>
             <p className="text-xs text-brand-muted font-medium mt-0.5">
-              {selectedBranch && selectedBranch.toLowerCase() !== "semua"
-                ? `Menampilkan staf penugasan ${selectedBranch}`
-                : "Menampilkan semua staf di seluruh cabang"}
+              Menampilkan seluruh staf terdaftar
             </p>
           </div>
 
@@ -340,7 +284,7 @@ export default function KaryawanPanel({
             <Users size={36} className="mx-auto mb-2 opacity-30" />
             <p className="text-sm font-bold">Tidak ada karyawan yang sesuai filter.</p>
             <p className="text-xs opacity-70 mt-1">
-              Coba ganti filter cabang pada navbar atau kata kunci pencarian.
+              Coba ganti kata kunci pencarian.
             </p>
           </div>
         ) : (
@@ -363,7 +307,6 @@ export default function KaryawanPanel({
                           {k.status}
                         </span>
                       </div>
-                      <p className="text-[11px] font-bold text-brand-muted mt-0.5">{k.nik}</p>
                     </div>
                   </div>
 
@@ -388,36 +331,13 @@ export default function KaryawanPanel({
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-2 text-xs pt-2 border-t border-brand-green/10">
-                  <div className="flex items-center gap-2 text-brand-green-dark font-bold">
-                    <Building2 size={14} className="text-brand-green shrink-0" />
-                    <span className="truncate">{k.cabang}</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-brand-green-dark font-bold">
-                    <Clock size={14} className="text-brand-green shrink-0" />
-                    <span>Shift {k.shift}</span>
-                  </div>
+                <div className="grid grid-cols-1 gap-2 text-xs pt-2 border-t border-brand-green/10">
                   <div className="flex items-center gap-2 text-brand-muted font-semibold">
                     <Phone size={14} className="text-brand-green shrink-0" />
                     <a href={`tel:${k.telepon}`} className="hover:underline truncate">
                       {k.telepon}
                     </a>
                   </div>
-                  <div className="flex items-center gap-2 text-brand-muted font-semibold">
-                    <Mail size={14} className="text-brand-green shrink-0" />
-                    <span className="truncate">{k.email}</span>
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-between text-[10px] font-bold text-brand-muted/80 pt-1">
-                  <span className="flex items-center gap-1">
-                    <Calendar size={12} className="text-brand-muted/70" />
-                    Bergabung: {k.tglBergabung}
-                  </span>
-                  <span className="flex items-center gap-1 text-emerald-700">
-                    <ShieldCheck size={12} />
-                    Terverifikasi
-                  </span>
                 </div>
               </div>
             ))}
@@ -426,12 +346,10 @@ export default function KaryawanPanel({
       </div>
 
       <AddKaryawanModal
-        key={isAddModalOpen ? `open-${lastCabang}` : "closed"}
+        key={isAddModalOpen ? "open" : "closed"}
         open={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
         onSave={handleSaveKaryawan}
-        branches={availableBranches}
-        defaultCabang={lastCabang}
         loading={actionLoading}
       />
 

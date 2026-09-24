@@ -42,12 +42,6 @@ function setupMasterSpreadsheet() {
       headers: ["PERIODE", "SPREADSHEET_ID", "NAMA_FILE", "URL_FILE", "CREATED_AT"],
       color: "#2A9D8F",
       defaults: []
-    },
-    {
-      name: APP_CONFIG.MASTER_TABS.SESSIONS,
-      headers: ["TOKEN", "USERNAME", "ROLE", "CREATE_AT", "EXPIRE_AT", "STATUS"],
-      color: "#4E8098",
-      defaults: []
     }
   ];
 
@@ -210,7 +204,7 @@ function cleanupDuplicateMonthlySpreadsheets() {
  * Fungsi Pembersih Total (Wipe & Reset):
  * Menghapus seluruh data hardcode/dummy di Master Spreadsheet & Seluruh File Bulanan
  * - Tab User di Master: Menyisakan HANYA 1 akun Admin bawaan (Admin / admin)
- * - Tab Cabang, Bahan_Baku, Tipe_Pengeluaran, Sumber_Pemasukan, Sessions di Master: Bersih total (tersisa header resmi)
+ * - Tab Cabang, Bahan_Baku, Tipe_Pengeluaran, Sumber_Pemasukan di Master: Bersih total (tersisa header resmi)
  * - Seluruh File Bulanan di Drive (Transaksi, Pengeluaran, Log_Aplikasi): Bersih total (tersisa header resmi)
  * - Tab Rekapitulasi: Dibersihkan total dan dirender ulang MURNI tanpa kategori hardcode apapun!
  */
@@ -227,8 +221,7 @@ function resetAndCleanAllSheets() {
     { tab: APP_CONFIG.MASTER_TABS.CABANG, keepData: null },
     { tab: APP_CONFIG.MASTER_TABS.BAHAN_BAKU, keepData: null },
     { tab: APP_CONFIG.MASTER_TABS.TIPE_PENGELUARAN, keepData: null },
-    { tab: APP_CONFIG.MASTER_TABS.SUMBER_PEMASUKAN, keepData: null },
-    { tab: APP_CONFIG.MASTER_TABS.SESSIONS, keepData: null }
+    { tab: APP_CONFIG.MASTER_TABS.SUMBER_PEMASUKAN, keepData: null }
   ];
 
   masterCleanTargets.forEach(target => {

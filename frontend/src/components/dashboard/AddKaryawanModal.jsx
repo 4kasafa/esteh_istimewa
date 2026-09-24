@@ -6,11 +6,10 @@ const labelStyle =
 const inputStyle =
   "w-full rounded-xl border border-brand-green/15 bg-brand-bg/50 px-3.5 py-2.5 text-xs font-bold text-brand-green-dark focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-green/20 transition";
 
-export default function AddKaryawanModal({ open, onClose, onSave, branches = [], loading = false, defaultCabang = "" }) {
+export default function AddKaryawanModal({ open, onClose, onSave, loading = false }) {
   const [form, setForm] = useState(() => ({
     nama: "",
     role: "Staff",
-    cabang: defaultCabang || branches[0] || "",
     telepon: "",
     password: "",
   }));
@@ -30,7 +29,6 @@ export default function AddKaryawanModal({ open, onClose, onSave, branches = [],
       id: `EMP-${Date.now()}`,
       nama: form.nama.trim(),
       role: form.role,
-      cabang: form.cabang,
       telepon: form.telepon.trim() || "-",
       password: form.password.trim() || "123456",
     };
@@ -119,27 +117,6 @@ export default function AddKaryawanModal({ open, onClose, onSave, branches = [],
                 >
                   <option value="Staff">Staff</option>
                   <option value="Admin">Admin</option>
-                </select>
-              </div>
-
-              {/* Cabang */}
-              <div>
-                <label className={labelStyle}>Cabang Penugasan</label>
-                <select
-                  value={form.cabang}
-                  onChange={(e) => setForm((prev) => ({ ...prev, cabang: e.target.value }))}
-                  disabled={loading}
-                  className={inputStyle}
-                >
-                  {branches.length > 0 ? (
-                    branches.map((b) => (
-                      <option key={b} value={b}>
-                        {b}
-                      </option>
-                    ))
-                  ) : (
-                    <option value="">(Belum ada cabang terdaftar)</option>
-                  )}
                 </select>
               </div>
 

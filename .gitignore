@@ -24,4 +24,5 @@ Thumbs.db
 .clasprc.json
 
 # Archify diagrams & artifacts
-.archify/
+.archify/
+.agents

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import LoginPage from "./pages/LoginPage";
 import DashboardPage from "./pages/DashboardPage";
+import ConfirmDialog from "./components/common/ConfirmDialog";
 import { useAuthSession } from "./hooks/useAuthSession";
 import { useDashboardData } from "./hooks/useDashboardData";
 import { usePWAInstall } from "./hooks/usePWAInstall";
@@ -8,6 +9,10 @@ import { usePWAInstall } from "./hooks/usePWAInstall";
 export default function App() {
   const [runtimeError, setRuntimeError] = useState(null);
   const apiUrl = import.meta.env.VITE_GAS_API_URL || "";
+
+  // Ref agar validateSession (dipanggil hook) bisa memakai handleAuthError
+  // yang baru dibuat setelah hook kembali.
+  const sessionExpiredHandlerRef = useRef(() => {});
 
   const {
     token,
@@ -22,9 +27,31 @@ export default function App() {
     logout,
     validateSession,
     clearAuthError,
-  } = useAuthSession(apiUrl);
+  } = useAuthSession(apiUrl, () => sessionExpiredHandlerRef.current());
 
-  const handleAuthError = useCallback(() => logout(true), [logout]);
+  const [sessionExpiredOpen, setSessionExpiredOpen] = useState(false);
+  const [reloginLoading, setReloginLoading] = useState(false);
+
+  // 401 / sesi expired: kalau ada credential → dialog Sesi Berakhir;
+  // kalau tidak → jalur lama (langsung ke LoginPage).
+  const handleAuthError = useCallback(() => {
+    let hasCredential = false;
+    try {
+      hasCredential = Boolean(localStorage.getItem("gas_relogin"));
+    } catch {
+      hasCredential = false;
+    }
+    if (hasCredential) {
+      setSessionExpiredOpen(true);
+    } else {
+      logout(true);
+    }
+  }, [logout]);
+
+  useEffect(() => {
+    sessionExpiredHandlerRef.current = handleAuthError;
+  }, [handleAuthError]);
+
   const pwa = usePWAInstall();
 
   const {
@@ -108,6 +135,38 @@ export default function App() {
     }
   }
 
+  async function handleRelogin() {
+    let credential = null;
+    try {
+      credential = JSON.parse(localStorage.getItem("gas_relogin") || "null");
+    } catch {
+      credential = null;
+    }
+    if (!credential?.username || !credential?.password) {
+      setSessionExpiredOpen(false);
+      logout(true);
+      return;
+    }
+    setReloginLoading(true);
+    clearFeedback();
+    clearAuthError();
+    try {
+      await login(credential);
+      setSessionExpiredOpen(false);
+    } catch {
+      // Gagal (password ganti/dst) → tutup dialog + jalur lama ke LoginPage.
+      setSessionExpiredOpen(false);
+      await logout(true);
+    } finally {
+      setReloginLoading(false);
+    }
+  }
+
+  function handleManualLogin() {
+    setSessionExpiredOpen(false);
+    logout(true);
+  }
+
   const loading = authLoading || dataLoading;
   const error = authError || dataError || runtimeError;
 
@@ -150,24 +209,37 @@ export default function App() {
   }
 
   return (
-    <DashboardPage
-      user={user}
-      isAdmin={isAdmin}
-      loading={loading}
-      message={dataMessage}
-      error={error}
-      reportRows={reportRows}
-      dbRows={dbRows}
-      masterData={masterData}
-      pwa={pwa}
-      onRefreshMonthly={(period, opts) => loadData({ monthly: isAdmin, period, silent: Boolean(opts?.silent) })}
-      onRefreshAll={(opts) => loadData({ monthly: false, silent: Boolean(opts?.silent) })}
-      onCreateReport={createReport}
-      onUpdateReport={updateReport}
-      onDeleteReport={deleteReport}
-      request={request}
-      onReloadMaster={loadMasterData}
-      onLogout={logout}
-    />
+    <>
+      <DashboardPage
+        user={user}
+        isAdmin={isAdmin}
+        loading={loading}
+        message={dataMessage}
+        error={error}
+        reportRows={reportRows}
+        dbRows={dbRows}
+        masterData={masterData}
+        pwa={pwa}
+        onRefreshMonthly={(period, opts) => loadData({ monthly: isAdmin, period, silent: Boolean(opts?.silent) })}
+        onRefreshAll={(opts) => loadData({ monthly: false, silent: Boolean(opts?.silent) })}
+        onCreateReport={createReport}
+        onUpdateReport={updateReport}
+        onDeleteReport={deleteReport}
+        request={request}
+        onReloadMaster={loadMasterData}
+        onLogout={logout}
+      />
+
+      <ConfirmDialog
+        open={sessionExpiredOpen}
+        title="Sesi berakhir"
+        description="Sesi kamu sudah berakhir. Relogin untuk langsung lanjut tanpa mengetik ulang, atau masuk manual."
+        confirmLabel="Relogin"
+        cancelLabel="Login manual"
+        loading={reloginLoading}
+        onConfirm={handleRelogin}
+        onCancel={handleManualLogin}
+      />
+    </>
   );
 }
