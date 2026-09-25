@@ -117,6 +117,20 @@ export function useDashboardData({ token, isAdmin, request, onAuthError }) {
     setError("");
   }, []);
 
+  // ponytail: 401 → tunggu silent relogin (onAuthError) selesai, lalu ulangi
+  // request sekali secara transparan. Tanpa ini user lihat error sesaat
+  // padahal token baru sudah didapat di background.
+  const requestWithRetry = useCallback(async (payload) => {
+    try {
+      return await request(payload);
+    } catch (err) {
+      if (!isAuthErrorMessage(err?.message)) throw err;
+      const healed = await onAuthError?.();
+      if (!healed) throw err;
+      return await request(payload);
+    }
+  }, [onAuthError, request]);
+
   const clearData = useCallback(() => {
     setReportRows([]);
     setMasterData(DEFAULT_MASTER);
@@ -237,7 +251,7 @@ export function useDashboardData({ token, isAdmin, request, onAuthError }) {
       if (refreshMaster) {
         setIsSyncing(true);
         try {
-          const batch = await request({
+          const batch = await requestWithRetry({
             action: "dashboard_init",
             period: monthly && period ? period : "",
             cabang,
@@ -302,7 +316,7 @@ export function useDashboardData({ token, isAdmin, request, onAuthError }) {
         reportPayload.cabang = cabang;
       }
 
-      const reportRes = await request(reportPayload);
+      const reportRes = await requestWithRetry(reportPayload);
       if (sequence === loadSequence.current) setReportRows(toRows(reportRes));
 
       if (sequence === loadSequence.current) setError("");
@@ -322,7 +336,7 @@ export function useDashboardData({ token, isAdmin, request, onAuthError }) {
     } finally {
       if (inflightRef.current.get(inflightKey) === job) inflightRef.current.delete(inflightKey);
     }
-  }, [onAuthError, request]);
+  }, [onAuthError, requestWithRetry]);
 
   // ponytail: reloadAfterSave dihapus (B8) — create/update/delete tidak lagi
   // memicu read_reports ulang; baris optimis + patch * SISA sudah cukup.

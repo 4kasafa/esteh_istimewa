@@ -48,8 +48,8 @@ export function useAuthSession(apiUrl, onSessionExpired) {
   }, [apiUrl]);
   const validatingRef = useRef(null);
   const validatedTokenRef = useRef("");
-  // ponytail: sesi expired saat buka aplikasi (validateSession) harus lewat
-  // jalur dialog yang sama dengan 401 di tengah pemakaian.
+  // ponytail: sesi permanen — expired saat boot lewat jalur silent yang sama
+  // dengan 401 di tengah pemakaian (0 dialog). Token hanya hilang via logout().
   const onSessionExpiredRef = useRef(onSessionExpired);
   useEffect(() => {
     onSessionExpiredRef.current = onSessionExpired;
@@ -149,6 +149,7 @@ export function useAuthSession(apiUrl, onSessionExpired) {
 
       // Tandai tervalidasi agar effect App tidak mengulang validate tepat setelah login.
       validatedTokenRef.current = loginData.token;
+      tokenRef.current = loginData.token; // ponytail: sinkron — retry pasca silent relogin langsung pakai token baru.
       setIsValidating(false);
       setToken(loginData.token);
       setUser(normalizedUser);

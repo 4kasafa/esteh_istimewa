@@ -6,6 +6,10 @@ const APP_CONFIG = {
   HEADER_ROW: 1,
   CACHE_TTL_SECONDS: 21600, // 6 jam (maksimal CacheService di Google Apps Script)
   CACHE_PREFIX: "esteh_sess_",
+  SESSION_CONFIG: {
+    CACHE_PREFIX: "esteh_sess_",
+    PROPERTY_PREFIX: "sess_"
+  },
 
   // Tab Master di Master Spreadsheet
   MASTER_TABS: {

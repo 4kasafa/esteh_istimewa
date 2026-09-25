@@ -12,55 +12,81 @@ function getSessionCache_() {
   }
 }
 
+function getSessionProperties_() {
+  return PropertiesService.getScriptProperties();
+}
+
 function putSessionCache_(token, sessionData) {
+  if (!token || !sessionData) return;
+  const raw = JSON.stringify(sessionData);
+
   const cache = getSessionCache_();
-  if (!cache || !token || !sessionData) return;
+  if (cache) {
+    try {
+      const ttl = APP_CONFIG.CACHE_TTL_SECONDS || 21600;
+      const sessionKey = (APP_CONFIG.SESSION_CONFIG?.CACHE_PREFIX || APP_CONFIG.CACHE_PREFIX || "esteh_sess_") + token;
+      cache.put(sessionKey, raw, ttl);
+    } catch (err) {
+      console.error("Gagal menyimpan sesi ke cache:", err);
+    }
+  }
 
   try {
-    const ttl = APP_CONFIG.CACHE_TTL_SECONDS || 21600;
-    const sessionKey = (APP_CONFIG.CACHE_PREFIX || "esteh_sess_") + token;
-    cache.put(sessionKey, JSON.stringify(sessionData), ttl);
+    getSessionProperties_().setProperty(
+      (APP_CONFIG.SESSION_CONFIG?.PROPERTY_PREFIX || "sess_") + token,
+      raw
+    );
   } catch (err) {
-    console.error("Gagal menyimpan sesi ke cache:", err);
+    console.error("Gagal menyimpan sesi ke Properties:", err);
   }
 }
 
 function getCachedSession_(token) {
-  const cache = getSessionCache_();
-  if (!cache || !token) return null;
+  if (!token) return null;
+  const cacheKey = (APP_CONFIG.SESSION_CONFIG?.CACHE_PREFIX || APP_CONFIG.CACHE_PREFIX || "esteh_sess_") + token;
+  const propKey = (APP_CONFIG.SESSION_CONFIG?.PROPERTY_PREFIX || "sess_") + token;
 
   try {
-    const sessionKey = (APP_CONFIG.CACHE_PREFIX || "esteh_sess_") + token;
-    const raw = cache.get(sessionKey);
-    if (!raw) return null;
-
-    const data = JSON.parse(raw);
-    if (!data || !data.token || !data.username) return null;
-
-    // Cek kedaluwarsa sesi
-    if (data.expiresAt) {
-      const expTime = new Date(data.expiresAt).getTime();
-      if (!isNaN(expTime) && Date.now() > expTime) {
-        removeSessionCache_(token);
-        return null;
+    const cache = getSessionCache_();
+    if (cache) {
+      const raw = cache.get(cacheKey);
+      if (raw) {
+        const data = JSON.parse(raw);
+        if (data && data.token && data.username) return data;
       }
     }
-
-    return data;
   } catch (err) {
     console.error("Gagal membaca sesi dari cache:", err);
-    return null;
   }
+
+  // L2: PropertiesService permanen (tahan >6 jam & redeploy). Token permanen: 0 cek expiresAt.
+  try {
+    const rawProp = getSessionProperties_().getProperty(propKey);
+    if (rawProp) {
+      const data = JSON.parse(rawProp);
+      if (data && data.token && data.username) {
+        putSessionCache_(token, data); // auto-warm L1
+        return data;
+      }
+    }
+  } catch (err) {
+    console.error("Gagal membaca sesi dari Properties:", err);
+  }
+  return null;
 }
 
 function removeSessionCache_(token) {
-  const cache = getSessionCache_();
-  if (!cache || !token) return;
-
+  if (!token) return;
   try {
-    cache.remove((APP_CONFIG.CACHE_PREFIX || "esteh_sess_") + token);
+    const cache = getSessionCache_();
+    if (cache) cache.remove((APP_CONFIG.SESSION_CONFIG?.CACHE_PREFIX || APP_CONFIG.CACHE_PREFIX || "esteh_sess_") + token);
   } catch (err) {
     console.error("Gagal menghapus sesi dari cache:", err);
+  }
+  try {
+    getSessionProperties_().deleteProperty((APP_CONFIG.SESSION_CONFIG?.PROPERTY_PREFIX || "sess_") + token);
+  } catch (err) {
+    console.error("Gagal menghapus sesi dari Properties:", err);
   }
 }
 
@@ -97,12 +123,9 @@ function handleLogin_(payload) {
     return jsonResponse_(false, null, "Akun ini sedang nonaktif. Hubungi admin.");
   }
 
-  // Buat sesi baru — murni CacheService, 0 I/O Sheet.
-  // ponytail: sesi lama mati sendiri saat TTL habis (relogin ≤6h = modelnya).
+  // ponytail: sesi permanen — L1 Cache (21600s) + L2 Properties (tanpa TTL).
   const token = Utilities.getUuid();
-  const now = new Date();
-  const expireDate = new Date(now.getTime() + (APP_CONFIG.CACHE_TTL_SECONDS || 21600) * 1000);
-  const expireAtStr = Utilities.formatDate(expireDate, APP_CONFIG.TIMEZONE, "yyyy-MM-dd HH:mm:ss");
+  const expireAtStr = "PERMANENT";
 
   const resolvedUsername = matchedUser["NAMA / USERNAME"] || matchedUser.USERNAME || matchedUser.username || matchedUser.Email || username;
   const rawRole = String(matchedUser.ROLE || matchedUser.role || "staff").toLowerCase();
@@ -119,7 +142,7 @@ function handleLogin_(payload) {
     expiresAt: expireAtStr
   };
 
-  // Simpan ke CacheService (satu-satunya penyimpanan sesi)
+  // ponytail: dual-layer L1 Cache + L2 Properties permanen.
   putSessionCache_(token, sessionData);
 
   return jsonResponse_(true, {

@@ -303,6 +303,17 @@ function handleUpdateMaster_(payload, session) {
     const updated = Object.assign({}, existing, item);
     updateTableRow_(sheet, headers, existing._rowIndex, updated);
 
+    // ponytail: Non Aktif / ganti password → cabut sesi permanen seketika.
+    if (target === "user") {
+      const wasNonAktif = String(updated.STATUS || updated.status || "").toLowerCase().indexOf("non") !== -1;
+      const oldPass = String(existing.PASSWORD || existing.password || "").trim();
+      const newPass = String(updated.PASSWORD || updated.password || "").trim();
+      const passChanged = newPass && oldPass && newPass !== oldPass;
+      if (wasNonAktif || passChanged) {
+        revokeUserSessions_(existing["NAMA / USERNAME"] || existing.USERNAME || existing.username || updated["NAMA / USERNAME"] || updated.USERNAME);
+      }
+    }
+
     // Auto-sync jika Cabang diupdate (mendukung rename)
     if (target === "cabang") {
       syncCabangToSumberPemasukan_(updated.NAMA_CABANG, updated.STATUS || "Aktif", existing.NAMA_CABANG);
@@ -395,6 +406,11 @@ function handleUpdateMaster_(payload, session) {
 
     deleteTableRow_(sheet, existing._rowIndex);
 
+    // ponytail: user dihapus → cabut sesi juga (anti orphan login permanen).
+    if (target === "user") {
+      revokeUserSessions_(existing["NAMA / USERNAME"] || existing.USERNAME || existing.username);
+    }
+
     // Jika Cabang dihapus, nonaktifkan di Sumber Pemasukan
     if (target === "cabang" && existing.NAMA_CABANG) {
       syncCabangToSumberPemasukan_(existing.NAMA_CABANG, "Non Aktif");
@@ -416,6 +432,42 @@ function handleUpdateMaster_(payload, session) {
   }
 
   return jsonResponse_(false, null, "Operasi master tidak valid: " + operation);
+}
+
+/**
+ * ponytail: cabut semua sesi permanen milik username (Non Aktif / ganti password).
+ * Scan L2 Properties prefix sess_, cocokkan username, hapus L1+L2.
+ */
+function revokeUserSessions_(username) {
+  if (!username) return 0;
+  try {
+    const props = PropertiesService.getScriptProperties();
+    const all = props.getProperties();
+    const prefix = (APP_CONFIG.SESSION_CONFIG && APP_CONFIG.SESSION_CONFIG.PROPERTY_PREFIX) || "sess_";
+    const cachePrefix = (APP_CONFIG.SESSION_CONFIG && APP_CONFIG.SESSION_CONFIG.CACHE_PREFIX) || APP_CONFIG.CACHE_PREFIX || "esteh_sess_";
+    const target = String(username).trim().toLowerCase();
+    if (!target) return 0;
+    let cache = null;
+    try { cache = getSessionCache_(); } catch (eCache) { cache = null; }
+    let revoked = 0;
+    Object.keys(all).forEach(function (k) {
+      if (k.indexOf(prefix) !== 0) return;
+      try {
+        const data = JSON.parse(all[k]);
+        if (data && String(data.username || "").trim().toLowerCase() === target) {
+          props.deleteProperty(k);
+          if (cache) {
+            try { cache.remove(cachePrefix + k.slice(prefix.length)); } catch (eRm) {}
+          }
+          revoked++;
+        }
+      } catch (eParse) {}
+    });
+    return revoked;
+  } catch (err) {
+    console.warn("Gagal revokasi sesi user " + username + ":", err);
+    return 0;
+  }
 }
 
 /**
