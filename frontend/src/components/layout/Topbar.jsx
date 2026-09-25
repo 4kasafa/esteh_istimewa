@@ -1,5 +1,5 @@
 import { BadgeCheck, CalendarDays, ChevronDown, Menu } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { toPeriodValue } from "../../utils/formatters";
 
 const RANGE_LABELS = {
@@ -19,8 +19,21 @@ export default function Topbar({
   periodFilter = { range: "month", period: toPeriodValue() },
   onPeriodFilterChange,
   loading = false,
+  isSyncing = false,
 }) {
   const isStaff = String(user?.role || "").toLowerCase() === "staff";
+  // ponytail: pakai pola yang sama seperti OnlineStatusBadge, tanpa hook baru.
+  const isOnline = useSyncExternalStore(
+    (cb) => {
+      window.addEventListener("online", cb);
+      window.addEventListener("offline", cb);
+      return () => {
+        window.removeEventListener("online", cb);
+        window.removeEventListener("offline", cb);
+      };
+    },
+    () => navigator.onLine,
+  );
   const toggleLabel = mode === "mobile" ? "Buka menu" : isCollapsed ? "Expand sidebar" : "Collapse sidebar";
   const [branchOpen, setBranchOpen] = useState(false);
   const [periodOpen, setPeriodOpen] = useState(false);
@@ -62,7 +75,7 @@ export default function Topbar({
 
   return (
     <>
-      <header className="h-14 sm:h-16 bg-white/70 backdrop-blur-md border-b border-white/80 px-3 sm:px-4 lg:px-8 flex items-center justify-between sticky top-0 z-30">
+      <header className="relative h-14 sm:h-16 bg-white/70 backdrop-blur-md border-b border-white/80 px-3 sm:px-4 lg:px-8 flex items-center justify-between sticky top-0 z-30">
         <div className="flex items-center gap-2 sm:gap-3 min-w-0">
           {mode === "mobile" && (
             <button
@@ -176,7 +189,22 @@ export default function Topbar({
           )}
         </div>
 
-        <div className="flex items-center gap-2" />
+        <div className="flex items-center gap-2">
+          {isSyncing && (
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-teal-50 border border-teal-200 text-[10px] font-black text-teal-700">
+              <span className="h-3 w-3 rounded-full border-2 border-teal-200 border-t-teal-600 animate-spin" />
+              Menyinkronkan...
+            </span>
+          )}
+          {!isOnline && (
+            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-amber-50 border border-amber-200 text-[10px] font-black text-amber-700">
+              Mode Offline
+            </span>
+          )}
+        </div>
+        {(loading || isSyncing) && (
+          <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-brand-green/70 animate-pulse" />
+        )}
       </header>
     </>
   );

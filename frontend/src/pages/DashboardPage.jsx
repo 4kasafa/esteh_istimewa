@@ -15,6 +15,12 @@ import StokPanel from "../components/dashboard/StokPanel";
 import SetupBanner from "../components/dashboard/SetupBanner";
 import SetupWizard from "../components/dashboard/SetupWizard";
 import ConfirmDialog from "../components/common/ConfirmDialog";
+import {
+  FormSkeleton,
+  MasterPanelSkeleton,
+  OverviewSkeleton,
+  ReportSkeleton,
+} from "../components/dashboard/DashboardSkeleton";
 import { generateTrxId, parseTimestamp, toPeriodValue } from "../utils/formatters";
 
 function getViewportMode() {
@@ -240,6 +246,7 @@ export default function DashboardPage({
   }, []);
 
   const showBanner = isAdmin && isMasterIncomplete && !isBannerDismissed && !isWizardOpen;
+  const isInitialLoading = loading && (reportRows || []).length === 0;
 
   // Cari apakah staf sudah memiliki laporan hari ini
   const todayStaffReport = useMemo(() => {
@@ -420,18 +427,6 @@ export default function DashboardPage({
 
   return (
     <div className="min-h-screen flex bg-brand-bg text-brand-text overflow-x-hidden">
-      {loading && (
-        <div className="fixed inset-0 z-130 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-brand-green-dark/30 backdrop-blur-sm" />
-          <div className="relative rounded-3xl px-6 py-5">
-            <div className="flex items-center gap-3">
-              <div className="h-6 w-6 rounded-full border-2 border-brand-green/20 border-t-brand-green animate-spin" />
-              <p className="text-sm font-black text-brand-green-dark tracking-wide">Memuat data...</p>
-            </div>
-          </div>
-        </div>
-      )}
-
       <Sidebar
         menu={sidebarMenu}
         activeMenu={activeMenu}
@@ -457,6 +452,7 @@ export default function DashboardPage({
           periodFilter={periodFilter}
           onPeriodFilterChange={handlePeriodFilterChange}
           loading={loading}
+          isSyncing={isSyncing}
         />
 
         <div className="flex-1 overflow-y-auto overflow-x-hidden p-3 sm:p-4 lg:p-4 no-scrollbar">
@@ -478,6 +474,13 @@ export default function DashboardPage({
               </p>
             )}
 
+            {isInitialLoading ? (
+              activeMenu === "dashboard" ? <OverviewSkeleton /> :
+              activeMenu === "laporan" ? <ReportSkeleton /> :
+              (activeMenu === "pemasukan" || activeMenu === "pengeluaran") ? <FormSkeleton /> :
+              <MasterPanelSkeleton />
+            ) : (
+            <div className={`transition-opacity duration-200 ${loading ? "opacity-75 pointer-events-none" : "opacity-100"}`}>
             <div className="animate-fade-in">
               <div hidden={activeMenu !== "dashboard"} style={{ display: activeMenu === "dashboard" ? "block" : "none" }}>
                 {visitedMenus.has("dashboard") && (
@@ -587,6 +590,8 @@ export default function DashboardPage({
                 <SettingPanel user={user} onOpenWizard={handleOpenWizard} pwa={pwa} />
               </div>
             </div>
+            </div>
+            )}
           </div>
         </div>
       </main>
