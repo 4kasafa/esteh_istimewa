@@ -105,8 +105,8 @@ export default function DashboardPage({
   }, [masterData]);
 
   const availableStaff = useMemo(() => {
-    const rawUsers = masterData?.users || [];
-    const names = rawUsers.map((u) => u["NAMA / USERNAME"] || u["NAMA/USERNAME"] || u.NAMA || u.USERNAME).filter(Boolean);
+    const rawUsers = masterData?.users || masterData?.staffList || [];
+    const names = rawUsers.map((u) => (typeof u === "string" ? u : u["NAMA / USERNAME"] || u["NAMA/USERNAME"] || u.NAMA || u.USERNAME)).filter(Boolean);
     if (user?.nama && !names.includes(user.nama)) {
       names.unshift(user.nama);
     }
@@ -151,12 +151,6 @@ export default function DashboardPage({
     }
     return DASHBOARD_MENU.filter((item) => item.key !== "pengeluaran" && item.key !== "stok");
   }, [isAdmin, isStaff]);
-
-  // ponytail: reload pasca-simpan silent (sukses sudah tampil, data menyusul).
-  const reloadPengeluaran = useCallback(
-    (overridePeriod) => onRefreshMonthly(overridePeriod || periodFilter.period || period, { silent: true }),
-    [onRefreshMonthly, period, periodFilter.period],
-  );
 
   // ponytail: dedup filter identik beruntun (month input bisa fire >1x).
   const lastFilterRef = useRef("");
@@ -533,12 +527,11 @@ export default function DashboardPage({
                 {activeMenu === "pengeluaran" && (
                   <KasKeluarPanel
                     request={request}
-                    period={periodFilter.period || period}
+                    onCreateReport={onCreateReport}
                     branches={branchList}
                     staff={availableStaff}
                     availableTipePengeluaran={availableTipePengeluaran}
                     selectedBranch={selectedBranch}
-                    onReload={reloadPengeluaran}
                     isAdmin={isAdmin}
                     user={user}
                   />

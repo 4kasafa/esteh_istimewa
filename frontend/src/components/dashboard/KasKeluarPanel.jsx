@@ -25,12 +25,11 @@ function buildEmptyExpense(defaultTipe = "") {
 
 export default function KasKeluarPanel({
   request,
-  period,
+  onCreateReport,
   branches = [],
   staff = [],
   availableTipePengeluaran = [],
   selectedBranch = "",
-  onReload,
   isAdmin = false,
   user,
 }) {
@@ -163,31 +162,32 @@ export default function KasKeluarPanel({
         )
         .join(", ");
 
-      const payload = {
-        action: "create_report",
-        data: {
-          TANGGAL: tanggal,
-          "WAKTU INPUT": waktuInput,
-          "TIMESTAMP INPUT": `${tanggal} ${waktuInput}`,
-          CABANG: finalCabang,
-          "ARUS DANA": finalCabang,
-          STAFF: finalStaff,
-          "JENIS TRANSAKSI": "Pengeluaran",
-          isPengeluaranOnly: true,
-          "TOTAL PENGELUARAN": String(totalPengeluaran),
-          PENGELUARAN: String(totalPengeluaran),
-          "UANG KELUAR": String(totalPengeluaran),
-          "RINCIAN PENGELUARAN": rincian,
-          "UANG SETORAN": "0",
-          "UANG MASUK": "0",
-          "TOTAL PENJUALAN": "0",
-          KETERANGAN: catatan ? `${catatan} (${rincian})` : rincian,
-          pengeluaranList: validExpenses,
-        },
+      const data = {
+        TANGGAL: tanggal,
+        "WAKTU INPUT": waktuInput,
+        "TIMESTAMP INPUT": `${tanggal} ${waktuInput}`,
+        CABANG: finalCabang,
+        "ARUS DANA": finalCabang,
+        STAFF: finalStaff,
+        "JENIS TRANSAKSI": "Pengeluaran",
+        isPengeluaranOnly: true,
+        "TOTAL PENGELUARAN": String(totalPengeluaran),
+        PENGELUARAN: String(totalPengeluaran),
+        "UANG KELUAR": String(totalPengeluaran),
+        "RINCIAN PENGELUARAN": rincian,
+        "UANG SETORAN": "0",
+        "UANG MASUK": "0",
+        "TOTAL PENJUALAN": "0",
+        KETERANGAN: catatan ? `${catatan} (${rincian})` : rincian,
+        pengeluaranList: validExpenses,
       };
 
-      if (request) {
-        await request(payload);
+      // ponytail: via onCreateReport (optimistis, tanpa read_reports 20s) — request mentah hanya fallback.
+      if (onCreateReport) {
+        const ok = await onCreateReport(data);
+        if (!ok) throw new Error("Gagal menyimpan pengeluaran.");
+      } else if (request) {
+        await request({ action: "create_report", data });
       }
 
       setAlert({
@@ -200,21 +200,6 @@ export default function KasKeluarPanel({
       // Reset form fields
       setCatatan("");
       setPengeluaranList([buildEmptyExpense(tipePengeluaranOptions[0] || "")]);
-
-      if (onReload) {
-        const targetPeriod = tanggal.substring(0, 7) || period;
-        try {
-          await onReload(targetPeriod);
-        } catch {
-          // ponytail: simpan sudah sukses — reload gagal bukan kegagalan input.
-          setAlert({
-            type: "success",
-            message: `Pengeluaran sebesar ${toCurrency(
-              totalPengeluaran
-            )} berhasil disimpan. Daftar gagal dimuat ulang — ganti filter/periode untuk memuat ulang.`,
-          });
-        }
-      }
     } catch (err) {
       setAlert({ type: "error", message: mapApiErrorMessage(err?.message || err) });
     } finally {

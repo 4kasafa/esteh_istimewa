@@ -188,4 +188,48 @@ describe("buildTransactionList", () => {
     expect(buildTransactionList()).toEqual([]);
     expect(buildTransactionList([{}])).toEqual([]);
   });
+
+  it("kas keluar mandiri: Uang Masuk 0, tanpa phantom PEMASUKAN", () => {
+    const expenseOnly = {
+      "ID TRANSAKSI": "TRX-EXP-001",
+      "NO TRANSAKSI": "TRX-EXP-001",
+      "TIME STAMP INPUT": "19-03-2026 15:00:00",
+      "ARUS DANA": "cabang_01",
+      CABANG: "cabang_01",
+      STAFF: "Joko",
+      "JENIS TRANSAKSI": "Pengeluaran",
+      NOMINAL: 0,
+      "TOTAL PENJUALAN": 0,
+      "UANG MASUK": 0,
+      "UANG SETORAN": 0,
+      "TOTAL PENGELUARAN": 50000,
+      PENGELUARAN: 50000,
+      pengeluaranList: [{ tipe: "Operasional Toko", nominal: 50000, keterangan: "" }],
+    };
+    const sanitized = sanitizeReportRows([expenseOnly]);
+    expect(sanitized[0].uangMasuk).toBe(0);
+    expect(sanitized[0].totalPenjualan).toBe(0);
+    expect(sanitized[0].totalPengeluaran).toBe(50000);
+    const list = buildTransactionList([expenseOnly]);
+    expect(list.filter((t) => t.type === "PEMASUKAN")).toHaveLength(0);
+    expect(list.filter((t) => t.type === "PENGELUARAN")).toHaveLength(1);
+    expect(list[0].nominal).toBe(50000);
+  });
+
+  it("kas keluar ganda nominal sama tampil 2 baris terpisah", () => {
+    const mk = (id, tipe) => ({
+      "ID TRANSAKSI": id,
+      "NO TRANSAKSI": id,
+      "TIME STAMP INPUT": "19-03-2026 15:00:00",
+      "ARUS DANA": "cabang_01",
+      STAFF: "Joko",
+      "JENIS TRANSAKSI": "Pengeluaran",
+      "TOTAL PENJUALAN": 0,
+      "UANG SETORAN": 0,
+      "TOTAL PENGELUARAN": 50000,
+      pengeluaranList: [{ tipe, nominal: 50000, keterangan: "" }],
+    });
+    const list = buildTransactionList([mk("TRX-EXP-001", "Operasional Toko"), mk("TRX-EXP-002", "Kebersihan")]);
+    expect(list.filter((t) => t.type === "PENGELUARAN")).toHaveLength(2);
+  });
 });

@@ -188,6 +188,7 @@ export function useDashboardData({ token, isAdmin, request, onAuthError }) {
             bahanBaku: initialVal.bahanBakuList || prev.bahanBaku,
             tipePengeluaran: initialVal.tipePengeluaranList || prev.tipePengeluaran,
             yesterdayStock: initialVal.yesterdayStock || prev.yesterdayStock,
+            users: initialVal.staffList || initialVal.users || prev.users,
           }));
         }
       }
@@ -254,7 +255,7 @@ export function useDashboardData({ token, isAdmin, request, onAuthError }) {
                 bahanBaku: m.bahanBaku || init.bahanBakuList || prevM.bahanBaku,
                 tipePengeluaran: m.tipePengeluaran || init.tipePengeluaranList || prevM.tipePengeluaran,
                 sumberPemasukan: m.sumberPemasukan || prevM.sumberPemasukan,
-                users: m.users || prevM.users,
+                users: m.users || init.users || init.staffList || prevM.users,
                 yesterdayStock: init.yesterdayStock || prevM.yesterdayStock,
               };
               masterRef.current = nextMaster;

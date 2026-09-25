@@ -69,8 +69,10 @@ export function sanitizeReportRows(rows) {
         setoran = fallbackSetoran !== "" ? parseLooseNumber(fallbackSetoran) : 0;
       }
 
+      // ponytail: baris kas keluar mandiri tetap Uang Masuk 0 — jangan fallback jadi omset.
+      const isExpenseOnly = String(raw["JENIS TRANSAKSI"] || "").toLowerCase() === "pengeluaran";
       let totalNota = getNumber(raw, REPORT_TOTAL_NOTA_KEYS);
-      if (!totalNota) {
+      if (!totalNota && !isExpenseOnly) {
         totalNota = setoran + pengeluaran;
       }
 
@@ -174,17 +176,20 @@ export function applyReportFilters(rows, { range = "month", period = toPeriodVal
 export function buildTransactionList(reportRows = []) {
   const sanitizedReports = sanitizeReportRows(reportRows).filter((item) => item.id);
 
-  const reportTransactions = sanitizedReports.map((item) => ({
-    type: "PEMASUKAN",
-    id: item.id,
-    timestamp: item.timestamp,
-    arusDana: item.arusDana,
-    cabang: item.cabang,
-    staff: item.staff,
-    keterangan: item.raw["NO TRANSAKSI"] || item.raw["ID TRANSAKSI"] || "Laporan Penjualan Harian",
-    nominal: item.totalPenjualan,
-    raw: item.raw,
-  }));
+  // ponytail: baris kas keluar mandiri hanya jadi PENGELUARAN — tanpa phantom PEMASUKAN.
+  const reportTransactions = sanitizedReports
+    .filter((item) => String(item.raw["JENIS TRANSAKSI"] || "").toLowerCase() !== "pengeluaran")
+    .map((item) => ({
+      type: "PEMASUKAN",
+      id: item.id,
+      timestamp: item.timestamp,
+      arusDana: item.arusDana,
+      cabang: item.cabang,
+      staff: item.staff,
+      keterangan: item.raw["NO TRANSAKSI"] || item.raw["ID TRANSAKSI"] || "Laporan Penjualan Harian",
+      nominal: item.totalPenjualan,
+      raw: item.raw,
+    }));
 
   // Use pengeluaranList from report rows (already includes detailed expenses)
   const expenseTransactions = sanitizedReports

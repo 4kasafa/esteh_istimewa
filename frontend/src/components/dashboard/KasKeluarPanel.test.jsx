@@ -9,12 +9,11 @@ describe("KasKeluarPanel", () => {
 
   const defaultProps = {
     request: vi.fn().mockResolvedValue({ success: true }),
-    period: "2026-09",
+    onCreateReport: vi.fn().mockResolvedValue(true),
     branches: ["Cabang Utama", "Cabang Timur"],
     staff: ["Admin", "Budi"],
     availableTipePengeluaran: ["Operasional Toko", "Bahan Baku", "Kebersihan"],
     selectedBranch: "Cabang Utama",
-    onReload: vi.fn().mockResolvedValue(),
     isAdmin: true,
     user: { nama: "Admin", role: "admin" },
   };
@@ -85,15 +84,13 @@ describe("KasKeluarPanel", () => {
     expect(mockRequest).not.toHaveBeenCalled();
   });
 
-  it("submits the expense correctly and invokes onReload", async () => {
-    const mockRequest = vi.fn().mockResolvedValue({ success: true });
-    const mockReload = vi.fn().mockResolvedValue();
+  it("submits the expense via onCreateReport without reload", async () => {
+    const mockCreate = vi.fn().mockResolvedValue(true);
 
     render(
       <KasKeluarPanel
         {...defaultProps}
-        request={mockRequest}
-        onReload={mockReload}
+        onCreateReport={mockCreate}
       />
     );
 
@@ -107,30 +104,56 @@ describe("KasKeluarPanel", () => {
     fireEvent.click(submitBtn);
 
     await waitFor(() => {
-      expect(mockRequest).toHaveBeenCalledWith(
+      expect(mockCreate).toHaveBeenCalledWith(
         expect.objectContaining({
-          action: "create_report",
-          data: expect.objectContaining({
-            "JENIS TRANSAKSI": "Pengeluaran",
-            isPengeluaranOnly: true,
-            "TOTAL PENGELUARAN": "45000",
-            PENGELUARAN: "45000",
-            "UANG SETORAN": "0",
-            CABANG: "Cabang Utama",
-            pengeluaranList: [
-              expect.objectContaining({
-                nominal: 45000,
-                keterangan: "Beli Galon Air",
-              }),
-            ],
-          }),
+          "JENIS TRANSAKSI": "Pengeluaran",
+          isPengeluaranOnly: true,
+          "TOTAL PENGELUARAN": "45000",
+          PENGELUARAN: "45000",
+          "UANG SETORAN": "0",
+          CABANG: "Cabang Utama",
+          pengeluaranList: [
+            expect.objectContaining({
+              nominal: 45000,
+              keterangan: "Beli Galon Air",
+            }),
+          ],
         })
       );
     });
 
     await waitFor(() => {
       expect(screen.getByText(/Pengeluaran sebesar Rp 45\.000 berhasil disimpan/i)).toBeInTheDocument();
-      expect(mockReload).toHaveBeenCalled();
+    });
+  });
+
+  it("falls back to request when onCreateReport absent", async () => {
+    const mockRequest = vi.fn().mockResolvedValue({ success: true });
+
+    render(
+      <KasKeluarPanel
+        {...defaultProps}
+        onCreateReport={undefined}
+        request={mockRequest}
+      />
+    );
+
+    const nominalInput = screen.getByPlaceholderText("Nominal (Rp)");
+    fireEvent.change(nominalInput, { target: { value: "45000" } });
+
+    const submitBtn = screen.getByRole("button", { name: /Simpan Pengeluaran/i });
+    fireEvent.click(submitBtn);
+
+    await waitFor(() => {
+      expect(mockRequest).toHaveBeenCalledWith(
+        expect.objectContaining({
+          action: "create_report",
+          data: expect.objectContaining({
+            "JENIS TRANSAKSI": "Pengeluaran",
+            isPengeluaranOnly: true,
+          }),
+        })
+      );
     });
   });
 

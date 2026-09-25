@@ -79,11 +79,30 @@ function handleGetInitialFormData_(payload, session) {
     });
   }
 
+  // ponytail: staffList untuk dropdown Kas Keluar role Staff (tanpa password).
+  let staffList = [];
+  try {
+    staffList = (readMasterSnapshot_().user || [])
+      .filter(u => {
+        const st = String(u.STATUS || u.status || "Aktif").trim().toLowerCase();
+        return st === "aktif" || st === "active";
+      })
+      .map(u => {
+        const nama = String(u["NAMA / USERNAME"] ?? u.USERNAME ?? u.username ?? "").trim();
+        return { "NAMA / USERNAME": nama, USERNAME: nama, NAMA: nama, CABANG: String(u.CABANG || u.cabang || "").trim() };
+      })
+      .filter(s => s["NAMA / USERNAME"]);
+  } catch (e) {
+    console.warn("Gagal memuat staffList:", e);
+  }
+
   return jsonResponse_(true, {
     cabangList: cabangList,
     bahanBakuList: bahanBakuList,
     tipePengeluaranList: tipePengeluaranList,
-    yesterdayStock: yesterdayStock
+    yesterdayStock: yesterdayStock,
+    staffList: staffList,
+    users: staffList
   }, "Form data berhasil dimuat.");
 }
 
@@ -736,6 +755,49 @@ function buildReportRows_(rows, session, cabangFilter, idFilter) {
     });
   });
 
+  // ponytail: kas keluar mandiri (tanpa baris pemasukan) — sintesis dari expByTrx.
+  const standaloneExpRows = [];
+  const incomeTrxIds = new Set(incomeRows.map(r => String(r["ID TRANSAKSI"] || r["NO TRANSAKSI"] || "").toLowerCase()));
+  expByTrx.forEach((pList, trxId) => {
+    if (!incomeTrxIds.has(trxId) && pList.length > 0) {
+      const firstItem = expRows.find(e => String(e["ID TRANSAKSI"] || e["NO TRANSAKSI"] || "").toLowerCase() === trxId);
+      if (firstItem) {
+        const totalExp = pList.reduce((acc, curr) => acc + curr.nominal, 0);
+        const rincianStr = pList.map(item => {
+          const nomStr = "Rp " + parseNumber_(item.nominal).toLocaleString("id-ID");
+          const ketStr = item.keterangan ? " - " + item.keterangan : "";
+          return "[" + item.tipe + ": " + nomStr + ketStr + "]";
+        }).join(", ");
+        standaloneExpRows.push({
+          "ID TRANSAKSI": firstItem["ID TRANSAKSI"] || firstItem["NO TRANSAKSI"] || trxId,
+          "NO TRANSAKSI": firstItem["ID TRANSAKSI"] || firstItem["NO TRANSAKSI"] || trxId,
+          "TANGGAL": firstItem["TANGGAL"] || "",
+          "WAKTU INPUT": firstItem["WAKTU INPUT"] || "",
+          "CABANG": firstItem["CABANG"] || "",
+          "ARUS DANA": firstItem["CABANG"] || "",
+          "STAFF": firstItem["STAFF"] || "",
+          "JENIS TRANSAKSI": "Pengeluaran",
+          "NOMINAL": 0,
+          "TOTAL PENJUALAN": 0,
+          "UANG MASUK": 0,
+          "UANG SETORAN": 0,
+          "TOTAL PENGELUARAN": totalExp,
+          "PENGELUARAN": totalExp,
+          "UANG KELUAR": totalExp,
+          "RINCIAN PENGELUARAN": rincianStr,
+          "KETERANGAN": firstItem["KETERANGAN"] || rincianStr,
+          "GELAS AWAL": 0,
+          "GELAS SISA": 0,
+          "GELAS LAKU": 0,
+          "TIME STAMP INPUT": (firstItem["TANGGAL"] || "") + " " + (firstItem["WAKTU INPUT"] || ""),
+          "pengeluaranList": pList
+        });
+      }
+    }
+  });
+  filtered = filtered.concat(standaloneExpRows);
+  filtered.sort((a, b) => String(b["TIME STAMP INPUT"] || "").localeCompare(String(a["TIME STAMP INPUT"] || "")));
+
   if (idFilter) {
     filtered = filtered.filter(r =>
       String(r["ID TRANSAKSI"] || r["NO TRANSAKSI"] || "").toLowerCase() === idFilter.toLowerCase()
@@ -840,16 +902,33 @@ function handleDashboardInit_(payload, session) {
       bahanBakuList.forEach(b => { yesterdayStock[b.NAMA_BAHAN] = 0; });
     }
 
+    // ponytail: daftar staf aktif tanpa password — untuk dropdown Kas Keluar role Staff.
+    const staffList = (snap.user || [])
+      .filter(u => String(u.STATUS || u.status || "Aktif").trim().toLowerCase() === "aktif" || String(u.STATUS || u.status || "Aktif").trim().toLowerCase() === "active")
+      .map(u => {
+        const nama = String(u["NAMA / USERNAME"] ?? u.USERNAME ?? u.username ?? "").trim();
+        return {
+          "NAMA / USERNAME": nama,
+          USERNAME: nama,
+          NAMA: nama,
+          CABANG: String(u.CABANG || u.cabang || "").trim()
+        };
+      })
+      .filter(s => s["NAMA / USERNAME"]);
+
     let master = null;
     if (isAdmin) {
       const rawUsers = snap.user;
       const users = rawUsers.map(u => {
         const rawRole = String(u.ROLE || u.role || "Staff").trim().toLowerCase();
+        const telepon = String(u["NO. TELEPON"] || u["NO TELEPON"] || u.TELEPON || u.phone || "").trim();
         return {
           _rowIndex: u._rowIndex,
           ID: String(u.ID ?? u.id ?? "").trim(),
           "NAMA / USERNAME": String(u["NAMA / USERNAME"] ?? u.USERNAME ?? u.username ?? "").trim(),
           USERNAME: String(u["NAMA / USERNAME"] ?? u.USERNAME ?? u.username ?? "").trim(),
+          "NO. TELEPON": telepon,
+          phone: telepon,
           ROLE: rawRole.includes("admin") ? "Admin" : "Staff",
           role: rawRole.includes("admin") ? "Admin" : "Staff",
           STATUS: String(u.STATUS || u.status || "Aktif").trim()
@@ -875,7 +954,9 @@ function handleDashboardInit_(payload, session) {
             cabangList: cabangList,
             bahanBakuList: bahanBakuList,
             tipePengeluaranList: tipePengeluaranList,
-            yesterdayStock: yesterdayStock
+            yesterdayStock: yesterdayStock,
+            staffList: staffList,
+            users: staffList
           }
     }, "Dashboard init berhasil dimuat.");
   } catch (err) {
