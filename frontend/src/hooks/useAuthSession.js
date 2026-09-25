@@ -27,7 +27,9 @@ export function useAuthSession(apiUrl, onSessionExpired) {
     }
   });
   const [user, setUser] = useState(loadStoredUser);
-  const [isValidating, setIsValidating] = useState(true);
+  // ponytail: false — tanpa ping bootstrap; sesi expired baru terdeteksi saat
+  // request pertama (401 → onAuthError di useDashboardData).
+  const [isValidating, setIsValidating] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 

@@ -97,6 +97,7 @@ function setupMasterSpreadsheet() {
     console.warn("Gagal inisialisasi file bulanan saat setup:", errMonthly);
   }
 
+  invalidateMasterCache_();
   return "Master Spreadsheet berhasil diinisialisasi lengkap dengan 7 tab!" + monthlyInfo;
 }
 
@@ -320,6 +321,7 @@ function resetAndCleanAllSheets() {
     }
   });
 
+  invalidateMasterCache_();
   return logs.join("\n");
 }
 

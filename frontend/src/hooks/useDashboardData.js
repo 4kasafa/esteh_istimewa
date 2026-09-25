@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { isAuthErrorMessage, mapApiErrorMessage } from "../utils/errors";
+import { getSwrCache, removeSwrCache, setSwrCache } from "../utils/swrCache";
 
 function toRows(data) {
   if (Array.isArray(data)) return data;
@@ -30,7 +31,9 @@ function toOptimisticRow(res, pengeluaranList = []) {
     CABANG: cabang,
     STAFF: res.STAFF || "",
     "UANG MASUK": nominal,
-    PENGELUARAN: Math.max(0, nominal - setoran),
+    // ponytail: respons create expense-only sudah membawa PENGELUARAN benar;
+    // fallback hitung lokal untuk jalur lama yang tidak membalikkannya.
+    "PENGELUARAN": res.PENGELUARAN ?? Math.max(0, nominal - setoran),
     "GELAS AWAL": res["GELAS AWAL"] ?? 0,
     "GELAS SISA": res["GELAS SISA"] ?? 0,
     "GELAS LAKU": res["GELAS TERPAKAI"] ?? res["GELAS LAKU"] ?? 0,
@@ -39,17 +42,52 @@ function toOptimisticRow(res, pengeluaranList = []) {
   };
 }
 
-export function useDashboardData({ token, isAdmin, request, onAuthError }) {
-  const [reportRows, setReportRows] = useState([]);
-  const [masterData, setMasterData] = useState({
-    cabang: [],
-    bahanBaku: [],
-    tipePengeluaran: [],
-    sumberPemasukan: [],
-    users: [],
-    yesterdayStock: {},
+// ponytail: respons create/update membawa key "<BAHAN> SISA" → patch lokal
+// yesterdayStock agar input berikutnya benar tanpa refetch.
+function extractSisaPatch(response) {
+  const patch = {};
+  if (!response || typeof response !== "object") return patch;
+  Object.keys(response).forEach((k) => {
+    if (k.endsWith(" SISA")) patch[k.slice(0, -5)] = response[k];
   });
+  return patch;
+}
+
+function patchYesterdayStock(prev, sisaPatch) {
+  if (Object.keys(sisaPatch).length === 0) return prev;
+  const next = { ...(prev.yesterdayStock || {}) };
+  (prev.bahanBaku || []).forEach((b) => {
+    const name = b.NAMA_BAHAN || b.nama;
+    const pfx = String(name || "").toUpperCase();
+    if (name && sisaPatch[pfx] !== undefined) next[name] = sisaPatch[pfx];
+    if (pfx === "GELAS CUP" && sisaPatch.GELAS !== undefined) next[name] = sisaPatch.GELAS;
+  });
+  return { ...prev, yesterdayStock: next };
+}
+
+const DEFAULT_MASTER = {
+  cabang: [],
+  bahanBaku: [],
+  tipePengeluaran: [],
+  sumberPemasukan: [],
+  users: [],
+  yesterdayStock: {},
+};
+
+export function useDashboardData({ token, isAdmin, request, onAuthError }) {
+  // ponytail: boot instan — baca cache lokal dulu, jaringan hanya merekonsiliasi.
+  const [reportRows, setReportRows] = useState(() => getSwrCache("reports_init", []));
+  const [masterData, setMasterData] = useState(() => getSwrCache("master", DEFAULT_MASTER));
   const [loading, setLoading] = useState(false);
+  // ponytail: status sinkronisasi latar agar UI bisa menampilkan indikator halus
+  // tanpa memblokir data yang sudah tampil dari cache.
+  const [isSyncing, setIsSyncing] = useState(false);
+  // ponytail: status halus saat sinkronisasi latar gagal tapi data lokal ada —
+  // pengganti Alert merah (data tetap layak pakai, bukan error fatal).
+  const [syncNote, setSyncNote] = useState("");
+  // ponytail: saving terpisah dari loading — overlay fullscreen hanya untuk
+  // baca; menulis tidak memblokir dashboard (B9).
+  const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const loadSequence = useRef(0);
@@ -59,6 +97,18 @@ export function useDashboardData({ token, isAdmin, request, onAuthError }) {
   useEffect(() => {
     tokenRef.current = token;
   }, [token]);
+  // ponytail: cermin sinkron masterData — dipakai untuk merge batch dashboard_init
+  // di luar updater React (side-effect di updater dobel-jalan di StrictMode).
+  const masterRef = useRef(masterData);
+  useEffect(() => {
+    masterRef.current = masterData;
+  }, [masterData]);
+  // ponytail: ref untuk keputusan blocking di loadData — boot dengan data cache
+  // tidak boleh memunculkan overlay fullscreen (itulah "jeda 3-5 detik").
+  const hasLocalRef = useRef(false);
+  useEffect(() => {
+    hasLocalRef.current = reportRows.length > 0 || (masterData?.cabang || []).length > 0;
+  }, [reportRows, masterData]);
   const inflightRef = useRef(new Map());
   const masterInflightRef = useRef(null);
 
@@ -69,18 +119,18 @@ export function useDashboardData({ token, isAdmin, request, onAuthError }) {
 
   const clearData = useCallback(() => {
     setReportRows([]);
-    setMasterData({
-      cabang: [],
-      bahanBaku: [],
-      tipePengeluaran: [],
-      sumberPemasukan: [],
-      users: [],
-      yesterdayStock: {},
-    });
+    setMasterData(DEFAULT_MASTER);
+    // ponytail: logout membuang cache — jangan bocorkan data cabang ke sesi berikutnya.
+    removeSwrCache("master");
+    removeSwrCache("reports_init");
+    setSyncNote("");
     clearFeedback();
   }, [clearFeedback]);
 
-  const loadMasterData = useCallback(async (cabangParam = "") => {
+  // ponytail: admin cukup read_master (sudah bawa cabang/bahan/tipe/sumber/users);
+  // get_initial_form_data hanya saat butuh yesterdayStock (wantInitial=true).
+  // Staff tetap get_initial_form_data saja (satu-satunya yang dibutuhkan).
+  const loadMasterData = useCallback(async (cabangParam = "", wantInitial = false) => {
     if (!tokenRef.current) return;
     // Dedup: panggilan master bersamaan cukup 1x.
     if (masterInflightRef.current) return masterInflightRef.current;
@@ -96,21 +146,39 @@ export function useDashboardData({ token, isAdmin, request, onAuthError }) {
         } catch (err) {
           console.warn("Gagal memuat master:", err);
         }
-        try {
-          initialVal = await request({ action: "get_initial_form_data", cabang: cabangParam });
-        } catch (err) {
-          console.warn("Gagal memuat form awal:", err);
+        if (wantInitial) {
+          try {
+            initialVal = await request({ action: "get_initial_form_data", cabang: cabangParam });
+          } catch (err) {
+            console.warn("Gagal memuat form awal:", err);
+          }
         }
 
-        setMasterData((prev) => ({
-          ...prev,
-          cabang: masterVal?.cabang || initialVal?.cabangList || prev.cabang,
-          bahanBaku: masterVal?.bahanBaku || initialVal?.bahanBakuList || prev.bahanBaku,
-          tipePengeluaran: masterVal?.tipePengeluaran || initialVal?.tipePengeluaranList || prev.tipePengeluaran,
-          sumberPemasukan: masterVal?.sumberPemasukan || prev.sumberPemasukan,
-          users: masterVal?.users || prev.users,
-          yesterdayStock: initialVal?.yesterdayStock || prev.yesterdayStock,
-        }));
+        setMasterData((prev) => {
+          const cabang = masterVal?.cabang || initialVal?.cabangList || prev.cabang;
+          const bahanBaku = masterVal?.bahanBaku || initialVal?.bahanBakuList || prev.bahanBaku;
+          const tipePengeluaran = masterVal?.tipePengeluaran || initialVal?.tipePengeluaranList || prev.tipePengeluaran;
+          const prevStock = initialVal?.yesterdayStock || prev.yesterdayStock || {};
+          const nextStock = { ...prevStock };
+          // ponytail: default 0 untuk bahan baru (belum pernah ada laporan).
+          // Hanya bila sudah ada isi — kalau masih kosong total, biarkan kosong
+          // agar jalur "buka pemasukan saat kosong" tetap memicu initial fetch.
+          if (Object.keys(prevStock).length > 0) {
+            bahanBaku.forEach((b) => {
+              const name = b.NAMA_BAHAN || b.nama;
+              if (name && nextStock[name] === undefined) nextStock[name] = 0;
+            });
+          }
+          return {
+            ...prev,
+            cabang,
+            bahanBaku,
+            tipePengeluaran,
+            sumberPemasukan: masterVal?.sumberPemasukan || prev.sumberPemasukan,
+            users: masterVal?.users || prev.users,
+            yesterdayStock: nextStock,
+          };
+        });
       } else {
         const initialVal = await request({ action: "get_initial_form_data", cabang: cabangParam });
         if (initialVal) {
@@ -152,41 +220,74 @@ export function useDashboardData({ token, isAdmin, request, onAuthError }) {
       : `m:${monthly ? period : ""}|c:${cabang}|rm:${refreshMaster ? 1 : 0}`;
     if (inflightRef.current.has(inflightKey)) return inflightRef.current.get(inflightKey);
     const job = (async () => {
-    if (!silent) setLoading(true);
+    // ponytail: overlay fullscreen hanya bila belum ada data lokal. Boot ulang
+    // dengan cache harus cat langsung (0 ms), bukan tertutup spinner "Memuat...".
+    // Ganti periode tetap blocking (umpan balik lama, diganti skeleton di task06).
+    const blocking = !silent && !(refreshMaster && hasLocalRef.current);
+    if (blocking) setLoading(true);
     setError("");
+    setSyncNote("");
 
     try {
       // Jalur cepat: 1 round-trip ganti 3 request serial (laporan+master+initial).
-      // Fallback ke jalur lama agar kompatibel dengan GAS sebelum dashboard_init ada.
-      if (!reportId && refreshMaster) {
+      // ponytail: TANPA fallback waterfall. dashboard_init gagal/timeout → data
+      // lokal dari cache tetap tampil; 3-5 request serial berikutnya hanya
+      // memperpanjang kegagalan (dulu >1 menit, 6 log request).
+      if (refreshMaster) {
+        setIsSyncing(true);
         try {
           const batch = await request({
             action: "dashboard_init",
             period: monthly && period ? period : "",
             cabang,
+            id: reportId || "",
           });
           if (batch && (Array.isArray(batch.reports) || batch.master || batch.initial)) {
             if (import.meta.env.DEV) console.info("[init] dashboard_init batch ok");
             if (sequence === loadSequence.current) {
-              setReportRows(toRows(batch.reports));
               const m = batch.master || {};
               const init = batch.initial || {};
-              setMasterData((prev) => ({
-                ...prev,
-                cabang: m.cabang || init.cabangList || prev.cabang,
-                bahanBaku: m.bahanBaku || init.bahanBakuList || prev.bahanBaku,
-                tipePengeluaran: m.tipePengeluaran || init.tipePengeluaranList || prev.tipePengeluaran,
-                sumberPemasukan: m.sumberPemasukan || prev.sumberPemasukan,
-                users: m.users || prev.users,
-                yesterdayStock: init.yesterdayStock || prev.yesterdayStock,
-              }));
+              const prevM = masterRef.current;
+              const nextMaster = {
+                ...prevM,
+                cabang: m.cabang || init.cabangList || prevM.cabang,
+                bahanBaku: m.bahanBaku || init.bahanBakuList || prevM.bahanBaku,
+                tipePengeluaran: m.tipePengeluaran || init.tipePengeluaranList || prevM.tipePengeluaran,
+                sumberPemasukan: m.sumberPemasukan || prevM.sumberPemasukan,
+                users: m.users || prevM.users,
+                yesterdayStock: init.yesterdayStock || prevM.yesterdayStock,
+              };
+              masterRef.current = nextMaster;
+              setReportRows(toRows(batch.reports));
+              setMasterData(nextMaster);
               setError("");
+              setSyncNote("");
+              // SWR: tulis ulang cache → refresh berikutnya tampil 0 ms.
+              setSwrCache("master", nextMaster);
+              if (Array.isArray(batch.reports)) {
+                setSwrCache("reports_" + (period || "init"), batch.reports);
+                setSwrCache("reports_init", batch.reports);
+              }
             }
             return;
           }
-        } catch {
-          // lanjut ke jalur lama (tanda backend GAS belum deploy ulang)
-          if (import.meta.env.DEV) console.warn("[init] dashboard_init gagal — fallback jalur lama, deploy ulang GAS backend");
+          throw new Error("Respons dashboard_init tidak sesuai format.");
+        } catch (err) {
+          // ponytail: cukup satu peringatan — tidak ada read_reports +
+          // read_master + get_initial_form_data menyusul.
+          console.warn("[init] dashboard_init gagal — memakai data lokal tersimpan:", err?.message || err);
+          if (sequence === loadSequence.current) {
+            if (hasLocalRef.current) {
+              // Data lokal ada → status halus, bukan Alert merah.
+              setSyncNote("Menampilkan data lokal. Muat ulang halaman bila ingin sinkron ulang.");
+            } else {
+              setError(mapApiErrorMessage(err?.message));
+            }
+          }
+          if (isAuthErrorMessage(err?.message)) await onAuthError?.();
+          return;
+        } finally {
+          setIsSyncing(false);
         }
       }
 
@@ -203,11 +304,6 @@ export function useDashboardData({ token, isAdmin, request, onAuthError }) {
       const reportRes = await request(reportPayload);
       if (sequence === loadSequence.current) setReportRows(toRows(reportRes));
 
-      // Master di-refresh setelah laporan selesai, bukan bersamaan.
-      if (refreshMaster) {
-        await loadMasterData(cabang).catch(() => {});
-      }
-
       if (sequence === loadSequence.current) setError("");
     } catch (err) {
       const friendlyMessage = mapApiErrorMessage(err.message);
@@ -216,7 +312,7 @@ export function useDashboardData({ token, isAdmin, request, onAuthError }) {
         await onAuthError?.();
       }
     } finally {
-      if (!silent && sequence === loadSequence.current) setLoading(false);
+      if (blocking && sequence === loadSequence.current) setLoading(false);
     }
     })();
     inflightRef.current.set(inflightKey, job);
@@ -225,18 +321,12 @@ export function useDashboardData({ token, isAdmin, request, onAuthError }) {
     } finally {
       if (inflightRef.current.get(inflightKey) === job) inflightRef.current.delete(inflightKey);
     }
-  }, [loadMasterData, onAuthError, request]);
+  }, [onAuthError, request]);
 
-  // ponytail: reload latar pasca-simpan; bila gagal, beri tahu eksplisit
-  // (data sudah tersimpan) agar tidak terasa seperti input gagal sunyi.
-  const reloadAfterSave = useCallback((args) => {
-    loadData({ ...args, refreshMaster: false, silent: true }).catch(() => {
-      setError("Data tersimpan, tetapi daftar gagal dimuat ulang. Ganti filter/periode untuk memuat ulang.");
-    });
-  }, [loadData]);
-
-  const createReport = useCallback(async (form, period) => {
-    setLoading(true);
+  // ponytail: reloadAfterSave dihapus (B8) — create/update/delete tidak lagi
+  // memicu read_reports ulang; baris optimis + patch * SISA sudah cukup.
+  const createReport = useCallback(async (form) => {
+    setSaving(true);
     setError("");
     setMessage("");
 
@@ -248,26 +338,9 @@ export function useDashboardData({ token, isAdmin, request, onAuthError }) {
       const newId = response?.["ID TRANSAKSI"] || response?.["NO TRANSAKSI"];
       // ponytail: tanpa refreshMaster — master jarang berubah, hemat 2 request berat.
       // yesterdayStock diupdate lokal dari respons agar input berikutnya tetap benar.
-      if (response && typeof response === "object") {
-        const sisaPatch = {};
-        Object.keys(response).forEach((k) => {
-          if (k.endsWith(" SISA")) {
-            const prefix = k.slice(0, -5);
-            sisaPatch[prefix] = response[k];
-          }
-        });
-        if (Object.keys(sisaPatch).length > 0) {
-          setMasterData((prev) => {
-            const next = { ...(prev.yesterdayStock || {}) };
-            (prev.bahanBaku || []).forEach((b) => {
-              const name = b.NAMA_BAHAN || b.nama;
-              const pfx = String(name || "").toUpperCase();
-              if (name && sisaPatch[pfx] !== undefined) next[name] = sisaPatch[pfx];
-              if (pfx === "GELAS CUP" && sisaPatch.GELAS !== undefined) next[name] = sisaPatch.GELAS;
-            });
-            return { ...prev, yesterdayStock: next };
-          });
-        }
+      const sisaPatch = extractSisaPatch(response);
+      if (Object.keys(sisaPatch).length > 0) {
+        setMasterData((prev) => patchYesterdayStock(prev, sisaPatch));
       }
       if (!isAdmin && newId) {
         try {
@@ -287,13 +360,9 @@ export function useDashboardData({ token, isAdmin, request, onAuthError }) {
             : [...prev, optimistic]
         );
       }
-      // ponytail: sukses instan — reload jalan di latar tanpa spinner.
-      setLoading(false);
-      if (!isAdmin && newId) {
-        reloadAfterSave({ reportId: newId });
-      } else {
-        reloadAfterSave({ monthly: true, period });
-      }
+      // ponytail: tanpa reload pasca-tulis — baris optimis sudah benar
+      // (respons create membawa PENGELUARAN & * SISA yang akurat).
+      setSaving(false);
 
       return true;
     } catch (err) {
@@ -304,12 +373,12 @@ export function useDashboardData({ token, isAdmin, request, onAuthError }) {
       }
       return false;
     } finally {
-      setLoading(false);
+      setSaving(false);
     }
-  }, [isAdmin, onAuthError, reloadAfterSave, request]);
+  }, [isAdmin, onAuthError, request]);
 
-  const updateReport = useCallback(async (id, patch, period) => {
-    setLoading(true);
+  const updateReport = useCallback(async (id, patch) => {
+    setSaving(true);
     setError("");
     setMessage("");
 
@@ -318,7 +387,13 @@ export function useDashboardData({ token, isAdmin, request, onAuthError }) {
       setMessage("Data berhasil diperbarui.");
       setTimeout(() => setMessage(""), 5000);
 
-      // ponytail: baris langsung tampil (optimistis) — reload latar hanya rekonsiliasi.
+      // ponytail: patch yesterdayStock dari key * SISA respons (tanpa refetch).
+      const sisaPatch = extractSisaPatch(response);
+      if (Object.keys(sisaPatch).length > 0) {
+        setMasterData((prev) => patchYesterdayStock(prev, sisaPatch));
+      }
+
+      // ponytail: baris langsung tampil (optimistis) — tanpa reload pasca-tulis.
       const optimistic = toOptimisticRow({ ...patch, ...response, "ID TRANSAKSI": id }, patch?.pengeluaranList);
       if (optimistic) {
         setReportRows((prev) =>
@@ -327,13 +402,7 @@ export function useDashboardData({ token, isAdmin, request, onAuthError }) {
           )
         );
       }
-      // ponytail: sukses instan — reload jalan di latar tanpa spinner.
-      setLoading(false);
-      if (!isAdmin && id) {
-        reloadAfterSave({ reportId: id });
-      } else {
-        reloadAfterSave({ monthly: true, period });
-      }
+      setSaving(false);
 
       return true;
     } catch (err) {
@@ -344,12 +413,12 @@ export function useDashboardData({ token, isAdmin, request, onAuthError }) {
       }
       return false;
     } finally {
-      setLoading(false);
+      setSaving(false);
     }
-  }, [isAdmin, onAuthError, reloadAfterSave, request]);
+  }, [onAuthError, request]);
 
   const deleteReport = useCallback(async (id, period, rowIndex) => {
-    setLoading(true);
+    setSaving(true);
     setError("");
     setMessage("");
 
@@ -366,10 +435,9 @@ export function useDashboardData({ token, isAdmin, request, onAuthError }) {
         })
       );
 
-      // ponytail: tanpa refreshMaster — baris sudah difilter lokal di atas.
-      // Sukses instan, reload di latar tanpa spinner.
-      setLoading(false);
-      reloadAfterSave({ monthly: true, period });
+      // ponytail: tanpa refreshMaster & tanpa reload pasca-hapus — baris
+      // sudah difilter lokal di atas.
+      setSaving(false);
 
       return true;
     } catch (err) {
@@ -380,14 +448,17 @@ export function useDashboardData({ token, isAdmin, request, onAuthError }) {
       }
       return false;
     } finally {
-      setLoading(false);
+      setSaving(false);
     }
-  }, [onAuthError, reloadAfterSave, request]);
+  }, [onAuthError, request]);
 
   return {
     reportRows,
     masterData,
     loading,
+    isSyncing,
+    syncNote,
+    saving,
     message,
     error,
     clearData,

@@ -339,7 +339,22 @@ function handleCreateReport_(payload, session) {
   rowObj["NO TRANSAKSI"] = idTransaksi;
   rowObj["ARUS DANA"] = cabang;
 
-  return jsonResponse_(true, rowObj, "Laporan berhasil disimpan.");
+  // ponytail: baris optimis harus mencerminkan baris yang BENAR-BENAR ditulis.
+  // isPengeluaranOnly → rowObj tidak masuk sheet; balas transBatch[0] dengan
+  // NOMINAL 0 (bukan uang masuk) + PENGELUARAN = total expense. Sheet tetap
+  // mencatat NOMINAL expense — hanya objek respons yang disesuaikan.
+  let responseObj = rowObj;
+  if (isPengeluaranOnly && transBatch.length > 0) {
+    responseObj = Object.assign({}, transBatch[0], {
+      "NOMINAL": 0,
+      "TOTAL PENGELUARAN": totalPengeluaran,
+      "PENGELUARAN": totalPengeluaran,
+      "NO TRANSAKSI": idTransaksi,
+      "ARUS DANA": cabang
+    });
+  }
+
+  return jsonResponse_(true, responseObj, "Laporan berhasil disimpan.");
 }
 
 function handleUpdateReport_(payload, session) {
@@ -599,7 +614,7 @@ function handleDeleteReport_(payload, session) {
   const tanggal = sanitize_(data.tanggal || data.TANGGAL || "");
   let periode = sanitize_(payload.period || payload.periode || (tanggal ? tanggal.substring(0, 7) : "") || getCurrentPeriod_());
 
-  const monthlySs = getOrCreateMonthlySpreadsheet_(periode);
+  const monthlySs = getOrCreateMonthlySpreadsheet_(periode, { skipEnsure: true });
   const transSheet = monthlySs.getSheetByName(APP_CONFIG.MONTHLY_TABS.TRANSAKSI);
   if (!transSheet) {
     return jsonResponse_(false, null, "Sheet Transaksi tidak ditemukan pada periode " + periode);
@@ -793,14 +808,12 @@ function handleDashboardInit_(payload, session) {
     const monthlySs = getOrCreateMonthlySpreadsheet_(period, { skipEnsure: true });
     const transSheet = monthlySs.getSheetByName(APP_CONFIG.MONTHLY_TABS.TRANSAKSI);
     const transRows = transSheet ? readTable_(transSheet) : [];
-    const reports = buildReportRows_(transRows, session, cabangFilter, "");
+    const reports = buildReportRows_(transRows, session, cabangFilter, sanitize_(payload.id || payload["NO TRANSAKSI"] || ""));
 
-    const cabangSheet = getMasterSheet_(APP_CONFIG.MASTER_TABS.CABANG);
-    const bahanSheet = getMasterSheet_(APP_CONFIG.MASTER_TABS.BAHAN_BAKU);
-    const tipeSheet = getMasterSheet_(APP_CONFIG.MASTER_TABS.TIPE_PENGELUARAN);
-    const cabangRows = readTable_(cabangSheet);
-    const bahanRows = readTable_(bahanSheet);
-    const tipeRows = readTable_(tipeSheet);
+    const snap = readMasterSnapshot_();
+    const cabangRows = snap.cabang;
+    const bahanRows = snap.bahanBaku;
+    const tipeRows = snap.tipePengeluaran;
 
     const cabangList = cabangRows.filter(r => {
       const st = String(r.STATUS || "").trim().toLowerCase();
@@ -829,9 +842,7 @@ function handleDashboardInit_(payload, session) {
 
     let master = null;
     if (isAdmin) {
-      const userSheet = getMasterSheet_(APP_CONFIG.MASTER_TABS.USER);
-      const sumberSheet = getMasterSheet_(APP_CONFIG.MASTER_TABS.SUMBER_PEMASUKAN);
-      const rawUsers = readTable_(userSheet);
+      const rawUsers = snap.user;
       const users = rawUsers.map(u => {
         const rawRole = String(u.ROLE || u.role || "Staff").trim().toLowerCase();
         return {
@@ -849,19 +860,23 @@ function handleDashboardInit_(payload, session) {
         cabang: cabangRows,
         bahanBaku: bahanRows,
         tipePengeluaran: tipeRows,
-        sumberPemasukan: readTable_(sumberSheet)
+        sumberPemasukan: snap.sumberPemasukan
       };
     }
 
+    // ponytail: admin sudah dapat list lengkap dari master — initial hanya
+    // yesterdayStock (cabang/bahan/tipe terduplikasi di master.* = -30-40% byte).
     return jsonResponse_(true, {
       reports: reports,
       master: master,
-      initial: {
-        cabangList: cabangList,
-        bahanBakuList: bahanBakuList,
-        tipePengeluaranList: tipePengeluaranList,
-        yesterdayStock: yesterdayStock
-      }
+      initial: master
+        ? { yesterdayStock: yesterdayStock }
+        : {
+            cabangList: cabangList,
+            bahanBakuList: bahanBakuList,
+            tipePengeluaranList: tipePengeluaranList,
+            yesterdayStock: yesterdayStock
+          }
     }, "Dashboard init berhasil dimuat.");
   } catch (err) {
     console.error("Gagal dashboard init:", err);

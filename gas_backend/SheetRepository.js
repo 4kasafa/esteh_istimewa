@@ -2,19 +2,34 @@
  * Repository akses Master Spreadsheet dan otomasi pembuatan File Bulanan di Google Drive
  */
 
+// ponytail: memo per eksekusi — openById/getSheetByName round-trip Drive tiap
+// panggilan (6x per bootstrap). Global GAS di-reset tiap cold start jadi tidak
+// basi lintas request; readTable_ sengaja TIDAK di-memo (basi setelah tulis).
+let MASTER_SS_ = null;
+let MASTER_SHEETS_ = null;
+
 function getMasterSpreadsheet_() {
+  if (MASTER_SS_) return MASTER_SS_;
+
   try {
     const active = SpreadsheetApp.getActiveSpreadsheet();
-    if (active) return active;
+    if (active) {
+      MASTER_SS_ = active;
+      return MASTER_SS_;
+    }
   } catch (e) {}
 
   if (APP_CONFIG.SPREADSHEET_ID) {
-    return SpreadsheetApp.openById(APP_CONFIG.SPREADSHEET_ID);
+    MASTER_SS_ = SpreadsheetApp.openById(APP_CONFIG.SPREADSHEET_ID);
+    return MASTER_SS_;
   }
   throw new Error("Spreadsheet ID belum diatur.");
 }
 
 function getMasterSheet_(tabName) {
+  if (!MASTER_SHEETS_) MASTER_SHEETS_ = {};
+  if (MASTER_SHEETS_[tabName]) return MASTER_SHEETS_[tabName];
+
   const ss = getMasterSpreadsheet_();
   let sheet = ss.getSheetByName(tabName);
   if (!sheet) {
@@ -23,6 +38,7 @@ function getMasterSheet_(tabName) {
   } else if (sheet.getLastRow() === 0) {
     initMasterTabDefaults_(sheet, tabName);
   }
+  MASTER_SHEETS_[tabName] = sheet;
   return sheet;
 }
 
@@ -178,9 +194,31 @@ function getFieldCaseInsensitive_(obj, header) {
   return "";
 }
 
+/**
+ * ponytail: prebuild Map normalized-key → value sekali per objek + headerKeys
+ * sekali per tabel, lalu lookup O(1) per sel — ganti nested loop H×K yang
+ * menjalankan regex per pasangan (B10).
+ */
+function buildRowLookup_(obj) {
+  const map = new Map();
+  Object.keys(obj).forEach(k => {
+    const nk = normalizeHeaderKey_(k);
+    if (!map.has(nk)) map.set(nk, obj[k]); // pertahankan key pertama (sama dengan loop urut)
+  });
+  return map;
+}
+
+function mapRowToHeaders_(headers, headerKeys, obj) {
+  const lookup = buildRowLookup_(obj);
+  return headers.map((h, i) => {
+    if (Object.prototype.hasOwnProperty.call(obj, h)) return obj[h];
+    const v = lookup.get(headerKeys[i]);
+    return v === undefined ? "" : v;
+  });
+}
+
 function appendTableRow_(sheet, headers, obj) {
-  const rowValues = headers.map(header => getFieldCaseInsensitive_(obj, header));
-  sheet.appendRow(rowValues);
+  sheet.appendRow(mapRowToHeaders_(headers, headers.map(normalizeHeaderKey_), obj));
   return sheet.getLastRow();
 }
 
@@ -190,7 +228,8 @@ function appendTableRow_(sheet, headers, obj) {
  */
 function appendRowsBatch_(sheet, headers, objs) {
   if (!sheet || !objs || objs.length === 0) return 0;
-  const values = objs.map(obj => headers.map(header => getFieldCaseInsensitive_(obj, header)));
+  const headerKeys = headers.map(normalizeHeaderKey_);
+  const values = objs.map(obj => mapRowToHeaders_(headers, headerKeys, obj));
   sheet.getRange(sheet.getLastRow() + 1, 1, values.length, headers.length).setValues(values);
   return values.length;
 }
@@ -213,7 +252,7 @@ function readIdColumnSet_(sheet) {
 }
 
 function updateTableRow_(sheet, headers, rowIndex, obj) {
-  const rowValues = headers.map(header => getFieldCaseInsensitive_(obj, header));
+  const rowValues = mapRowToHeaders_(headers, headers.map(normalizeHeaderKey_), obj);
   sheet.getRange(rowIndex, 1, 1, headers.length).setValues([rowValues]);
 }
 
@@ -240,25 +279,78 @@ function getBahanHeaderPrefix_(namaBahan) {
   return upper;
 }
 
+// ponytail: cache master 5 tab (User, Cabang, Bahan Baku, Tipe Pengeluaran,
+// Sumber Pemasukan) — 1 key, TTL 300 detik. Tulis lewat API selalu invalidate
+// via invalidateMasterCache_(). Ceiling: edit Sheet manual (onEdit / ketikan
+// tangan) baru terlihat maks 300 detik.
+const MASTER_CACHE_KEY_ = "esteh_master_v1";
+const MASTER_CACHE_TTL_ = 300;
+
+function getMasterCache_() {
+  try {
+    return CacheService.getScriptCache();
+  } catch (e) {
+    return null;
+  }
+}
+
+function invalidateMasterCache_() {
+  const cache = getMasterCache_();
+  if (!cache) return;
+  try {
+    cache.remove(MASTER_CACHE_KEY_);
+  } catch (e) {
+    console.warn("Gagal invalidate cache master:", e);
+  }
+}
+
+/**
+ * Snapshot 5 tab master sekali baca + sekali JSON per request.
+ * readTable_ sudah konversi Date → string, jadi aman di-serialize.
+ * Jalur TULIS master tetap readTable_ segar (butuh _rowIndex akurat).
+ */
+function readMasterSnapshot_() {
+  const cache = getMasterCache_();
+  if (cache) {
+    try {
+      const raw = cache.get(MASTER_CACHE_KEY_);
+      if (raw) return JSON.parse(raw);
+    } catch (e) {
+      console.warn("Gagal baca cache master:", e);
+    }
+  }
+
+  const snap = {
+    user: readTable_(getMasterSheet_(APP_CONFIG.MASTER_TABS.USER)),
+    cabang: readTable_(getMasterSheet_(APP_CONFIG.MASTER_TABS.CABANG)),
+    bahanBaku: readTable_(getMasterSheet_(APP_CONFIG.MASTER_TABS.BAHAN_BAKU)),
+    tipePengeluaran: readTable_(getMasterSheet_(APP_CONFIG.MASTER_TABS.TIPE_PENGELUARAN)),
+    sumberPemasukan: readTable_(getMasterSheet_(APP_CONFIG.MASTER_TABS.SUMBER_PEMASUKAN))
+  };
+
+  if (cache) {
+    try {
+      cache.put(MASTER_CACHE_KEY_, JSON.stringify(snap), MASTER_CACHE_TTL_);
+    } catch (e) {
+      console.warn("Gagal simpan cache master:", e);
+    }
+  }
+  return snap;
+}
+
 function readActiveBahanBaku_() {
-  const sheet = getMasterSheet_(APP_CONFIG.MASTER_TABS.BAHAN_BAKU);
-  const rows = readTable_(sheet);
-  return rows.filter(r => String(r.NAMA_BAHAN || r.ID_BAHAN || "").trim() !== "");
+  return readMasterSnapshot_().bahanBaku.filter(r => String(r.NAMA_BAHAN || r.ID_BAHAN || "").trim() !== "");
 }
 
 function readActiveCabang_() {
-  const sheet = getMasterSheet_(APP_CONFIG.MASTER_TABS.CABANG);
-  const rows = readTable_(sheet);
-  return rows.filter(r => {
+  return readMasterSnapshot_().cabang.filter(r => {
     const st = String(r.STATUS || "").trim().toLowerCase();
     return st === "aktif" || st === "active";
   });
 }
 
 function readActiveTipePengeluaran_() {
-  const sheet = getMasterSheet_(APP_CONFIG.MASTER_TABS.TIPE_PENGELUARAN);
-  const rows = readTable_(sheet);
-  return rows.filter(r => String(r.NAMA_TIPE || r.ID_TIPE || "").trim() !== "");
+  return readMasterSnapshot_().tipePengeluaran.filter(r => String(r.NAMA_TIPE || r.ID_TIPE || "").trim() !== "");
 }
 
 const COLUMN_WIDTH_MAP = {

@@ -1,6 +1,7 @@
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import App from "./App";
+import { setSwrCache } from "./utils/swrCache";
 
 function mockSuccess(data) {
   return Promise.resolve({
@@ -13,6 +14,43 @@ function createDefaultGasMock() {
   // Simulasi server: item yang dibuat via update_master ikut terbaca ulang.
   const dynamicUsers = [];
   const dynamicCabang = [];
+
+  const buildMaster = () => ({
+    users: [
+      { USERNAME: "admin", NAMA: "Admin Istimewa", ROLE: "admin", CABANG: "Semua Cabang" },
+      { USERNAME: "joko", NAMA: "Joko", ROLE: "staff", CABANG: "cabang_01" },
+      { USERNAME: "abu", NAMA: "Abu Arfan", ROLE: "staff", CABANG: "cabang_01" },
+      { USERNAME: "arief", NAMA: "Arief Rahman", ROLE: "staff", CABANG: "cabang_02" },
+      ...dynamicUsers,
+    ],
+    cabang: [
+      { ID_CABANG: "CAB-01", NAMA_CABANG: "cabang_01", ALAMAT: "Jl. Ahmad Yani" },
+      { ID_CABANG: "CAB-02", NAMA_CABANG: "cabang_02", ALAMAT: "Jl. Sudirman" },
+      ...dynamicCabang,
+    ],
+    bahanBaku: [
+      { ID_BAHAN: "BAHAN-01", NAMA_BAHAN: "Gelas Cup", SATUAN: "Cup" },
+      { ID_BAHAN: "BAHAN-02", NAMA_BAHAN: "Es Batu", SATUAN: "Plastik" },
+      { ID_BAHAN: "BAHAN-03", NAMA_BAHAN: "Teh", SATUAN: "Bungkus" },
+      { ID_BAHAN: "BAHAN-04", NAMA_BAHAN: "Gula", SATUAN: "Kg" },
+    ],
+    tipePengeluaran: [
+      { ID_TIPE: "EXP-01", NAMA_TIPE: "Beli Es Batu" },
+      { ID_TIPE: "EXP-02", NAMA_TIPE: "Air Galon" },
+      { ID_TIPE: "EXP-03", NAMA_TIPE: "Plastik / Sedotan" },
+      { ID_TIPE: "EXP-04", NAMA_TIPE: "Operasional Lain-lain" },
+    ],
+  });
+
+  const buildInitial = () => ({
+    cabangList: [
+      { ID_CABANG: "CAB-01", NAMA_CABANG: "cabang_01" },
+      { ID_CABANG: "CAB-02", NAMA_CABANG: "cabang_02" },
+    ],
+    bahanBakuList: buildMaster().bahanBaku,
+    tipePengeluaranList: buildMaster().tipePengeluaran,
+    yesterdayStock: {},
+  });
 
   return vi.fn((_, options) => {
     let payload = {};
@@ -99,62 +137,28 @@ function createDefaultGasMock() {
 
     if (action === "read_master") {
       return Promise.resolve({
-        json: () => Promise.resolve({
-          success: true,
-          data: {
-            users: [
-              { USERNAME: "admin", NAMA: "Admin Istimewa", ROLE: "admin", CABANG: "Semua Cabang" },
-              { USERNAME: "joko", NAMA: "Joko", ROLE: "staff", CABANG: "cabang_01" },
-              { USERNAME: "abu", NAMA: "Abu Arfan", ROLE: "staff", CABANG: "cabang_01" },
-              { USERNAME: "arief", NAMA: "Arief Rahman", ROLE: "staff", CABANG: "cabang_02" },
-              ...dynamicUsers,
-            ],
-            cabang: [
-              { ID_CABANG: "CAB-01", NAMA_CABANG: "cabang_01", ALAMAT: "Jl. Ahmad Yani" },
-              { ID_CABANG: "CAB-02", NAMA_CABANG: "cabang_02", ALAMAT: "Jl. Sudirman" },
-              ...dynamicCabang,
-            ],
-            bahanBaku: [
-              { ID_BAHAN: "BAHAN-01", NAMA_BAHAN: "Gelas Cup", SATUAN: "Cup" },
-              { ID_BAHAN: "BAHAN-02", NAMA_BAHAN: "Es Batu", SATUAN: "Plastik" },
-              { ID_BAHAN: "BAHAN-03", NAMA_BAHAN: "Teh", SATUAN: "Bungkus" },
-              { ID_BAHAN: "BAHAN-04", NAMA_BAHAN: "Gula", SATUAN: "Kg" },
-            ],
-            tipePengeluaran: [
-              { ID_TIPE: "EXP-01", NAMA_TIPE: "Beli Es Batu" },
-              { ID_TIPE: "EXP-02", NAMA_TIPE: "Air Galon" },
-              { ID_TIPE: "EXP-03", NAMA_TIPE: "Plastik / Sedotan" },
-              { ID_TIPE: "EXP-04", NAMA_TIPE: "Operasional Lain-lain" },
-            ],
-          },
-        }),
+        json: () => Promise.resolve({ success: true, data: buildMaster() }),
       });
     }
 
     if (action === "get_initial_form_data") {
       return Promise.resolve({
-        json: () => Promise.resolve({
-          success: true,
-          data: {
-            cabangList: [
-              { ID_CABANG: "CAB-01", NAMA_CABANG: "cabang_01" },
-              { ID_CABANG: "CAB-02", NAMA_CABANG: "cabang_02" },
-            ],
-            bahanBakuList: [
-              { ID_BAHAN: "BAHAN-01", NAMA_BAHAN: "Gelas Cup", SATUAN: "Cup" },
-              { ID_BAHAN: "BAHAN-02", NAMA_BAHAN: "Es Batu", SATUAN: "Plastik" },
-              { ID_BAHAN: "BAHAN-03", NAMA_BAHAN: "Teh", SATUAN: "Bungkus" },
-              { ID_BAHAN: "BAHAN-04", NAMA_BAHAN: "Gula", SATUAN: "Kg" },
-            ],
-            tipePengeluaranList: [
-              { ID_TIPE: "EXP-01", NAMA_TIPE: "Beli Es Batu" },
-              { ID_TIPE: "EXP-02", NAMA_TIPE: "Air Galon" },
-              { ID_TIPE: "EXP-03", NAMA_TIPE: "Plastik / Sedotan" },
-              { ID_TIPE: "EXP-04", NAMA_TIPE: "Operasional Lain-lain" },
-            ],
-            yesterdayStock: {},
-          },
-        }),
+        json: () => Promise.resolve({ success: true, data: buildInitial() }),
+      });
+    }
+
+    // Task05: boot memakai 1 batch tunggal — tanpa fallback read_master+initial.
+    if (action === "dashboard_init") {
+      return Promise.resolve({
+        json: () =>
+          Promise.resolve({
+            success: true,
+            data: {
+              reports: createdReport ? [createdReport] : [],
+              master: buildMaster(),
+              initial: buildInitial(),
+            },
+          }),
       });
     }
 
@@ -176,14 +180,15 @@ function createDefaultGasMock() {
         return mockSuccess(created);
       }
       if (op === "create" && target === "cabang") {
-        const created = {
-          ID_CABANG: `CAB-${10 + dynamicCabang.length}`,
-          NAMA_CABANG: d.NAMA_CABANG || "",
-          ALAMAT: d.ALAMAT || "-",
-          STATUS: d.STATUS || "Aktif",
-        };
-        dynamicCabang.push(created);
-        return mockSuccess(created);
+        // Bulk payload (create_many) datang sebagai array; tunggal sebagai object.
+        const rows = (Array.isArray(d) ? d : [d]).map((row, i) => ({
+          ID_CABANG: `CAB-${10 + dynamicCabang.length + i}`,
+          NAMA_CABANG: row.NAMA_CABANG || "",
+          ALAMAT: row.ALAMAT || "-",
+          STATUS: row.STATUS || "Aktif",
+        }));
+        dynamicCabang.push(...rows);
+        return mockSuccess(rows[0]);
       }
       return mockSuccess(null);
     }
@@ -278,8 +283,8 @@ describe("App smoke", () => {
           lastTodayReport: "04-03-2026 09:10:11",
         });
       }
-      if (payload.action === "read" || payload.action === "read_reports") {
-        return mockSuccess([{ id: 2, STAFF: "Staff Test" }]);
+      if (payload.action === "dashboard_init") {
+        return mockSuccess({ reports: [{ id: 2, STAFF: "Staff Test" }], master: {}, initial: {} });
       }
       return mockSuccess([]);
     });
@@ -291,10 +296,75 @@ describe("App smoke", () => {
     fireEvent.click(screen.getByRole("button", { name: /masuk/i }));
 
     await waitFor(() => {
-      const readCalls = fetchMock.mock.calls
+      const initCalls = fetchMock.mock.calls
         .map((call) => JSON.parse(call[1].body))
-        .filter((payload) => payload.action === "read" || payload.action === "read_reports");
-      expect(readCalls.some((payload) => payload.id === "04-03-2026 09:10:11")).toBe(true);
+        .filter((payload) => payload.action === "dashboard_init");
+      expect(initCalls.some((payload) => payload.id === "04-03-2026 09:10:11")).toBe(true);
+    });
+  });
+
+  // Task05: cold start = 1 log request tunggal, tanpa waterfall read_reports +
+  // read_master + get_initial_form_data.
+  it("boots with a single dashboard_init request", async () => {
+    render(<App />);
+
+    loginAsAdmin();
+
+    await waitFor(() => {
+      expect(screen.getAllByText(/Semua Cabang/i).length).toBeGreaterThan(0);
+    });
+
+    const dataActions = globalThis.fetch.mock.calls
+      .map((call) => JSON.parse(call[1].body).action)
+      .filter((action) => action !== "login" && action !== "logout");
+    expect(dataActions).toEqual(["dashboard_init"]);
+  });
+
+  // Regresi task05: boot berbasis cache tidak boleh tertutup overlay "Memuat
+  // data..." selama dashboard_init terbang (dulu: jeda 3-5 detik). Skenario = F5
+  // dengan sesi tersimpan (token ada → clearData tidak menghapus cache).
+  it("renders cached dashboard without fullscreen overlay while boot sync runs", async () => {
+    localStorage.setItem("gas_token", "token-boot");
+    localStorage.setItem("gas_user", JSON.stringify({ nama: "Admin Istimewa", role: "admin" }));
+    setSwrCache("reports_init", [
+      { "ID TRANSAKSI": "TRX-CACHED-01", STAFF: "Joko", "ARUS DANA": "cabang_01", "UANG MASUK": 5000 },
+    ]);
+    setSwrCache("master", {
+      cabang: [{ ID_CABANG: "CAB-01", NAMA_CABANG: "cabang_01" }],
+      bahanBaku: [],
+      tipePengeluaran: [],
+      sumberPemasukan: [],
+      users: [],
+      yesterdayStock: {},
+    });
+
+    let resolveInit = null;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((_, options) => {
+        const payload = JSON.parse(options.body);
+        if (payload.action === "dashboard_init") {
+          return new Promise((resolve) => {
+            resolveInit = resolve;
+          });
+        }
+        return mockSuccess([]);
+      })
+    );
+
+    render(<App />);
+
+    await waitFor(() => {
+      expect(resolveInit).toBeTruthy();
+      expect(screen.getByTitle(/pilih filter cabang/i)).toBeInTheDocument();
+      expect(screen.queryByText(/memuat data/i)).not.toBeInTheDocument();
+    });
+    // Sync jalan di latar dengan status halus, bukan Alert merah.
+    expect(screen.getByText(/sinkronisasi data/i)).toBeInTheDocument();
+
+    resolveInit(mockSuccess({ reports: [], master: {}, initial: {} }));
+    await waitFor(() => {
+      expect(screen.queryByText(/sinkronisasi data/i)).not.toBeInTheDocument();
     });
   });
 
@@ -533,7 +603,7 @@ describe("App smoke", () => {
     expect(screen.getByRole("heading", { level: 3, name: "Tambah Cabang Baru" })).toBeInTheDocument();
 
     // Fill form
-    const namaInput = screen.getByPlaceholderText(/outlet cabang 03/i);
+    const namaInput = screen.getByPlaceholderText(/outlet cabang/i);
     fireEvent.change(namaInput, { target: { value: "Outlet Cabang 03" } });
 
     // Submit form

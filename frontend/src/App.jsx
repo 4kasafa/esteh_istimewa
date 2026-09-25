@@ -25,7 +25,6 @@ export default function App() {
     request,
     login,
     logout,
-    validateSession,
     clearAuthError,
   } = useAuthSession(apiUrl, () => sessionExpiredHandlerRef.current());
 
@@ -56,10 +55,12 @@ export default function App() {
 
   const {
     reportRows,
-    dbRows,
     masterData,
     loadMasterData,
     loading: dataLoading,
+    isSyncing: dataSyncing,
+    syncNote: dataSyncNote,
+    saving: dataSaving,
     message: dataMessage,
     error: dataError,
     clearData,
@@ -83,12 +84,6 @@ export default function App() {
     window.addEventListener("error", handleError);
     return () => window.removeEventListener("error", handleError);
   }, []);
-
-  useEffect(() => {
-    validateSession().catch(err => {
-      console.error("Validation failed:", err);
-    });
-  }, [validateSession]);
 
   // ponytail: init sekali per token. user dibaca via ref agar tidak memicu
   // fetch ulang saat object user berganti identitas.
@@ -214,10 +209,12 @@ export default function App() {
         user={user}
         isAdmin={isAdmin}
         loading={loading}
+        isSyncing={dataSyncing}
+        syncNote={dataSyncNote}
+        saving={dataSaving}
         message={dataMessage}
         error={error}
         reportRows={reportRows}
-        dbRows={dbRows}
         masterData={masterData}
         pwa={pwa}
         onRefreshMonthly={(period, opts) => loadData({ monthly: isAdmin, period, silent: Boolean(opts?.silent) })}

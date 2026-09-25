@@ -19,7 +19,11 @@ export async function gasRequest({ apiUrl, body, token = "" }) {
   // Error level aplikasi (!json.success) tidak di-retry.
   const action = String(body?.action || "").toLowerCase();
   const isWrite = /^(create|update|delete|refresh_rekap|setup_rekap|sync_|fix_|cleanup_|reset_|clean_)/.test(action);
-  const maxAttempts = isWrite ? 1 : 2;
+  // ponytail: dashboard_init = jalur boot tunggal (task05). 1 attempt saja tanpa
+  // retry — tetapi timeout ikut default baca (25 dtk): cold start GAS + full scan
+  // real-world lebih lambat dari 15 dtk, dan UI sudah tidak diblokir (non-silent).
+  const isInit = action === "dashboard_init";
+  const maxAttempts = isInit || isWrite ? 1 : 2;
   const timeoutMs = isWrite ? 55000 : 25000;
   // ponytail: ukur waktu per request agar keluhan "lama" bisa dibuktikan
   // angkanya (eksekusi GAS vs transfer+parse ada di sini, bukan di log GAS).
@@ -38,6 +42,10 @@ export async function gasRequest({ apiUrl, body, token = "" }) {
       });
     } catch (err) {
       const isAbort = err?.name === "AbortError";
+      // ponytail: catat penyebab asli (timeout vs network) — pesan yang sudah
+      // di-map ke human-friendly menyebabkan debug "kenapa gagal" butuh tebakan.
+      console.warn(`[gas] ${action || "?"} attempt ${attempt}/${maxAttempts}:`,
+        isAbort ? `timeout ${timeoutMs}ms` : err?.message);
       lastError = new Error(
         mapApiErrorMessage(isAbort ? "timeout" : err?.message, "Gagal terhubung ke backend Google Apps Script.")
       );

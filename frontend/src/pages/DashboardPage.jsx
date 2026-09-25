@@ -28,6 +28,11 @@ export default function DashboardPage({
   user,
   isAdmin,
   loading,
+  // ponytail: sinkronisasi latar — indikator kecil, tanpa overlay & tanpa Alert merah.
+  isSyncing = false,
+  syncNote = "",
+  // ponytail: saving hanya mengunci tombol form (B9) — overlay tetap `loading`.
+  saving = false,
   message,
   error,
   reportRows,
@@ -266,12 +271,19 @@ export default function DashboardPage({
     }
   }, [isStaff, todayStaffReport, activeMenu]);
 
+  // ponytail: callback stabil — onChange inline membuat ReportForm menerima
+  // identitas baru tiap render (B11).
+  const handleReportFormChange = useCallback((key, value) => {
+    setReportForm((prev) => ({ ...prev, [key]: value }));
+  }, []);
+  const handleReportFormCancel = useCallback(() => setActiveMenu("laporan"), []);
+
   function handleSelectMenu(menuKey) {
     if (menuKey === "pemasukan") {
       // ponytail: tanpa refetch tiap buka tab (hemat 1-2 request berat).
       // yesterdayStock sudah diupdate lokal pasca-simpan; refresh hanya jika kosong.
       if (Object.keys(masterData?.yesterdayStock || {}).length === 0) {
-        onReloadMaster?.().catch?.(() => {});
+        onReloadMaster?.(undefined, true).catch?.(() => {});
       }
 
       const defaultBranch = selectedBranch.toLowerCase() !== "semua" ? selectedBranch : (branchList[0] || "");
@@ -457,6 +469,14 @@ export default function DashboardPage({
             )}
             {message && <Alert type="success">{message}</Alert>}
             {error && <Alert type="error">{error}</Alert>}
+            {(isSyncing || syncNote) && (
+              <p className="flex items-center gap-2 text-[11px] font-black uppercase tracking-wider text-brand-muted">
+                <span
+                  className={`h-1.5 w-1.5 rounded-full ${isSyncing ? "bg-brand-green animate-pulse" : "bg-amber-400"}`}
+                />
+                {isSyncing ? "Sinkronisasi data..." : syncNote}
+              </p>
+            )}
 
             <div className="animate-fade-in">
               <div hidden={activeMenu !== "dashboard"} style={{ display: activeMenu === "dashboard" ? "block" : "none" }}>
@@ -464,7 +484,6 @@ export default function DashboardPage({
                 <OverviewPanel
                   reportRows={filteredReportRows}
                   dbRows={filteredReportRows}
-                  loading={loading}
                   periodFilter={periodFilter}
                   onPeriodFilterChange={handlePeriodFilterChange}
                 />
@@ -490,7 +509,7 @@ export default function DashboardPage({
                 {visitedMenus.has("pemasukan") && (
                 <ReportForm
                   value={reportForm}
-                  loading={loading}
+                  loading={loading || saving}
                   user={user}
                   isAdmin={isAdmin}
                   viewportMode={viewportMode}
@@ -501,8 +520,8 @@ export default function DashboardPage({
                   availableStaff={availableStaff}
                   yesterdayStock={masterData?.yesterdayStock || {}}
                   onSubmit={handleFormSubmit}
-                  onCancel={() => setActiveMenu("laporan")}
-                  onChange={(key, value) => setReportForm((prev) => ({ ...prev, [key]: value }))}
+                  onCancel={handleReportFormCancel}
+                  onChange={handleReportFormChange}
                 />
                 )}
               </div>

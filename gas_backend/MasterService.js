@@ -6,15 +6,12 @@ function handleReadMaster_(session) {
   // Hanya admin yang bisa membaca seluruh data master
   ensureAdmin_(session);
 
-  const userSheet = getMasterSheet_(APP_CONFIG.MASTER_TABS.USER);
-  const cabangSheet = getMasterSheet_(APP_CONFIG.MASTER_TABS.CABANG);
-  const bahanSheet = getMasterSheet_(APP_CONFIG.MASTER_TABS.BAHAN_BAKU);
-  const tipeExpSheet = getMasterSheet_(APP_CONFIG.MASTER_TABS.TIPE_PENGELUARAN);
-  const sumberSheet = getMasterSheet_(APP_CONFIG.MASTER_TABS.SUMBER_PEMASUKAN);
+  // ponytail: snapshot 5 tab dari cache (TTL 300s) — 5 getValues → 1 cache.get.
+  const snap = readMasterSnapshot_();
 
   // ponytail: tanpa backfill tulis di jalur baca (hemat 2 scan + N setValue + flush).
   // Backfill eksplisit via update_master / setup saja.
-  const rawUsers = readTable_(userSheet);
+  const rawUsers = snap.user;
   const safeUsers = rawUsers.map(u => {
     const rawRole = String(u.ROLE || u.role || "Staff").trim().toLowerCase();
     const resolvedRole = rawRole.includes("admin") ? "Admin" : "Staff";
@@ -45,10 +42,10 @@ function handleReadMaster_(session) {
 
   return jsonResponse_(true, {
     users: safeUsers,
-    cabang: readTable_(cabangSheet),
-    bahanBaku: readTable_(bahanSheet),
-    tipePengeluaran: readTable_(tipeExpSheet),
-    sumberPemasukan: readTable_(sumberSheet)
+    cabang: snap.cabang,
+    bahanBaku: snap.bahanBaku,
+    tipePengeluaran: snap.tipePengeluaran,
+    sumberPemasukan: snap.sumberPemasukan
   }, "Data master berhasil dimuat.");
 }
 
@@ -249,6 +246,7 @@ function handleUpdateMaster_(payload, session) {
       }
     }
 
+    invalidateMasterCache_();
     return jsonResponse_(true, item, "Data master " + target + " berhasil ditambahkan.");
   }
 
@@ -330,6 +328,7 @@ function handleUpdateMaster_(payload, session) {
       }
     }
 
+    invalidateMasterCache_();
     return jsonResponse_(true, updated, "Data master " + target + " berhasil diperbarui.");
   }
 
@@ -404,7 +403,7 @@ function handleUpdateMaster_(payload, session) {
     // Jika Bahan Baku dihapus, sinkronkan dan pangkas kolom di Transaksi
     if (target === "bahan_baku" || target === "bahan") {
       try {
-        const curSs = getOrCreateMonthlySpreadsheet_(getCurrentPeriod_());
+        const curSs = getOrCreateMonthlySpreadsheet_(getCurrentPeriod_(), { skipEnsure: true });
         const tSheet = curSs.getSheetByName(APP_CONFIG.MONTHLY_TABS.TRANSAKSI);
         if (tSheet) syncMonthlyTransaksiHeaders_(tSheet);
       } catch (eBahanSync) {
@@ -412,6 +411,7 @@ function handleUpdateMaster_(payload, session) {
       }
     }
 
+    invalidateMasterCache_();
     return jsonResponse_(true, null, "Data master " + target + " berhasil dihapus.");
   }
 
@@ -528,6 +528,7 @@ function handleCreateManyMaster_(session, target, tabName, idField, sheet, heade
     console.warn("Gagal sinkronisasi bulk master " + target + ":", syncErr);
   }
 
+  invalidateMasterCache_();
   return jsonResponse_(true, { added: added, skipped: skipped },
     "Data master " + target + " berhasil ditambahkan (" + added.length + " baru" +
     (skipped.length > 0 ? ", " + skipped.length + " sudah ada" : "") + ").");
