@@ -2,7 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { DASHBOARD_MENU } from "../constants/menu";
 import { REPORT_FORM_DEFAULT } from "../constants/forms";
 import Alert from "../components/common/Alert";
-import KasKeluarPanel from "../components/dashboard/KasKeluarPanel";
+import PemasukanPanel from "../components/dashboard/PemasukanPanel";
+import PengeluaranPanel from "../components/dashboard/PengeluaranPanel";
 import Sidebar from "../components/layout/Sidebar";
 import Topbar from "../components/layout/Topbar";
 import OverviewPanel from "../components/dashboard/OverviewPanel";
@@ -54,11 +55,11 @@ export default function DashboardPage({
   onLogout,
 }) {
   const isStaff = String(user?.role || "").toLowerCase() === "staff";
-  const [activeMenu, setActiveMenu] = useState(() => (isStaff ? "laporan" : "dashboard"));
+  const [activeMenu, setActiveMenu] = useState(() => (isStaff ? "laporan_harian" : "dashboard"));
   // ponytail: panel berat (overview/laporan/form) di-mount saat pertama dikunjungi
   // saja — bukan semuanya sekaligus. Setelah dikunjungi tetap mounted agar state
   // form tidak hilang. Memotong cascade ~20 useMemo O(n) saat data tiba.
-  const [visitedMenus, setVisitedMenus] = useState(() => new Set([isStaff ? "laporan" : "dashboard"]));
+  const [visitedMenus, setVisitedMenus] = useState(() => new Set([isStaff ? "laporan_harian" : "dashboard"]));
   useEffect(() => {
     setVisitedMenus((prev) => {
       if (prev.has(activeMenu)) return prev;
@@ -104,6 +105,10 @@ export default function DashboardPage({
     return masterData?.tipePengeluaran || masterData?.tipePengeluaranList || [];
   }, [masterData]);
 
+  const availableSumberPemasukan = useMemo(() => {
+    return masterData?.sumberPemasukan || masterData?.sumberPemasukanList || [];
+  }, [masterData]);
+
   const availableStaff = useMemo(() => {
     const rawUsers = masterData?.users || masterData?.staffList || [];
     const names = rawUsers.map((u) => (typeof u === "string" ? u : u["NAMA / USERNAME"] || u["NAMA/USERNAME"] || u.NAMA || u.USERNAME)).filter(Boolean);
@@ -144,7 +149,10 @@ export default function DashboardPage({
   
   const sidebarMenu = useMemo(() => {
     if (isStaff) {
-      return [{ key: "laporan", label: "Laporan Hari Ini", icon: "laporan" }];
+      return [
+        { key: "laporan_harian", label: "Laporan Hari Ini", icon: "laporan_harian" },
+        { key: "laporan", label: "Laporan", icon: "laporan" },
+      ];
     }
     if (isAdmin) {
       return DASHBOARD_MENU;
@@ -170,7 +178,7 @@ export default function DashboardPage({
   );
 
   useEffect(() => {
-    const allowedKeys = new Set([...sidebarMenu.map((item) => item.key), "pemasukan"]);
+    const allowedKeys = new Set([...sidebarMenu.map((item) => item.key), "pemasukan", "pengeluaran", "laporan_harian"]);
     if (!allowedKeys.has(activeMenu)) {
       setActiveMenu(sidebarMenu[0]?.key || "laporan");
     }
@@ -266,7 +274,7 @@ export default function DashboardPage({
 
   // Logic for Staff lastTodayReport
   useEffect(() => {
-    if (isStaff && todayStaffReport && activeMenu === "pemasukan") {
+    if (isStaff && todayStaffReport && activeMenu === "laporan_harian") {
       setReportForm({ ...REPORT_FORM_DEFAULT, ...todayStaffReport });
       setIsEditMode(true);
     }
@@ -280,7 +288,7 @@ export default function DashboardPage({
   const handleReportFormCancel = useCallback(() => setActiveMenu("laporan"), []);
 
   function handleSelectMenu(menuKey) {
-    if (menuKey === "pemasukan") {
+    if (menuKey === "laporan_harian") {
       // ponytail: tanpa refetch tiap buka tab (hemat 1-2 request berat).
       // yesterdayStock sudah diupdate lokal pasca-simpan; refresh hanya jika kosong.
       if (Object.keys(masterData?.yesterdayStock || {}).length === 0) {
@@ -333,7 +341,7 @@ export default function DashboardPage({
     if (!rowData) return;
     setReportForm({ ...REPORT_FORM_DEFAULT, ...rowData });
     setIsEditMode(true);
-    setActiveMenu("pemasukan");
+    setActiveMenu("laporan_harian");
   }
 
   function handleAddReport() {
@@ -344,8 +352,10 @@ export default function DashboardPage({
     const defaultBranch = selectedBranch.toLowerCase() !== "semua" ? selectedBranch : (branchList[0] || "");
     setIsEditMode(false);
     setReportForm({ ...REPORT_FORM_DEFAULT, "ARUS DANA": defaultBranch });
-    setActiveMenu("pemasukan");
+    setActiveMenu("laporan_harian");
   }
+
+  const handleKasSuccess = useCallback(() => setActiveMenu("laporan"), []);
 
   async function handleFormSubmit(e) {
     e.preventDefault();
@@ -471,7 +481,7 @@ export default function DashboardPage({
             {isInitialLoading ? (
               activeMenu === "dashboard" ? <OverviewSkeleton /> :
               activeMenu === "laporan" ? <ReportSkeleton /> :
-              (activeMenu === "pemasukan" || activeMenu === "pengeluaran") ? <FormSkeleton /> :
+              (activeMenu === "laporan_harian" || activeMenu === "pemasukan" || activeMenu === "pengeluaran") ? <FormSkeleton /> :
               <MasterPanelSkeleton />
             ) : (
             <div className={`transition-opacity duration-200 ${loading ? "opacity-75 pointer-events-none" : "opacity-100"}`}>
@@ -502,8 +512,8 @@ export default function DashboardPage({
                   )}
               </div>
 
-              <div hidden={activeMenu !== "pemasukan"} style={{ display: activeMenu === "pemasukan" ? "block" : "none" }}>
-                {visitedMenus.has("pemasukan") && (
+              <div hidden={activeMenu !== "laporan_harian"} style={{ display: activeMenu === "laporan_harian" ? "block" : "none" }}>
+                {visitedMenus.has("laporan_harian") && (
                 <ReportForm
                   value={reportForm}
                   loading={loading || saving}
@@ -523,17 +533,33 @@ export default function DashboardPage({
                 )}
               </div>
 
-              <div hidden={activeMenu !== "pengeluaran"} style={{ display: activeMenu === "pengeluaran" ? "block" : "none" }}>
-                {activeMenu === "pengeluaran" && (
-                  <KasKeluarPanel
+              <div hidden={activeMenu !== "pemasukan"} style={{ display: activeMenu === "pemasukan" ? "block" : "none" }}>
+                {visitedMenus.has("pemasukan") && (
+                  <PemasukanPanel
                     request={request}
-                    onCreateReport={onCreateReport}
+                    onCreateReport={(payload) => onCreateReport(payload, period)}
+                    onSuccess={handleKasSuccess}
                     branches={branchList}
-                    staff={availableStaff}
-                    availableTipePengeluaran={availableTipePengeluaran}
+                    availableSumberPemasukan={availableSumberPemasukan}
                     selectedBranch={selectedBranch}
-                    isAdmin={isAdmin}
                     user={user}
+                    onReloadMaster={onReloadMaster}
+                  />
+                )}
+              </div>
+
+              <div hidden={activeMenu !== "pengeluaran"} style={{ display: activeMenu === "pengeluaran" ? "block" : "none" }}>
+                {visitedMenus.has("pengeluaran") && (
+                  <PengeluaranPanel
+                    request={request}
+                    onCreateReport={(payload) => onCreateReport(payload, period)}
+                    onSuccess={handleKasSuccess}
+                    branches={branchList}
+                    availableTipePengeluaran={availableTipePengeluaran}
+                    availableBahan={availableBahan}
+                    selectedBranch={selectedBranch}
+                    user={user}
+                    onReloadMaster={onReloadMaster}
                   />
                 )}
               </div>

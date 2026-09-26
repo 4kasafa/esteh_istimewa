@@ -4,6 +4,7 @@ import {
   BadgeCheck,
   ChevronLeft,
   ChevronRight,
+  ClipboardCheck,
   FileText,
   Info,
   LayoutDashboard,
@@ -20,6 +21,7 @@ import { useEffect, useRef, useState } from "react";
 const ICON_MAP = {
   dashboard: LayoutDashboard,
   laporan: FileText,
+  laporan_harian: ClipboardCheck,
   pemasukan: ArrowDownCircle,
   pengeluaran: ArrowUpCircle,
   stok: Package,

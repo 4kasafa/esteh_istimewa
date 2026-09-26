@@ -36,12 +36,13 @@ describe("ReportForm Component", () => {
     render(<ReportForm {...defaultProps} viewportMode="mobile" />);
 
     expect(screen.getByRole("progressbar")).toBeInTheDocument();
-    expect(screen.queryByText(/Langkah 1 dari 4/i)).not.toBeInTheDocument();
+    expect(screen.getByText(/Langkah 1 dari 4/i)).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Lompat ke Info Outlet/i })).not.toBeInTheDocument();
 
-    // Floating navigation bar buttons
+    // Floating navigation bar buttons with text labels
     expect(screen.getByRole("button", { name: /^kembali$/i })).toBeDisabled();
-    expect(screen.getByRole("button", { name: /selanjutnya/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^kembali$/i })).toHaveTextContent(/kembali/i);
+    expect(screen.getByRole("button", { name: /lanjut/i })).toBeInTheDocument();
   });
 
   it("renders standard single-page layout without stepper or floating bar on desktop viewport", () => {
@@ -67,19 +68,22 @@ describe("ReportForm Component", () => {
     expect(screen.getByText(/1\. Informasi Outlet & Jadwal/i)).toBeInTheDocument();
     expect(screen.queryByText(/2\. Stok Bahan Baku/i)).not.toBeInTheDocument();
 
-    const nextBtn = screen.getByRole("button", { name: /selanjutnya/i });
+    const nextBtn = screen.getByRole("button", { name: /lanjut/i });
 
     // Advance to Step 2
     fireEvent.click(nextBtn);
+    expect(screen.getByText(/Langkah 2 dari 4/i)).toBeInTheDocument();
     expect(screen.getByText(/2\. Stok Bahan Baku/i)).toBeInTheDocument();
     expect(screen.queryByText(/1\. Informasi Outlet & Jadwal/i)).not.toBeInTheDocument();
 
     // Advance to Step 3
-    fireEvent.click(nextBtn);
+    fireEvent.click(screen.getByRole("button", { name: /lanjut/i }));
+    expect(screen.getByText(/Langkah 3 dari 4/i)).toBeInTheDocument();
     expect(screen.getByText(/3\. Pengeluaran Operasional/i)).toBeInTheDocument();
 
     // Advance to Step 4
-    fireEvent.click(nextBtn);
+    fireEvent.click(screen.getByRole("button", { name: /lanjut/i }));
+    expect(screen.getByText(/Langkah 4 dari 4/i)).toBeInTheDocument();
     expect(screen.getByText(/4\. Kas Setoran & Rangkuman Finansial/i)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /kirim laporan/i })).toBeInTheDocument();
   });
@@ -152,32 +156,36 @@ describe("ReportForm Component", () => {
     expect(tipeInput.tagName).toBe("INPUT");
   });
 
-  it("places submit button at bottom of Step 4 and uses icon-only navigation buttons without text", () => {
+  it("places submit button at bottom of Step 4 and uses text navigation buttons", () => {
     const onSubmitMock = vi.fn((e) => e.preventDefault());
     render(<ReportForm {...defaultProps} viewportMode="mobile" onSubmit={onSubmitMock} />);
 
-    // On Step 1: Navigation buttons exist with accessible names but without visible text labels
+    // On Step 1: Navigation buttons with visible text labels
     const prevBtn = screen.getByRole("button", { name: /^kembali$/i });
-    const nextBtn = screen.getByRole("button", { name: /^selanjutnya$/i });
+    const nextBtn = screen.getByRole("button", { name: /^lanjut$/i });
     expect(prevBtn).toBeInTheDocument();
     expect(nextBtn).toBeInTheDocument();
-    expect(prevBtn.textContent.trim()).toBe("");
-    expect(nextBtn.textContent.trim()).toBe("");
+    expect(prevBtn).toHaveTextContent(/kembali/i);
+    expect(nextBtn).toHaveTextContent(/lanjut/i);
+    expect(screen.getByText(/Langkah 1 dari 4/i)).toBeInTheDocument();
 
     // Submit button is NOT on Step 1 (it is placed at the bottom of Step 4)
     expect(screen.queryByRole("button", { name: /kirim laporan/i })).not.toBeInTheDocument();
 
-    // Clicking Selanjutnya advances through steps without triggering submit
+    // Clicking Lanjut advances through steps without triggering submit
     fireEvent.click(nextBtn);
     expect(onSubmitMock).not.toHaveBeenCalled();
+    expect(screen.getByText(/Langkah 2 dari 4/i)).toBeInTheDocument();
     expect(screen.getByText(/2\. Stok Bahan Baku/i)).toBeInTheDocument();
 
-    fireEvent.click(nextBtn);
+    fireEvent.click(screen.getByRole("button", { name: /^lanjut$/i }));
     expect(onSubmitMock).not.toHaveBeenCalled();
+    expect(screen.getByText(/Langkah 3 dari 4/i)).toBeInTheDocument();
     expect(screen.getByText(/3\. Pengeluaran Operasional/i)).toBeInTheDocument();
 
-    fireEvent.click(nextBtn);
+    fireEvent.click(screen.getByRole("button", { name: /^lanjut$/i }));
     expect(onSubmitMock).not.toHaveBeenCalled();
+    expect(screen.getByText(/Langkah 4 dari 4/i)).toBeInTheDocument();
     expect(screen.getByText(/4\. Kas Setoran & Rangkuman Finansial/i)).toBeInTheDocument();
 
     // On Step 4: Submit button is now present at the bottom of Step 4
@@ -188,10 +196,31 @@ describe("ReportForm Component", () => {
     fireEvent.click(submitBtn);
     expect(onSubmitMock).toHaveBeenCalledTimes(1);
 
-    // Clicking Selanjutnya on Step 4 loops back to Step 1 for review without submitting
-    fireEvent.click(nextBtn);
-    expect(screen.getByText(/1\. Informasi Outlet & Jadwal/i)).toBeInTheDocument();
-    expect(onSubmitMock).toHaveBeenCalledTimes(1);
+    // On Step 4 the floating next button is replaced by a hint (submit lives in section)
+    expect(screen.queryByRole("button", { name: /^lanjut$/i })).not.toBeInTheDocument();
+    // Back button with text still available on Step 4
+    expect(screen.getByRole("button", { name: /^kembali$/i })).toHaveTextContent(/kembali/i);
+  });
+
+  it("locks tanggal for staff but keeps it editable for admin", () => {
+    const { rerender } = render(<ReportForm {...defaultProps} isAdmin={false} />);
+    expect(screen.getByLabelText(/Tanggal Laporan/i)).toBeDisabled();
+
+    rerender(<ReportForm {...defaultProps} isAdmin={true} user={{ nama: "Admin", role: "admin" }} />);
+    expect(screen.getByLabelText(/Tanggal Laporan/i)).not.toBeDisabled();
+  });
+
+  it("defaults cabang to user penugasan when available", () => {
+    render(
+      <ReportForm
+        {...defaultProps}
+        viewportMode="desktop"
+        value={{ ...defaultProps.value, CABANG: "", "ARUS DANA": "" }}
+        user={{ nama: "Joko", role: "staff", cabang: "Cabang 2" }}
+        isAdmin={false}
+      />
+    );
+    expect(screen.getByText("Cabang 2")).toBeInTheDocument();
   });
 });
 

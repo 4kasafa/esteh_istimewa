@@ -1,7 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import {
   ArrowLeft,
-  ArrowRight,
   Plus,
   Trash2,
   Package,
@@ -48,7 +47,13 @@ export default function ReportForm({
     return [];
   }, [availableStaff]);
 
-  const currentCabang = value.CABANG || value["ARUS DANA"] || branchOptions[0] || "";
+  const currentCabang =
+    value.CABANG ||
+    value["ARUS DANA"] ||
+    (user?.cabang && branchOptions.includes(user.cabang) ? user.cabang : "") ||
+    (user?.CABANG && branchOptions.includes(user.CABANG) ? user.CABANG : "") ||
+    branchOptions[0] ||
+    "";
   const currentStaff = value.STAFF || user?.nama || user?.username || staffOptions[0] || "";
 
   useEffect(() => {
@@ -317,15 +322,17 @@ export default function ReportForm({
                 id="form-tanggal"
                 type="date"
                 max={todayString}
-                disabled={isEdit}
+                disabled={isEdit || !isAdmin}
                 value={value.TANGGAL || todayString}
                 onChange={(e) => onChange("TANGGAL", e.target.value)}
-                className={`${inputStyle} ${isEdit ? "bg-brand-bg/60 cursor-not-allowed opacity-75" : ""}`}
+                className={`${inputStyle} ${isEdit || !isAdmin ? "bg-brand-bg/60 cursor-not-allowed opacity-75" : ""}`}
                 required
               />
-              {isEdit && (
+              {(isEdit || !isAdmin) && (
                 <p className="text-[10px] font-bold text-brand-muted mt-1.5 ml-1 opacity-70">
-                  Tanggal tidak dapat diubah pada mode edit.
+                  {isEdit
+                    ? "Tanggal tidak dapat diubah pada mode edit."
+                    : "Tanggal otomatis hari ini (Terkunci untuk Staff)."}
                 </p>
               )}
             </div>
@@ -690,8 +697,8 @@ export default function ReportForm({
       {/* Sticky Floating Bottom Bar Khusus Mode Wizard (Mobile / Tablet) */}
       {isWizard && (
         <div className="fixed bottom-0 inset-x-0 z-40 bg-white/95 backdrop-blur-md border-t border-brand-green/15 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] shadow-2xl">
-          <div className="max-w-4xl mx-auto flex items-center justify-between px-2">
-            {/* Tombol Kembali (Tanpa Text) */}
+          <div className="max-w-4xl mx-auto flex items-center justify-between gap-2 px-2">
+            {/* Tombol Kiri: teks kecil "< kembali" */}
             <button
               type="button"
               onClick={handlePrevStep}
@@ -699,7 +706,7 @@ export default function ReportForm({
               aria-label="Kembali"
               title="Kembali"
               className={`
-                inline-flex items-center justify-center w-11 h-11 rounded-2xl border transition-all
+                inline-flex items-center justify-center min-w-20 px-3 h-11 rounded-2xl border text-xs font-black transition-all
                 ${
                   currentStep === 1
                     ? "border-brand-green/10 text-brand-muted/30 cursor-not-allowed opacity-40 bg-brand-bg/30"
@@ -707,26 +714,30 @@ export default function ReportForm({
                 }
               `}
             >
-              <ArrowLeft size={18} />
+              <span className="text-xs">&lt; kembali</span>
             </button>
 
-            {/* Stepper Indicator */}
-            <div className="flex items-center gap-1 text-xs font-black text-brand-muted">
-              <span>{currentStep}</span>
-              <span className="opacity-40">/</span>
-              <span>4</span>
+            {/* Indikator Tengah */}
+            <div className="flex items-center gap-1 text-xs font-black text-brand-muted whitespace-nowrap">
+              <span>Langkah {currentStep} dari 4</span>
             </div>
 
-            {/* Tombol Selanjutnya (Tanpa Text, sama seperti Tombol Kembali) */}
-            <button
-              type="button"
-              onClick={handleNextStep}
-              aria-label="Selanjutnya"
-              title={currentStep === 4 ? "Review kembali langkah 1" : "Lanjut ke langkah berikutnya"}
-              className="inline-flex items-center justify-center w-11 h-11 rounded-2xl border border-brand-green/20 bg-white text-brand-green-dark hover:bg-brand-bg shadow-xs cursor-pointer active:scale-95 transition-all"
-            >
-              <ArrowRight size={18} />
-            </button>
+            {/* Tombol Kanan (Langkah 1-3): teks kecil "lanjut >" */}
+            {currentStep < 4 ? (
+              <button
+                type="button"
+                onClick={handleNextStep}
+                aria-label="Lanjut"
+                title="Lanjut ke langkah berikutnya"
+                className="inline-flex items-center justify-center min-w-20 px-3 h-11 rounded-2xl border border-brand-green/20 bg-white text-brand-green-dark hover:bg-brand-bg shadow-xs cursor-pointer active:scale-95 transition-all text-xs font-black"
+              >
+                <span className="text-xs">lanjut &gt;</span>
+              </button>
+            ) : (
+              <span className="inline-flex items-center justify-center min-w-20 px-3 h-11 text-[11px] font-bold text-brand-muted/60">
+                Isi &amp; kirim ⬆
+              </span>
+            )}
           </div>
         </div>
       )}

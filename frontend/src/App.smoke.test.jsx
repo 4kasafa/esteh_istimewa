@@ -396,7 +396,25 @@ describe("App smoke", () => {
     expect(updatedTrigger).toHaveTextContent(/cabang_01/i);
   });
 
-  it("opens Pemasukan menu without error and populates dynamic branches and fields", async () => {
+  it("opens Laporan Harian menu without error and populates dynamic branches and fields", async () => {
+    render(<App />);
+
+    loginAsAdmin();
+
+    await waitFor(() => {
+      expect(screen.getAllByText(/Semua Cabang/i).length).toBeGreaterThan(0);
+    });
+
+    // Click Laporan Harian menu in sidebar
+    fireEvent.click(screen.getByRole("button", { name: /^laporan harian$/i }));
+
+    // Verify closing-shift form opened
+    expect(screen.getByRole("heading", { level: 2, name: /laporan baru/i })).toBeInTheDocument();
+    expect(screen.getByText(/Gelas Cup/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/Uang Setoran/i).length).toBeGreaterThan(0);
+  });
+
+  it("opens Pemasukan menu as direct cash-in form with sumber master", async () => {
     render(<App />);
 
     loginAsAdmin();
@@ -408,10 +426,27 @@ describe("App smoke", () => {
     // Click Pemasukan menu in sidebar
     fireEvent.click(screen.getByRole("button", { name: /^pemasukan$/i }));
 
-    // Verify form opened
-    expect(screen.getByRole("heading", { level: 2, name: /laporan baru/i })).toBeInTheDocument();
-    expect(screen.getByText(/Gelas Cup/i)).toBeInTheDocument();
-    expect(screen.getAllByText(/Uang Setoran/i).length).toBeGreaterThan(0);
+    // Verify PemasukanPanel opened (bukan form closing)
+    expect(screen.getByRole("heading", { level: 2, name: /^pemasukan$/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /tambah sumber pemasukan/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /simpan pemasukan/i })).toBeInTheDocument();
+    expect(screen.queryByText(/Gelas Cup/i)).not.toBeInTheDocument();
+  });
+
+  it("opens Pengeluaran menu as direct cash-out form", async () => {
+    render(<App />);
+
+    loginAsAdmin();
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /^pengeluaran$/i })).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /^pengeluaran$/i }));
+
+    expect(screen.getByRole("heading", { level: 2, name: /^pengeluaran$/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /tambah sumber pengeluaran/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /simpan pengeluaran/i })).toBeInTheDocument();
   });
 
   it("staff only sees 'Laporan Hari Ini' menu, default 0 reports, switches to edit mode once reported, and resets on logout", async () => {
@@ -424,8 +459,9 @@ describe("App smoke", () => {
       expect(screen.getAllByText(/Laporan Hari Ini/i).length).toBeGreaterThan(0);
     });
 
-    // Staff ONLY sees "Laporan Hari Ini" menu in sidebar
+    // Staff sees Laporan Harian (closing form) + Laporan (tabel), tanpa menu admin
     expect(screen.getByRole("button", { name: /^laporan hari ini$/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^laporan$/i })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /^pemasukan$/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /^pengeluaran$/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /^karyawan$/i })).not.toBeInTheDocument();
@@ -435,15 +471,23 @@ describe("App smoke", () => {
     expect(screen.queryByTitle(/pilih filter cabang/i)).not.toBeInTheDocument();
     expect(screen.getByText("Panel Staff")).toBeInTheDocument();
 
+    // Default: form Laporan Harian langsung tampil (closing shift)
+    expect(screen.getByRole("heading", { level: 2, name: "Laporan Baru" })).toBeInTheDocument();
+
+    // Buka tabel laporan untuk cek status hari ini
+    fireEvent.click(screen.getByRole("button", { name: /^laporan$/i }));
+
     // Default: 0 reports for today
-    expect(screen.getByText("Belum ada laporan hari ini")).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText("Belum ada laporan hari ini")).toBeInTheDocument();
+    });
     const createBtn = screen.getByRole("button", { name: /^buat laporan hari ini$/i });
     expect(createBtn).toBeInTheDocument();
 
     // Click "Buat Laporan Hari Ini" to create new report
     fireEvent.click(createBtn);
 
-    // Form opens in create mode
+    // Form opens in create mode (menu Laporan Harian)
     expect(screen.getByRole("heading", { level: 2, name: "Laporan Baru" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /kembali ke laporan/i })).toBeInTheDocument();
 
@@ -483,6 +527,11 @@ describe("App smoke", () => {
 
     // Login as staff again -> report is reset
     loginAsStaff();
+
+    await waitFor(() => {
+      expect(screen.getByRole("heading", { level: 2, name: "Laporan Baru" })).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByRole("button", { name: /^laporan$/i }));
 
     await waitFor(() => {
       expect(screen.getByText("Belum ada laporan hari ini")).toBeInTheDocument();
@@ -622,13 +671,10 @@ describe("App smoke", () => {
     // Login as staff
     loginAsStaff();
 
+    // Default langsung form Laporan Harian (closing shift)
     await waitFor(() => {
-      expect(screen.getByRole("button", { name: /^buat laporan hari ini$/i })).toBeInTheDocument();
+      expect(screen.getByRole("heading", { level: 2, name: "Laporan Baru" })).toBeInTheDocument();
     });
-
-    // Open report form
-    fireEvent.click(screen.getByRole("button", { name: /^buat laporan hari ini$/i }));
-    expect(screen.getByRole("heading", { level: 2, name: "Laporan Baru" })).toBeInTheDocument();
 
     // Verify fields for Gelas Cup match standard stock items: Stok Awal and Stok Sisa
     await waitFor(() => {
@@ -663,12 +709,10 @@ describe("App smoke", () => {
     // Login as staff
     loginAsStaff();
 
+    // Default langsung form Laporan Harian (closing shift)
     await waitFor(() => {
-      expect(screen.getByRole("button", { name: /^buat laporan hari ini$/i })).toBeInTheDocument();
+      expect(screen.getByRole("heading", { level: 2, name: "Laporan Baru" })).toBeInTheDocument();
     });
-
-    // Click "Buat Laporan Hari Ini"
-    fireEvent.click(screen.getByRole("button", { name: /^buat laporan hari ini$/i }));
 
     await waitFor(() => {
       expect(screen.getByLabelText("Stok Awal Gelas Cup")).toBeInTheDocument();
