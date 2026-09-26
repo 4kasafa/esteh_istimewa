@@ -243,6 +243,9 @@ function ReportTable({
   const columns = useMemo(() => {
     if (!rows.length) return [];
     const blacklist = [
+      "ID TRANSAKSI",
+      "NO TRANSAKSI",
+      "id",
       "STOK AWAL GELAS",
       "STOK AKHIR GELAS",
       "GELAS MASUK",
@@ -588,15 +591,14 @@ function TransactionTable({
                       >
                         {item.type === "PEMASUKAN" ? "+" : "-"} {toCurrency(item.nominal)}
                       </p>
-                      {item.type === "PEMASUKAN" && (
-                        <button
-                          className="p-1.5 rounded-lg text-brand-muted hover:text-brand-green-dark hover:bg-brand-bg transition-colors"
-                          onClick={() => onEditRow?.(item)}
-                          title="Edit laporan"
-                        >
-                          <Pencil size={13} />
-                        </button>
-                      )}
+                      <button
+                        className="p-1.5 rounded-lg text-brand-muted hover:text-brand-green-dark hover:bg-brand-bg transition-colors"
+                        onClick={() => onEditRow?.(item)}
+                        title="Edit transaksi"
+                        aria-label="Edit transaksi"
+                      >
+                        <Pencil size={13} />
+                      </button>
                       {isAdmin && (
                         <button
                           className="p-1.5 rounded-lg text-brand-muted hover:text-rose-600 hover:bg-rose-50 transition-colors"
@@ -633,15 +635,14 @@ function TransactionTable({
                     {isAdmin && (
                       <td className="px-3 py-2 text-xs font-bold text-brand-green-dark/80">
                         <div className="flex items-center gap-1.5">
-                          {item.type === "PEMASUKAN" ? (
-                            <button
-                              className="inline-flex items-center text-brand-muted hover:text-brand-green-dark transition-colors cursor-pointer"
-                              onClick={() => onEditRow?.(item)}
-                              title="Edit laporan"
-                            >
-                              <Pencil size={14} />
-                            </button>
-                          ) : null}
+                          <button
+                            className="inline-flex items-center text-brand-muted hover:text-brand-green-dark transition-colors cursor-pointer"
+                            onClick={() => onEditRow?.(item)}
+                            title="Edit transaksi"
+                            aria-label="Edit transaksi"
+                          >
+                            <Pencil size={14} />
+                          </button>
                           <button
                             className="inline-flex items-center text-brand-muted hover:text-rose-600 transition-colors cursor-pointer"
                             onClick={() => onDeleteRow?.(item)}

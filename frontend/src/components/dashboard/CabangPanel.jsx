@@ -57,7 +57,7 @@ export default function CabangPanel({
   const [feedback, setFeedback] = useState(null);
 
   // ponytail: 1 bulk request ganti N request serial (backend create_many) —
-  // payload sama persis dengan Step 1 SetupWizard.
+  // payload array penambahan bulk cabang.
   const handleSaveCabang = useCallback(async (rows) => {
     if (!request) return;
     const filled = (Array.isArray(rows) ? rows : []).filter((r) => String(r?.nama || "").trim());

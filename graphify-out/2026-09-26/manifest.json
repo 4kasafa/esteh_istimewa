@@ -45,8 +45,8 @@
     "semantic_hash": ""
   },
   "frontend/src/components/dashboard/AddCabangModal.jsx": {
-    "mtime": 1790408124.981758,
-    "ast_hash": "c5d6a4ece4768fc13aed7d356e7aabe0",
+    "mtime": 1790151375.8602993,
+    "ast_hash": "1364808a10480e22b8f9e0b5aaa2e92d",
     "semantic_hash": ""
   },
   "frontend/src/components/dashboard/AddKaryawanModal.jsx": {
@@ -55,8 +55,8 @@
     "semantic_hash": ""
   },
   "frontend/src/components/dashboard/CabangPanel.jsx": {
-    "mtime": 1790408127.9733605,
-    "ast_hash": "a6073f0d3c45c244547054dd9135833b",
+    "mtime": 1790211017.2653744,
+    "ast_hash": "c52d6734e5f61fdd0b315904aff92994",
     "semantic_hash": ""
   },
   "frontend/src/components/dashboard/DonutChart.jsx": {
@@ -135,8 +135,8 @@
     "semantic_hash": ""
   },
   "frontend/src/pages/DashboardPage.jsx": {
-    "mtime": 1790408110.425986,
-    "ast_hash": "85892cd885b7eec0af07f9ff68c01841",
+    "mtime": 1790399237.7614644,
+    "ast_hash": "4ce9ef3e9f55f79dd42823dfa4160e82",
     "semantic_hash": ""
   },
   "frontend/src/pages/LoginPage.jsx": {
@@ -220,8 +220,8 @@
     "semantic_hash": ""
   },
   "gas_backend/MasterService.js": {
-    "mtime": 1790408133.4428892,
-    "ast_hash": "161688026210b5ab02f8b3913c75352a",
+    "mtime": 1790338038.8677812,
+    "ast_hash": "69136c18ce72d60f67b49d2fecee9573",
     "semantic_hash": ""
   },
   "gas_backend/ResponseHelper.js": {
@@ -407,6 +407,21 @@
   "frontend/src/components/dashboard/PengeluaranPanel.test.jsx": {
     "mtime": 1790339581.683111,
     "ast_hash": "03b18b2b863e66ffd7713d7f50a701f6",
+    "semantic_hash": ""
+  },
+  "frontend/src/components/dashboard/SetupBanner.jsx": {
+    "mtime": 1790151375.8754385,
+    "ast_hash": "545b0dc0f0a1811447134d3a0c221200",
+    "semantic_hash": ""
+  },
+  "frontend/src/components/dashboard/SetupWizard.jsx": {
+    "mtime": 1790215109.9150252,
+    "ast_hash": "3bfc6156c70e225daad41350f4c66465",
+    "semantic_hash": ""
+  },
+  "frontend/src/components/dashboard/SetupWizard.test.jsx": {
+    "mtime": 1790215212.4469564,
+    "ast_hash": "723ddbe167262b92de2dc35b91e08d2a",
     "semantic_hash": ""
   },
   "frontend/src/components/dashboard/StokPanel.jsx": {

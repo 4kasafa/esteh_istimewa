@@ -13,8 +13,6 @@ import KaryawanPanel from "../components/dashboard/KaryawanPanel";
 import CabangPanel from "../components/dashboard/CabangPanel";
 import SettingPanel from "../components/dashboard/SettingPanel";
 import StokPanel from "../components/dashboard/StokPanel";
-import SetupBanner from "../components/dashboard/SetupBanner";
-import SetupWizard from "../components/dashboard/SetupWizard";
 import ConfirmDialog from "../components/common/ConfirmDialog";
 import {
   FormSkeleton,
@@ -76,17 +74,10 @@ export default function DashboardPage({
   const [periodFilter, setPeriodFilter] = useState({ range: "month", period: toPeriodValue() });
   const [reportForm, setReportForm] = useState(REPORT_FORM_DEFAULT);
   const [isEditMode, setIsEditMode] = useState(false);
+  const [editingExpense, setEditingExpense] = useState(null);
+  const [editingIncome, setEditingIncome] = useState(null);
   const [logoutDialogOpen, setLogoutDialogOpen] = useState(false);
   const [logoutLoading, setLogoutLoading] = useState(false);
-
-  const [isWizardOpen, setIsWizardOpen] = useState(false);
-  const [isBannerDismissed, setIsBannerDismissed] = useState(() => {
-    try {
-      return sessionStorage.getItem("esteh_banner_dismissed") === "true";
-    } catch {
-      return false;
-    }
-  });
 
   const viewportMode = mode;
 
@@ -177,6 +168,16 @@ export default function DashboardPage({
     [onRefreshMonthly, onRefreshAll],
   );
 
+  // ponytail: refresh = fungsi sync yang sama (dashboard_init, 1 round-trip
+  // reports+master) → isSyncing menyala → tombol navbar "Menyinkronkan...".
+  const handleRefresh = useCallback(async () => {
+    if (periodFilter.range === "month") {
+      await onRefreshMonthly(periodFilter.period || period, { refreshMaster: true });
+    } else {
+      await onRefreshAll?.({ refreshMaster: true });
+    }
+  }, [onRefreshMonthly, onRefreshAll, period, periodFilter.period, periodFilter.range]);
+
   useEffect(() => {
     const allowedKeys = new Set([...sidebarMenu.map((item) => item.key), "pemasukan", "pengeluaran", "laporan_harian"]);
     if (!allowedKeys.has(activeMenu)) {
@@ -184,70 +185,6 @@ export default function DashboardPage({
     }
   }, [activeMenu, sidebarMenu]);
 
-  // Deteksi otomatis apakah data master esensial (cabang / staf) masih kosong
-  const isMasterIncomplete = useMemo(() => {
-    if (!isAdmin) return false;
-    const rawCabang = masterData?.cabang || masterData?.cabangList || [];
-    const rawStaff = (masterData?.users || []).filter(
-      (u) => String(u.ROLE || u.role || "").toLowerCase() === "staff"
-    );
-    return rawCabang.length === 0 || rawStaff.length === 0;
-  }, [isAdmin, masterData?.cabang, masterData?.cabangList, masterData?.users]);
-
-  // Otomatis buka wizard saat pertama kali login admin jika data masih kosong & belum pernah dilewati di sesi ini
-  // ponytail: deps pakai panjang array (stabil), bukan identitas array yang baru tiap fetch.
-  const usersLength = (masterData?.users || []).length;
-  useEffect(() => {
-    if (!isAdmin || loading) return;
-    if (usersLength === 0) return;
-
-    try {
-      const isSkipped = sessionStorage.getItem("esteh_wizard_skipped") === "true";
-      const isCompleted = localStorage.getItem("esteh_wizard_completed") === "true";
-      if (isMasterIncomplete && !isSkipped && !isCompleted) {
-        setIsWizardOpen(true);
-      }
-    } catch {
-      /* ignore storage errors */
-    }
-  }, [isAdmin, isMasterIncomplete, loading, usersLength]);
-
-  const handleOpenWizard = useCallback(() => {
-    setIsWizardOpen(true);
-  }, []);
-
-  const handleCloseWizard = useCallback(() => {
-    try {
-      sessionStorage.setItem("esteh_wizard_skipped", "true");
-    } catch {
-      /* ignore storage errors */
-    }
-    setIsWizardOpen(false);
-  }, []);
-
-  const handleFinishWizard = useCallback(async () => {
-    try {
-      localStorage.setItem("esteh_wizard_completed", "true");
-      sessionStorage.removeItem("esteh_wizard_skipped");
-    } catch {
-      /* ignore storage errors */
-    }
-    setIsBannerDismissed(true);
-    if (onReloadMaster) {
-      await onReloadMaster();
-    }
-  }, [onReloadMaster]);
-
-  const handleDismissBanner = useCallback(() => {
-    try {
-      sessionStorage.setItem("esteh_banner_dismissed", "true");
-    } catch {
-      /* ignore storage errors */
-    }
-    setIsBannerDismissed(true);
-  }, []);
-
-  const showBanner = isAdmin && isMasterIncomplete && !isBannerDismissed && !isWizardOpen;
   const isInitialLoading = loading && (reportRows || []).length === 0;
 
   // Cari apakah staf sudah memiliki laporan hari ini
@@ -307,6 +244,9 @@ export default function DashboardPage({
         setReportForm({ ...REPORT_FORM_DEFAULT, "ARUS DANA": defaultBranch });
       }
     }
+    // ponytail: navigasi manual ke kas → reset mode edit sisa routing sebelumnya.
+    if (menuKey === "pemasukan") setEditingIncome(null);
+    if (menuKey === "pengeluaran") setEditingExpense(null);
     setActiveMenu(menuKey);
     if (mode === "mobile") {
       setMobileOpen(false);
@@ -337,12 +277,68 @@ export default function DashboardPage({
   }
 
   function handleEditReportRow(item) {
-    const rowData = item?.row || item;
+    if (!item) return;
+    // Kasus A/B: baris transaksi PENGELUARAN dari Laporan (TransactionTable).
+    if (item.type === "PENGELUARAN") {
+      const parentId = item.parentTrxId || String(item.id || "").split("-EXP-")[0];
+      // Kasus B: pengeluaran bagian laporan harian → buka form laporan induk.
+      if (item.parentTrxId) {
+        const parentRow = (reportRows || []).find((r) =>
+          String(r["ID TRANSAKSI"] || r["NO TRANSAKSI"] || "").toLowerCase() === String(parentId).toLowerCase()
+        );
+        if (parentRow) {
+          setReportForm({ ...REPORT_FORM_DEFAULT, ...parentRow });
+          setIsEditMode(true);
+          setEditingExpense(null);
+          setEditingIncome(null);
+          setActiveMenu("laporan_harian");
+          return;
+        }
+      }
+      // Kasus A: pengeluaran mandiri → Kas Keluar mode edit.
+      setEditingExpense(item);
+      setEditingIncome(null);
+      setIsEditMode(false);
+      setActiveMenu("pengeluaran");
+      return;
+    }
+    // Kasus C/D: baris PEMASUKAN.
+    if (item.type === "PEMASUKAN") {
+      const raw = item.raw || {};
+      const kategori = String(raw.KATEGORI || raw["KATEGORI"] || "");
+      // Kasus C: pemasukan mandiri (kategori non-penjualan) → Kas Masuk mode edit.
+      // ponytail: laporan penjualan selalu KATEGORI Penjualan; selain itu mandiri.
+      if (kategori !== "Penjualan") {
+        setEditingIncome(item);
+        setEditingExpense(null);
+        setIsEditMode(false);
+        setActiveMenu("pemasukan");
+        return;
+      }
+      // Kasus D: laporan harian penjualan → form laporan.
+      const rowData = item.raw || item;
+      setReportForm({ ...REPORT_FORM_DEFAULT, ...rowData });
+      setIsEditMode(true);
+      setEditingExpense(null);
+      setEditingIncome(null);
+      setActiveMenu("laporan_harian");
+      return;
+    }
+    // Fallback: baris tabel laporan (staff / ReportTable) → form laporan.
+    const rowData = item?.row || item?.raw || item;
     if (!rowData) return;
     setReportForm({ ...REPORT_FORM_DEFAULT, ...rowData });
     setIsEditMode(true);
+    setEditingExpense(null);
+    setEditingIncome(null);
     setActiveMenu("laporan_harian");
   }
+
+  const handleCancelEdit = useCallback(() => {
+    setEditingExpense(null);
+    setEditingIncome(null);
+    setActiveMenu("laporan");
+  }, []);
 
   function handleAddReport() {
     if (isStaff && todayStaffReport) {
@@ -355,7 +351,21 @@ export default function DashboardPage({
     setActiveMenu("laporan_harian");
   }
 
-  const handleKasSuccess = useCallback(() => setActiveMenu("laporan"), []);
+  const handleKasSuccess = useCallback(() => {
+    setEditingExpense(null);
+    setEditingIncome(null);
+    setActiveMenu("laporan");
+  }, []);
+
+  const handleUpdateKas = useCallback(async (id, patch) => {
+    const ok = await onUpdateReport?.(id, patch, period);
+    if (ok) {
+      setEditingExpense(null);
+      setEditingIncome(null);
+      setActiveMenu("laporan");
+    }
+    return ok;
+  }, [onUpdateReport, period]);
 
   async function handleFormSubmit(e) {
     e.preventDefault();
@@ -457,16 +467,11 @@ export default function DashboardPage({
           onPeriodFilterChange={handlePeriodFilterChange}
           loading={loading}
           isSyncing={isSyncing}
+          onRefresh={handleRefresh}
         />
 
         <div className="flex-1 overflow-y-auto overflow-x-hidden p-3 sm:p-4 lg:p-4 no-scrollbar">
           <div className="w-full space-y-4 sm:space-y-6">
-            {showBanner && (
-              <SetupBanner
-                onStartWizard={handleOpenWizard}
-                onDismiss={handleDismissBanner}
-              />
-            )}
             {message && <Alert type="success">{message}</Alert>}
             {error && <Alert type="error">{error}</Alert>}
             {(isSyncing || syncNote) && (
@@ -493,6 +498,8 @@ export default function DashboardPage({
                   dbRows={filteredReportRows}
                   periodFilter={periodFilter}
                   onPeriodFilterChange={handlePeriodFilterChange}
+                  loading={loading}
+                  isSyncing={isSyncing}
                 />
                 )}
               </div>
@@ -544,6 +551,9 @@ export default function DashboardPage({
                     selectedBranch={selectedBranch}
                     user={user}
                     onReloadMaster={onReloadMaster}
+                    editData={editingIncome}
+                    onCancelEdit={handleCancelEdit}
+                    onUpdateReport={handleUpdateKas}
                   />
                 )}
               </div>
@@ -560,6 +570,9 @@ export default function DashboardPage({
                     selectedBranch={selectedBranch}
                     user={user}
                     onReloadMaster={onReloadMaster}
+                    editData={editingExpense}
+                    onCancelEdit={handleCancelEdit}
+                    onUpdateReport={handleUpdateKas}
                   />
                 )}
               </div>
@@ -606,7 +619,7 @@ export default function DashboardPage({
               )}
 
               <div hidden={activeMenu !== "setting"} style={{ display: activeMenu === "setting" ? "block" : "none" }}>
-                <SettingPanel user={user} onOpenWizard={handleOpenWizard} pwa={pwa} />
+                <SettingPanel user={user} pwa={pwa} />
               </div>
             </div>
             </div>
@@ -626,12 +639,6 @@ export default function DashboardPage({
         onConfirm={handleConfirmLogout}
       />
 
-      <SetupWizard
-        open={isWizardOpen}
-        onClose={handleCloseWizard}
-        onFinish={handleFinishWizard}
-        request={request}
-      />
     </div>
   );
 }

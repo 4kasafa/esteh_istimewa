@@ -320,6 +320,57 @@ describe("App smoke", () => {
     expect(dataActions).toEqual(["dashboard_init"]);
   });
 
+  // Regresi task10 fase 3: tombol Refresh navbar harus memanggil FUNGSI SYNC
+  // YANG SAMA (dashboard_init, 1 round-trip) dan menampilkan "Menyinkronkan..."
+  // selama refresh — bukan jalur silent terpisah tanpa umpan balik.
+  it("refresh button reuses the same dashboard_init sync and shows Menyinkronkan", async () => {
+    const base = createDefaultGasMock();
+    let initCount = 0;
+    let resolveRefresh = null;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((url, options) => {
+        const payload = JSON.parse(options.body);
+        if (payload.action === "dashboard_init") {
+          initCount += 1;
+          if (initCount > 1) {
+            return new Promise((resolve) => {
+              resolveRefresh = resolve;
+            });
+          }
+        }
+        return base(url, options);
+      })
+    );
+
+    render(<App />);
+    loginAsAdmin();
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /refresh data/i })).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /refresh data/i }));
+
+    // Fungsi sync yang sama dipanggil ulang (request ke-2 = dashboard_init).
+    await waitFor(() => {
+      expect(initCount).toBe(2);
+    });
+    // Tombol berubah jadi indikator sinkronisasi selama refresh berjalan.
+    expect(screen.getByText(/menyinkronkan/i)).toBeInTheDocument();
+
+    resolveRefresh(mockSuccess({ reports: [], master: {}, initial: {} }));
+    await waitFor(() => {
+      expect(screen.queryByText(/menyinkronkan/i)).not.toBeInTheDocument();
+    });
+
+    // Satu request saja — tanpa read_master/read_reports paralel (throttle GAS).
+    const refreshActions = globalThis.fetch.mock.calls
+      .map((call) => JSON.parse(call[1].body).action)
+      .filter((action) => action !== "login" && action !== "logout");
+    expect(refreshActions).toEqual(["dashboard_init", "dashboard_init"]);
+  });
+
   // Regresi task05: boot berbasis cache tidak boleh tertutup overlay "Memuat
   // data..." selama dashboard_init terbang (dulu: jeda 3-5 detik). Skenario = F5
   // dengan sesi tersimpan (token ada → clearData tidak menghapus cache).

@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { Plus, Store, Trash2, X } from "lucide-react";
 
-// ponytail: struktur form disamakan dengan Step 1 SetupWizard — user hanya isi
-// nama & alamat (ID dibuatkan backend), multi-baris, 1x bulk save. Field lama
+// ponytail: struktur form multi-baris penambahan cabang — user hanya isi
+// nama & alamat (ID dibuatkan backend), 1x bulk save. Field lama
 // (kode/PJ/telepon/jam/kapasitas) dibuang: tak ada kolomnya di sheet Cabang.
 export default function AddCabangModal({ open, onClose, onSave, loading = false }) {
   const [rows, setRows] = useState([{ id: "cab-temp-1", nama: "", alamat: "" }]);

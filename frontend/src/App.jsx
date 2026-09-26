@@ -189,8 +189,8 @@ export default function App() {
       reportRows={reportRows}
       masterData={masterData}
       pwa={pwa}
-      onRefreshMonthly={(period, opts) => loadData({ monthly: isAdmin, period, silent: Boolean(opts?.silent) })}
-      onRefreshAll={(opts) => loadData({ monthly: false, silent: Boolean(opts?.silent) })}
+      onRefreshMonthly={(period, opts) => loadData({ monthly: isAdmin, period, silent: Boolean(opts?.silent), refreshMaster: Boolean(opts?.refreshMaster) })}
+      onRefreshAll={(opts) => loadData({ monthly: false, silent: Boolean(opts?.silent), refreshMaster: Boolean(opts?.refreshMaster) })}
       onCreateReport={createReport}
       onUpdateReport={updateReport}
       onDeleteReport={deleteReport}

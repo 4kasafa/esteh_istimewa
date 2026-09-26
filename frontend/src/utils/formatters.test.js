@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { generateTrxId, parseLooseNumber, parseTimestamp } from "./formatters";
+import { generateTrxId, isExpenseId, parseLooseNumber, parseTimestamp } from "./formatters";
 
 describe("parseLooseNumber", () => {
   it("parses Indonesian number format", () => {
@@ -38,7 +38,7 @@ describe("parseTimestamp", () => {
 describe("generateTrxId", () => {
   it("generates TRX ID format with timestamp", () => {
     const trxId = generateTrxId("2026-09-21");
-    expect(trxId).toMatch(/^TRX-20260921-\d{6}$/);
+    expect(trxId).toMatch(/^TRX-20260921-\d{6}-[A-Z0-9]{4}$/);
   });
 
   it("generates TRX ID with counter", () => {
@@ -48,7 +48,25 @@ describe("generateTrxId", () => {
 
   it("falls back to current date if date is empty or invalid", () => {
     const trxId = generateTrxId();
-    expect(trxId).toMatch(/^TRX-\d{8}-\d{6}$/);
+    expect(trxId).toMatch(/^TRX-\d{8}-\d{6}-[A-Z0-9]{4}$/);
+  });
+
+  it("generates unique IDs with TRX and EXP prefixes", () => {
+    const a = generateTrxId(new Date(), "TRX");
+    const b = generateTrxId(new Date(), "TRX");
+    expect(a).toMatch(/^TRX-\d{8}-\d{6}-[A-Z0-9]{4}$/);
+    expect(b).toMatch(/^TRX-\d{8}-\d{6}-[A-Z0-9]{4}$/);
+    expect(a).not.toBe(b);
+    const c = generateTrxId(new Date(), "EXP");
+    expect(c).toMatch(/^EXP-\d{8}-\d{6}-[A-Z0-9]{4}$/);
+    expect(isExpenseId(c)).toBe(true);
+    expect(isExpenseId(a)).toBe(false);
+  });
+
+  it("includes 4-char entropy", () => {
+    const trxId = generateTrxId(new Date(), "TRX");
+    expect(trxId.split("-")).toHaveLength(4);
+    expect(trxId.split("-")[3]).toMatch(/^[A-Z0-9]{4}$/);
   });
 });
 

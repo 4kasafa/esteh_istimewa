@@ -127,7 +127,7 @@ export function toPeriodValue(date = new Date()) {
   return `${year}-${month}`;
 }
 
-export function generateTrxId(date = new Date(), counter = "") {
+export function generateTrxId(date = new Date(), prefixOrCounter = "TRX") {
   let d = date;
   if (typeof date === "string") {
     const parts = date.split("-");
@@ -143,15 +143,22 @@ export function generateTrxId(date = new Date(), counter = "") {
   const day = String(validDate.getDate()).padStart(2, "0");
   const dateStr = `${year}${month}${day}`;
 
-  if (counter) {
-    return `TRX-${dateStr}-${String(counter).padStart(3, "0")}`;
+  // ponytail: legacy counter tetap TRX-YYYYMMDD-XXX.
+  if (typeof prefixOrCounter === "number" || (typeof prefixOrCounter === "string" && /^\d+$/.test(prefixOrCounter.trim()))) {
+    return `TRX-${dateStr}-${String(prefixOrCounter).padStart(3, "0")}`;
   }
 
-  const now = new Date();
-  const hours = String(now.getHours()).padStart(2, "0");
-  const minutes = String(now.getMinutes()).padStart(2, "0");
-  const seconds = String(now.getSeconds()).padStart(2, "0");
-  return `TRX-${dateStr}-${hours}${minutes}${seconds}`;
+  const rawPrefix = String(prefixOrCounter || "TRX").trim().toUpperCase();
+  const prefix = /^[A-Z]{2,5}$/.test(rawPrefix) ? rawPrefix : "TRX";
+  const hours = String(validDate.getHours()).padStart(2, "0");
+  const minutes = String(validDate.getMinutes()).padStart(2, "0");
+  const seconds = String(validDate.getSeconds()).padStart(2, "0");
+  const entropy = Math.random().toString(36).substring(2, 6).toUpperCase().padEnd(4, "X");
+  return `${prefix}-${dateStr}-${hours}${minutes}${seconds}-${entropy}`;
+}
+
+export function isExpenseId(id) {
+  return String(id || "").toUpperCase().startsWith("EXP-");
 }
 
 export function toShortIndonesianDay(value) {

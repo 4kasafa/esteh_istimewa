@@ -185,11 +185,14 @@ function handleCreateReport_(payload, session) {
   const existingIds = readIdColumnSet_(transSheet);
 
   let idTransaksi = sanitize_(data.id || data["ID TRANSAKSI"] || data["NO TRANSAKSI"]);
-  const isLegacyId = !idTransaksi || !String(idTransaksi).toUpperCase().startsWith("TRX-") || String(idTransaksi).includes(",") || /\s/.test(String(idTransaksi).trim());
+  // ponytail: prefix terpisah — EXP- untuk kas keluar mandiri, TRX- untuk laporan/pemasukan.
+  const wantPrefix = isPengeluaranOnly ? "EXP-" : "TRX-";
+  const idUpper = String(idTransaksi || "").toUpperCase();
+  const isLegacyId = !idTransaksi || !idUpper.startsWith(wantPrefix) || String(idTransaksi).includes(",") || /\s/.test(String(idTransaksi).trim());
   if (isLegacyId) {
     const baseDate = tanggal ? tanggal.replace(/-/g, "") : Utilities.formatDate(new Date(), APP_CONFIG.TIMEZONE, "yyyyMMdd");
     const dateStr = baseDate.length >= 8 ? baseDate.substring(0, 8) : baseDate;
-    const baseId = "TRX-" + dateStr + "-";
+    const baseId = wantPrefix + dateStr + "-";
     let uniqueCount = existingIds.size;
     let newIdStr = baseId + String(uniqueCount + 1).padStart(3, "0");
     while (existingIds.has(newIdStr.toLowerCase())) {
@@ -284,6 +287,7 @@ function handleCreateReport_(payload, session) {
         if (expSheet) {
           expBatch.push({
             "ID_TRANSAKSI": idTransaksi,
+            "REF_TRX_ID": isPengeluaranOnly ? "" : idTransaksi,
             "TANGGAL": tanggal,
             "CABANG": cabang,
             "STAFF": staff,
@@ -296,6 +300,7 @@ function handleCreateReport_(payload, session) {
         // 2. Tulis ke tab Transaksi untuk kalkulasi formula Rekapitulasi
         transBatch.push({
           "ID TRANSAKSI": idTransaksi,
+          "REF_TRX_ID": isPengeluaranOnly ? "" : idTransaksi,
           "TANGGAL": tanggal,
           "WAKTU INPUT": waktuInput,
           "CABANG": cabang,
@@ -317,6 +322,7 @@ function handleCreateReport_(payload, session) {
     if (expSheet) {
       expBatch.push({
         "ID_TRANSAKSI": idTransaksi,
+        "REF_TRX_ID": isPengeluaranOnly ? "" : idTransaksi,
         "TANGGAL": tanggal,
         "CABANG": cabang,
         "STAFF": staff,
@@ -328,6 +334,7 @@ function handleCreateReport_(payload, session) {
 
     transBatch.push({
       "ID TRANSAKSI": idTransaksi,
+      "REF_TRX_ID": isPengeluaranOnly ? "" : idTransaksi,
       "TANGGAL": tanggal,
       "WAKTU INPUT": waktuInput,
       "CABANG": cabang,
@@ -391,9 +398,8 @@ function handleUpdateReport_(payload, session) {
   const headers = getTableHeaders_(transSheet);
   const rows = readTable_(transSheet);
 
-  const existing = rows.find(r => 
-    String(r["ID TRANSAKSI"] || r["NO TRANSAKSI"] || "").toLowerCase() === id.toLowerCase() &&
-    String(r["JENIS TRANSAKSI"] || "").toLowerCase() === "pemasukan"
+  const existing = rows.find(r =>
+    String(r["ID TRANSAKSI"] || r["NO TRANSAKSI"] || "").toLowerCase() === id.toLowerCase()
   );
 
   if (!existing) {
@@ -414,14 +420,120 @@ function handleUpdateReport_(payload, session) {
     }
   }
 
+  // ponytail: edit kontekstual — mandiri vs laporan harian ditentukan dari sibling se-ID.
+  const idLower = id.toLowerCase();
+  const sameIdRows = rows.filter(r =>
+    String(r["ID TRANSAKSI"] || r["NO TRANSAKSI"] || "").toLowerCase() === idLower
+  );
+  const existingJenis = String(existing["JENIS TRANSAKSI"] || "").toLowerCase();
+  const hasPemasukanSibling = sameIdRows.some(r => String(r["JENIS TRANSAKSI"] || "").toLowerCase() === "pemasukan");
+  const hasPengeluaranSibling = sameIdRows.some(r => String(r["JENIS TRANSAKSI"] || "").toLowerCase() === "pengeluaran");
+  const existingKategori = String(existing["KATEGORI"] || "");
+  const hasStock = ["GELAS AWAL", "GELAS SISA", "GELAS TERPAKAI"].some(k =>
+    existing[k] !== undefined && existing[k] !== null && existing[k] !== ""
+  );
+
+  function ensureHeaders_(obj) {
+    Object.keys(obj).forEach(key => {
+      if (!headers.includes(key)) {
+        headers.push(key);
+        const cell = transSheet.getRange(1, headers.length);
+        cell.setValue(key)
+          .setBackground("#2B9348")
+          .setFontColor("#FFFFFF")
+          .setFontWeight("bold")
+          .setHorizontalAlignment("center");
+      }
+    });
+  }
+
+  // Kasus A: Pengeluaran Mandiri (tanpa baris pemasukan se-ID) → update 1 baris Transaksi + tab Pengeluaran.
+  if (existingJenis === "pengeluaran" && !hasPemasukanSibling) {
+    const newTanggal = sanitize_(data.tanggal || data.TANGGAL || existing["TANGGAL"] || getCurrentDate_());
+    const newCabang = sanitize_(data.cabang || data.CABANG || data["ARUS DANA"] || existing["CABANG"] || "");
+    const newKategori = sanitize_(data.sumber || data.KATEGORI || data["KATEGORI"] || existing["KATEGORI"] || "Operasional Lain-lain");
+    const rawNom = data.nominal !== undefined ? data.nominal : (data.NOMINAL !== undefined ? data.NOMINAL : existing["NOMINAL"]);
+    const newNominal = parseNumber_(rawNom);
+    const newKet = sanitize_(data.keterangan !== undefined ? data.keterangan : (data.KETERANGAN !== undefined ? data.KETERANGAN : (existing["KETERANGAN"] || "")));
+    const updatedExp = Object.assign({}, existing, {
+      "TANGGAL": newTanggal,
+      "CABANG": newCabang,
+      "KATEGORI": newKategori,
+      "NOMINAL": newNominal,
+      "TOTAL PENGELUARAN": newNominal,
+      "PENGELUARAN": newNominal,
+      "UANG KELUAR": newNominal,
+      "KETERANGAN": newKet
+    });
+    ensureHeaders_(updatedExp);
+    updateTableRow_(transSheet, headers, existing._rowIndex, updatedExp);
+    const expSheet = monthlySs.getSheetByName(APP_CONFIG.MONTHLY_TABS.PENGELUARAN);
+    if (expSheet && expSheet.getLastRow() > 1) {
+      const expHeaders = getTableHeaders_(expSheet);
+      const expRows = readTable_(expSheet);
+      expRows
+        .filter(r => String(r.ID_TRANSAKSI || r["ID TRANSAKSI"] || "").toLowerCase() === idLower)
+        .forEach(r => {
+          const patched = Object.assign({}, r, {
+            "TANGGAL": newTanggal,
+            "CABANG": newCabang,
+            "TYPE_PENGELUARAN": newKategori,
+            "NOMINAL": newNominal,
+            "KETERANGAN": newKet
+          });
+          Object.keys(patched).forEach(k => { if (!expHeaders.includes(k)) expHeaders.push(k); });
+          updateTableRow_(expSheet, expHeaders, r._rowIndex, patched);
+        });
+    }
+    writeAppLog_(monthlySs, "UPDATE_REPORT", session.username, newCabang, "ID: " + id, "SUCCESS");
+    updatedExp["NO TRANSAKSI"] = id;
+    updatedExp["ARUS DANA"] = newCabang;
+    return jsonResponse_(true, updatedExp, "Pengeluaran berhasil diperbarui.");
+  }
+
+  // Kasus C: Pemasukan Mandiri (tanpa sibling pengeluaran & tanpa stok) → update 1 baris Transaksi.
+  if (existingJenis === "pemasukan" && !hasPengeluaranSibling && !hasStock && existingKategori !== "Penjualan") {
+    const newTanggal = sanitize_(data.tanggal || data.TANGGAL || existing["TANGGAL"] || getCurrentDate_());
+    const newCabang = sanitize_(data.cabang || data.CABANG || data["ARUS DANA"] || existing["CABANG"] || "");
+    const newKategori = sanitize_(data.sumber || data.KATEGORI || data["KATEGORI"] || existing["KATEGORI"] || "");
+    const rawNom = data.nominal !== undefined ? data.nominal : (data.NOMINAL !== undefined ? data.NOMINAL : existing["NOMINAL"]);
+    const newNominal = parseNumber_(rawNom);
+    const newKet = sanitize_(data.keterangan !== undefined ? data.keterangan : (data.KETERANGAN !== undefined ? data.KETERANGAN : (existing["KETERANGAN"] || "")));
+    const updatedInc = Object.assign({}, existing, {
+      "TANGGAL": newTanggal,
+      "CABANG": newCabang,
+      "KATEGORI": newKategori,
+      "NOMINAL": newNominal,
+      "TOTAL PENJUALAN": newNominal,
+      "UANG MASUK": newNominal,
+      "UANG SETORAN": newNominal,
+      "KETERANGAN": newKet
+    });
+    ensureHeaders_(updatedInc);
+    updateTableRow_(transSheet, headers, existing._rowIndex, updatedInc);
+    writeAppLog_(monthlySs, "UPDATE_REPORT", session.username, newCabang, "ID: " + id, "SUCCESS");
+    updatedInc["NO TRANSAKSI"] = id;
+    updatedInc["ARUS DANA"] = newCabang;
+    return jsonResponse_(true, updatedInc, "Pemasukan berhasil diperbarui.");
+  }
+
+  // Kasus B/D: Laporan Harian (lanjut ke alur rekalkulasi stok di bawah).
+  // ponytail: jika ID menunjuk baris pengeluaran anak, pakai induk pemasukannya.
+  let reportRow = existing;
+  if (existingJenis === "pengeluaran" && hasPemasukanSibling) {
+    const parent = sameIdRows.find(r => String(r["JENIS TRANSAKSI"] || "").toLowerCase() === "pemasukan");
+    if (parent) reportRow = parent;
+  }
+  const existingParent = reportRow;
+
   // Finansial
   let uangSetoran = 0;
   if (data.uangSetoran !== undefined && data.uangSetoran !== "") {
     uangSetoran = parseNumber_(data.uangSetoran);
   } else if (data["UANG SETORAN"] !== undefined && data["UANG SETORAN"] !== "") {
     uangSetoran = parseNumber_(data["UANG SETORAN"]);
-  } else if (existing["UANG SETORAN"] !== undefined && existing["UANG SETORAN"] !== "") {
-    uangSetoran = parseNumber_(existing["UANG SETORAN"]);
+  } else if (existingParent["UANG SETORAN"] !== undefined && existingParent["UANG SETORAN"] !== "") {
+    uangSetoran = parseNumber_(existingParent["UANG SETORAN"]);
   }
   
   let totalPengeluaran = 0;
@@ -433,18 +545,18 @@ function handleUpdateReport_(payload, session) {
     totalPengeluaran = parseNumber_(data["TOTAL PENGELUARAN"]);
   } else if (data.PENGELUARAN !== undefined && data.PENGELUARAN !== "") {
     totalPengeluaran = parseNumber_(data.PENGELUARAN);
-  } else if (existing["TOTAL PENGELUARAN"] !== undefined && existing["TOTAL PENGELUARAN"] !== "") {
-    totalPengeluaran = parseNumber_(existing["TOTAL PENGELUARAN"]);
+  } else if (existingParent["TOTAL PENGELUARAN"] !== undefined && existingParent["TOTAL PENGELUARAN"] !== "") {
+    totalPengeluaran = parseNumber_(existingParent["TOTAL PENGELUARAN"]);
   }
 
   let rincianPengeluaran = sanitize_(data.rincianPengeluaran || data["RINCIAN PENGELUARAN"] || "");
   
   const totalPenjualan = uangSetoran + totalPengeluaran;
 
-  const updatedObj = Object.assign({}, existing, {
+  const updatedObj = Object.assign({}, existingParent, {
     "UANG SETORAN": uangSetoran,
     "NOMINAL": totalPenjualan,
-    "KETERANGAN": sanitize_(data.keterangan || data.KETERANGAN || existing.KETERANGAN || "")
+    "KETERANGAN": sanitize_(data.keterangan || data.KETERANGAN || existingParent.KETERANGAN || "")
   });
 
   const stokBahan = data.stokBahan || {};
@@ -457,7 +569,7 @@ function handleUpdateReport_(payload, session) {
     const itemStok = stokBahan[b.NAMA_BAHAN] || stokBahan[b.ID_BAHAN] || {};
     const hasStokEntry = [itemStok.awal, itemStok.sisa, itemStok.terpakai].some(v => v !== undefined && v !== "");
     const hasTopLevel = stokFields.some(f => data[pfx + " " + f] !== undefined && data[pfx + " " + f] !== "");
-    const hasExistingValue = [" AWAL", " SISA", " TERPAKAI"].some(f => existing[pfx + f] !== undefined && existing[pfx + f] !== null && existing[pfx + f] !== "");
+    const hasExistingValue = [" AWAL", " SISA", " TERPAKAI"].some(f => existingParent[pfx + f] !== undefined && existingParent[pfx + f] !== null && existingParent[pfx + f] !== "");
     if (hasStokEntry || hasTopLevel || hasExistingValue) {
       toUpdate.push({ bahan: b, pfx: pfx });
     }
@@ -474,7 +586,7 @@ function handleUpdateReport_(payload, session) {
     } else if (pfx === "GELAS" && data["GELAS AWAL"] !== undefined && data["GELAS AWAL"] !== "") {
       awal = parseNumber_(data["GELAS AWAL"]);
     } else {
-      awal = parseNumber_(existing[pfx + " AWAL"] || 0);
+      awal = parseNumber_(existingParent[pfx + " AWAL"] || 0);
     }
 
     let sisa = 0;
@@ -485,7 +597,7 @@ function handleUpdateReport_(payload, session) {
     } else if (pfx === "GELAS" && data["GELAS SISA"] !== undefined && data["GELAS SISA"] !== "") {
       sisa = parseNumber_(data["GELAS SISA"]);
     } else {
-      sisa = parseNumber_(existing[pfx + " SISA"] || 0);
+      sisa = parseNumber_(existingParent[pfx + " SISA"] || 0);
     }
 
     const terpakai = Math.max(0, awal - sisa);
@@ -534,7 +646,7 @@ function handleUpdateReport_(payload, session) {
     });
   }
 
-  updateTableRow_(transSheet, headers, existing._rowIndex, updatedObj);
+  updateTableRow_(transSheet, headers, existingParent._rowIndex, updatedObj);
 
   // Re-insert pengeluaran ke tab Pengeluaran dan tab Transaksi (1x setValues per sheet)
   const expHeaders = expSheet ? getTableHeaders_(expSheet) : [];
@@ -552,6 +664,7 @@ function handleUpdateReport_(payload, session) {
         if (expSheet) {
           expBatch.push({
             "ID_TRANSAKSI": id,
+            "REF_TRX_ID": id,
             "TANGGAL": tanggal,
             "CABANG": updatedObj.CABANG,
             "STAFF": updatedObj.STAFF,
@@ -564,6 +677,7 @@ function handleUpdateReport_(payload, session) {
         // 2. Tulis ke tab Transaksi
         transBatch.push({
           "ID TRANSAKSI": id,
+          "REF_TRX_ID": id,
           "TANGGAL": tanggal,
           "WAKTU INPUT": updatedObj["WAKTU INPUT"],
           "CABANG": updatedObj.CABANG,

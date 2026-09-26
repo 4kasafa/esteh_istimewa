@@ -808,7 +808,7 @@
       "_origin": "ast",
       "id": "frontend_src_components_common_alert",
       "community": 44,
-      "community_name": "formatters.js",
+      "community_name": "KasKeluarPanel.jsx",
       "norm_label": "alert.jsx"
     },
     {
@@ -820,7 +820,7 @@
       "_origin": "ast",
       "id": "frontend_src_components_common_alert_alert",
       "community": 44,
-      "community_name": "formatters.js",
+      "community_name": "KasKeluarPanel.jsx",
       "norm_label": "alert()"
     },
     {
@@ -854,7 +854,7 @@
       "_origin": "ast",
       "id": "frontend_src_components_common_customselect",
       "community": 44,
-      "community_name": "formatters.js",
+      "community_name": "KasKeluarPanel.jsx",
       "norm_label": "customselect.jsx"
     },
     {
@@ -866,7 +866,7 @@
       "_origin": "ast",
       "id": "frontend_src_components_common_customselect_customselect",
       "community": 44,
-      "community_name": "formatters.js",
+      "community_name": "KasKeluarPanel.jsx",
       "norm_label": "customselect()"
     },
     {
@@ -1213,8 +1213,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "frontend_src_components_dashboard_donutchart",
-      "community": 44,
-      "community_name": "formatters.js",
+      "community": 4,
+      "community_name": "dashboard.js",
       "norm_label": "donutchart.jsx"
     },
     {
@@ -1225,8 +1225,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "frontend_src_components_dashboard_donutchart_buildsegments",
-      "community": 44,
-      "community_name": "formatters.js",
+      "community": 4,
+      "community_name": "dashboard.js",
       "norm_label": "buildsegments()"
     },
     {
@@ -1237,8 +1237,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "frontend_src_components_dashboard_donutchart_donutchart",
-      "community": 44,
-      "community_name": "formatters.js",
+      "community": 4,
+      "community_name": "dashboard.js",
       "norm_label": "donutchart()"
     },
     {
@@ -1307,7 +1307,7 @@
       "_origin": "ast",
       "id": "frontend_src_components_dashboard_kaskeluarpanel",
       "community": 44,
-      "community_name": "formatters.js",
+      "community_name": "KasKeluarPanel.jsx",
       "norm_label": "kaskeluarpanel.jsx"
     },
     {
@@ -1319,7 +1319,7 @@
       "_origin": "ast",
       "id": "frontend_src_components_dashboard_kaskeluarpanel_buildemptyexpense",
       "community": 44,
-      "community_name": "formatters.js",
+      "community_name": "KasKeluarPanel.jsx",
       "norm_label": "buildemptyexpense()"
     },
     {
@@ -1331,7 +1331,7 @@
       "_origin": "ast",
       "id": "frontend_src_components_dashboard_kaskeluarpanel_kaskeluarpanel",
       "community": 44,
-      "community_name": "formatters.js",
+      "community_name": "KasKeluarPanel.jsx",
       "norm_label": "kaskeluarpanel()"
     },
     {
@@ -1342,7 +1342,7 @@
       "_origin": "ast",
       "id": "frontend_src_components_dashboard_kaskeluarpanel_test",
       "community": 44,
-      "community_name": "formatters.js",
+      "community_name": "KasKeluarPanel.jsx",
       "norm_label": "kaskeluarpanel.test.jsx"
     },
     {
@@ -1352,8 +1352,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "frontend_src_components_dashboard_linechart",
-      "community": 44,
-      "community_name": "formatters.js",
+      "community": 4,
+      "community_name": "dashboard.js",
       "norm_label": "linechart.jsx"
     },
     {
@@ -1364,8 +1364,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "frontend_src_components_dashboard_linechart_buildpoints",
-      "community": 44,
-      "community_name": "formatters.js",
+      "community": 4,
+      "community_name": "dashboard.js",
       "norm_label": "buildpoints()"
     },
     {
@@ -1376,8 +1376,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "frontend_src_components_dashboard_linechart_linechart",
-      "community": 44,
-      "community_name": "formatters.js",
+      "community": 4,
+      "community_name": "dashboard.js",
       "norm_label": "linechart()"
     },
     {
@@ -1387,8 +1387,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "frontend_src_components_dashboard_overviewpanel",
-      "community": 44,
-      "community_name": "formatters.js",
+      "community": 4,
+      "community_name": "dashboard.js",
       "norm_label": "overviewpanel.jsx"
     },
     {
@@ -1399,8 +1399,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "frontend_src_components_dashboard_overviewpanel_omsetcard",
-      "community": 44,
-      "community_name": "formatters.js",
+      "community": 4,
+      "community_name": "dashboard.js",
       "norm_label": "omsetcard()"
     },
     {
@@ -1411,8 +1411,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "frontend_src_components_dashboard_overviewpanel_depositcard",
-      "community": 44,
-      "community_name": "formatters.js",
+      "community": 4,
+      "community_name": "dashboard.js",
       "norm_label": "depositcard()"
     },
     {
@@ -1423,8 +1423,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "frontend_src_components_dashboard_overviewpanel_minichips",
-      "community": 44,
-      "community_name": "formatters.js",
+      "community": 4,
+      "community_name": "dashboard.js",
       "norm_label": "minichips()"
     },
     {
@@ -1435,8 +1435,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "frontend_src_components_dashboard_overviewpanel_compacttransactiontable",
-      "community": 44,
-      "community_name": "formatters.js",
+      "community": 4,
+      "community_name": "dashboard.js",
       "norm_label": "compacttransactiontable()"
     },
     {
@@ -1470,7 +1470,7 @@
       "_origin": "ast",
       "id": "frontend_src_components_dashboard_pemasukanpanel",
       "community": 44,
-      "community_name": "formatters.js",
+      "community_name": "KasKeluarPanel.jsx",
       "norm_label": "pemasukanpanel.jsx"
     },
     {
@@ -1482,7 +1482,7 @@
       "_origin": "ast",
       "id": "frontend_src_components_dashboard_pemasukanpanel_pemasukanpanel",
       "community": 44,
-      "community_name": "formatters.js",
+      "community_name": "KasKeluarPanel.jsx",
       "norm_label": "pemasukanpanel()"
     },
     {
@@ -1493,7 +1493,7 @@
       "_origin": "ast",
       "id": "frontend_src_components_dashboard_pemasukanpanel_test",
       "community": 44,
-      "community_name": "formatters.js",
+      "community_name": "KasKeluarPanel.jsx",
       "norm_label": "pemasukanpanel.test.jsx"
     },
     {
@@ -1504,7 +1504,7 @@
       "_origin": "ast",
       "id": "frontend_src_components_dashboard_pemasukanpanel_test_defaultprops",
       "community": 44,
-      "community_name": "formatters.js",
+      "community_name": "KasKeluarPanel.jsx",
       "norm_label": "defaultprops"
     },
     {
@@ -1515,7 +1515,7 @@
       "_origin": "ast",
       "id": "frontend_src_components_dashboard_pengeluaranpanel",
       "community": 44,
-      "community_name": "formatters.js",
+      "community_name": "KasKeluarPanel.jsx",
       "norm_label": "pengeluaranpanel.jsx"
     },
     {
@@ -1527,7 +1527,7 @@
       "_origin": "ast",
       "id": "frontend_src_components_dashboard_pengeluaranpanel_pengeluaranpanel",
       "community": 44,
-      "community_name": "formatters.js",
+      "community_name": "KasKeluarPanel.jsx",
       "norm_label": "pengeluaranpanel()"
     },
     {
@@ -1538,7 +1538,7 @@
       "_origin": "ast",
       "id": "frontend_src_components_dashboard_pengeluaranpanel_test",
       "community": 44,
-      "community_name": "formatters.js",
+      "community_name": "KasKeluarPanel.jsx",
       "norm_label": "pengeluaranpanel.test.jsx"
     },
     {
@@ -1549,7 +1549,7 @@
       "_origin": "ast",
       "id": "frontend_src_components_dashboard_pengeluaranpanel_test_defaultprops",
       "community": 44,
-      "community_name": "formatters.js",
+      "community_name": "KasKeluarPanel.jsx",
       "norm_label": "defaultprops"
     },
     {
@@ -1705,6 +1705,74 @@
       "norm_label": "step()"
     },
     {
+      "label": "SetupBanner.jsx",
+      "file_type": "code",
+      "source_file": "frontend/src/components/dashboard/SetupBanner.jsx",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "frontend_src_components_dashboard_setupbanner",
+      "community": 1,
+      "community_name": "DashboardPage.jsx",
+      "norm_label": "setupbanner.jsx"
+    },
+    {
+      "label": "SetupBanner()",
+      "file_type": "code",
+      "source_file": "frontend/src/components/dashboard/SetupBanner.jsx",
+      "source_location": "L3",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "frontend_src_components_dashboard_setupbanner_setupbanner",
+      "community": 1,
+      "community_name": "DashboardPage.jsx",
+      "norm_label": "setupbanner()"
+    },
+    {
+      "label": "SetupWizard.jsx",
+      "file_type": "code",
+      "source_file": "frontend/src/components/dashboard/SetupWizard.jsx",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "frontend_src_components_dashboard_setupwizard",
+      "community": 1,
+      "community_name": "DashboardPage.jsx",
+      "norm_label": "setupwizard.jsx"
+    },
+    {
+      "label": "STEP_NAMES",
+      "file_type": "code",
+      "source_file": "frontend/src/components/dashboard/SetupWizard.jsx",
+      "source_location": "L16",
+      "_origin": "ast",
+      "id": "frontend_src_components_dashboard_setupwizard_step_names",
+      "community": 1,
+      "community_name": "DashboardPage.jsx",
+      "norm_label": "step_names"
+    },
+    {
+      "label": "SetupWizard()",
+      "file_type": "code",
+      "source_file": "frontend/src/components/dashboard/SetupWizard.jsx",
+      "source_location": "L18",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "frontend_src_components_dashboard_setupwizard_setupwizard",
+      "community": 1,
+      "community_name": "DashboardPage.jsx",
+      "norm_label": "setupwizard()"
+    },
+    {
+      "label": "SetupWizard.test.jsx",
+      "file_type": "code",
+      "source_file": "frontend/src/components/dashboard/SetupWizard.test.jsx",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "frontend_src_components_dashboard_setupwizard_test",
+      "community": 1,
+      "community_name": "DashboardPage.jsx",
+      "norm_label": "setupwizard.test.jsx"
+    },
+    {
       "label": "StokPanel.jsx",
       "file_type": "code",
       "source_file": "frontend/src/components/dashboard/StokPanel.jsx",
@@ -1746,7 +1814,7 @@
       "_origin": "ast",
       "id": "frontend_src_components_forms_reportform",
       "community": 44,
-      "community_name": "formatters.js",
+      "community_name": "KasKeluarPanel.jsx",
       "norm_label": "reportform.jsx"
     },
     {
@@ -1758,7 +1826,7 @@
       "_origin": "ast",
       "id": "frontend_src_components_forms_reportform_reportform",
       "community": 44,
-      "community_name": "formatters.js",
+      "community_name": "KasKeluarPanel.jsx",
       "norm_label": "reportform()"
     },
     {
@@ -1769,7 +1837,7 @@
       "_origin": "ast",
       "id": "frontend_src_components_forms_reportform_test",
       "community": 44,
-      "community_name": "formatters.js",
+      "community_name": "KasKeluarPanel.jsx",
       "norm_label": "reportform.test.jsx"
     },
     {
@@ -2073,7 +2141,7 @@
       "label": "getViewportMode()",
       "file_type": "code",
       "source_file": "frontend/src/pages/DashboardPage.jsx",
-      "source_location": "L25",
+      "source_location": "L27",
       "_callable": true,
       "_origin": "ast",
       "id": "frontend_src_pages_dashboardpage_getviewportmode",
@@ -2085,7 +2153,7 @@
       "label": "DashboardPage()",
       "file_type": "code",
       "source_file": "frontend/src/pages/DashboardPage.jsx",
-      "source_location": "L32",
+      "source_location": "L34",
       "_callable": true,
       "_origin": "ast",
       "id": "frontend_src_pages_dashboardpage_dashboardpage",
@@ -2101,7 +2169,7 @@
       "_origin": "ast",
       "id": "frontend_src_pages_loginpage",
       "community": 44,
-      "community_name": "formatters.js",
+      "community_name": "KasKeluarPanel.jsx",
       "norm_label": "loginpage.jsx"
     },
     {
@@ -2113,7 +2181,7 @@
       "_origin": "ast",
       "id": "frontend_src_pages_loginpage_loginpage",
       "community": 44,
-      "community_name": "formatters.js",
+      "community_name": "KasKeluarPanel.jsx",
       "norm_label": "loginpage()"
     },
     {
@@ -2265,8 +2333,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "frontend_src_utils_dashboard_filterrows",
-      "community": 0,
-      "community_name": "reports.js",
+      "community": 4,
+      "community_name": "dashboard.js",
       "norm_label": "filterrows()"
     },
     {
@@ -2453,8 +2521,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "frontend_src_utils_formatters",
-      "community": 44,
-      "community_name": "formatters.js",
+      "community": 4,
+      "community_name": "dashboard.js",
       "norm_label": "formatters.js"
     },
     {
@@ -2464,8 +2532,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "frontend_src_utils_formatters_month_map",
-      "community": 44,
-      "community_name": "formatters.js",
+      "community": 4,
+      "community_name": "dashboard.js",
       "norm_label": "month_map"
     },
     {
@@ -2477,7 +2545,7 @@
       "_origin": "ast",
       "id": "frontend_src_utils_formatters_gettodaydatestring",
       "community": 44,
-      "community_name": "formatters.js",
+      "community_name": "KasKeluarPanel.jsx",
       "norm_label": "gettodaydatestring()"
     },
     {
@@ -2488,8 +2556,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "frontend_src_utils_formatters_formatshortdate",
-      "community": 44,
-      "community_name": "formatters.js",
+      "community": 4,
+      "community_name": "dashboard.js",
       "norm_label": "formatshortdate()"
     },
     {
@@ -2524,8 +2592,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "frontend_src_utils_formatters_parsetimestamp",
-      "community": 44,
-      "community_name": "formatters.js",
+      "community": 4,
+      "community_name": "dashboard.js",
       "norm_label": "parsetimestamp()"
     },
     {
@@ -2536,8 +2604,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "frontend_src_utils_formatters_tocurrency",
-      "community": 44,
-      "community_name": "formatters.js",
+      "community": 4,
+      "community_name": "dashboard.js",
       "norm_label": "tocurrency()"
     },
     {
@@ -2548,8 +2616,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "frontend_src_utils_formatters_toperiodvalue",
-      "community": 1,
-      "community_name": "DashboardPage.jsx",
+      "community": 4,
+      "community_name": "dashboard.js",
       "norm_label": "toperiodvalue()"
     },
     {
@@ -2561,7 +2629,7 @@
       "_origin": "ast",
       "id": "frontend_src_utils_formatters_generatetrxid",
       "community": 44,
-      "community_name": "formatters.js",
+      "community_name": "KasKeluarPanel.jsx",
       "norm_label": "generatetrxid()"
     },
     {
@@ -2572,8 +2640,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "frontend_src_utils_formatters_isexpenseid",
-      "community": 44,
-      "community_name": "formatters.js",
+      "community": 4,
+      "community_name": "dashboard.js",
       "norm_label": "isexpenseid()"
     },
     {
@@ -2584,8 +2652,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "frontend_src_utils_formatters_toshortindonesianday",
-      "community": 44,
-      "community_name": "formatters.js",
+      "community": 4,
+      "community_name": "dashboard.js",
       "norm_label": "toshortindonesianday()"
     },
     {
@@ -2595,8 +2663,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "frontend_src_utils_formatters_test",
-      "community": 44,
-      "community_name": "formatters.js",
+      "community": 4,
+      "community_name": "dashboard.js",
       "norm_label": "formatters.test.js"
     },
     {
@@ -7952,7 +8020,7 @@
       "context": "import",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/pages/DashboardPage.jsx",
-      "source_location": "L16",
+      "source_location": "L18",
       "weight": 1.0,
       "_origin": "ast",
       "source": "frontend_src_pages_dashboardpage",
@@ -8012,7 +8080,7 @@
       "context": "import",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/pages/DashboardPage.jsx",
-      "source_location": "L16",
+      "source_location": "L18",
       "weight": 1.0,
       "_origin": "ast",
       "source": "frontend_src_pages_dashboardpage",
@@ -8604,7 +8672,7 @@
       "context": "import",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/pages/DashboardPage.jsx",
-      "source_location": "L17",
+      "source_location": "L19",
       "weight": 1.0,
       "_origin": "ast",
       "source": "frontend_src_pages_dashboardpage",
@@ -8616,7 +8684,7 @@
       "context": "import",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/pages/DashboardPage.jsx",
-      "source_location": "L17",
+      "source_location": "L19",
       "weight": 1.0,
       "_origin": "ast",
       "source": "frontend_src_pages_dashboardpage",
@@ -8628,7 +8696,7 @@
       "context": "import",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/pages/DashboardPage.jsx",
-      "source_location": "L17",
+      "source_location": "L19",
       "weight": 1.0,
       "_origin": "ast",
       "source": "frontend_src_pages_dashboardpage",
@@ -8640,7 +8708,7 @@
       "context": "import",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/pages/DashboardPage.jsx",
-      "source_location": "L17",
+      "source_location": "L19",
       "weight": 1.0,
       "_origin": "ast",
       "source": "frontend_src_pages_dashboardpage",
@@ -8652,7 +8720,7 @@
       "context": "import",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/pages/DashboardPage.jsx",
-      "source_location": "L17",
+      "source_location": "L19",
       "weight": 1.0,
       "_origin": "ast",
       "source": "frontend_src_pages_dashboardpage",
@@ -10253,6 +10321,135 @@
     {
       "relation": "contains",
       "confidence": "EXTRACTED",
+      "source_file": "frontend/src/components/dashboard/SetupBanner.jsx",
+      "source_location": "L3",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "frontend_src_components_dashboard_setupbanner",
+      "target": "frontend_src_components_dashboard_setupbanner_setupbanner",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/components/dashboard/SetupWizard.test.jsx",
+      "source_location": "L4",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "frontend_src_components_dashboard_setupwizard_test",
+      "target": "frontend_src_components_dashboard_setupbanner",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/pages/DashboardPage.jsx",
+      "source_location": "L16",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "frontend_src_pages_dashboardpage",
+      "target": "frontend_src_components_dashboard_setupbanner",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/components/dashboard/SetupWizard.test.jsx",
+      "source_location": "L4",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "frontend_src_components_dashboard_setupwizard_test",
+      "target": "frontend_src_components_dashboard_setupbanner_setupbanner",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/pages/DashboardPage.jsx",
+      "source_location": "L16",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "frontend_src_pages_dashboardpage",
+      "target": "frontend_src_components_dashboard_setupbanner_setupbanner",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/components/dashboard/SetupWizard.jsx",
+      "source_location": "L18",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "frontend_src_components_dashboard_setupwizard",
+      "target": "frontend_src_components_dashboard_setupwizard_setupwizard",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/components/dashboard/SetupWizard.jsx",
+      "source_location": "L16",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "frontend_src_components_dashboard_setupwizard",
+      "target": "frontend_src_components_dashboard_setupwizard_step_names",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/components/dashboard/SetupWizard.test.jsx",
+      "source_location": "L3",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "frontend_src_components_dashboard_setupwizard_test",
+      "target": "frontend_src_components_dashboard_setupwizard",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/pages/DashboardPage.jsx",
+      "source_location": "L17",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "frontend_src_pages_dashboardpage",
+      "target": "frontend_src_components_dashboard_setupwizard",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/components/dashboard/SetupWizard.test.jsx",
+      "source_location": "L3",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "frontend_src_components_dashboard_setupwizard_test",
+      "target": "frontend_src_components_dashboard_setupwizard_setupwizard",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/pages/DashboardPage.jsx",
+      "source_location": "L17",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "frontend_src_pages_dashboardpage",
+      "target": "frontend_src_components_dashboard_setupwizard_setupwizard",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
       "source_file": "frontend/src/components/dashboard/StokPanel.jsx",
       "source_location": "L17",
       "weight": 1.0,
@@ -11207,7 +11404,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/pages/DashboardPage.jsx",
-      "source_location": "L32",
+      "source_location": "L34",
       "weight": 1.0,
       "_origin": "ast",
       "source": "frontend_src_pages_dashboardpage",
@@ -11218,7 +11415,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/pages/DashboardPage.jsx",
-      "source_location": "L25",
+      "source_location": "L27",
       "weight": 1.0,
       "_origin": "ast",
       "source": "frontend_src_pages_dashboardpage",
@@ -11230,7 +11427,7 @@
       "context": "import",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/pages/DashboardPage.jsx",
-      "source_location": "L23",
+      "source_location": "L25",
       "weight": 1.0,
       "_origin": "ast",
       "source": "frontend_src_pages_dashboardpage",
@@ -11242,7 +11439,7 @@
       "context": "import",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/pages/DashboardPage.jsx",
-      "source_location": "L23",
+      "source_location": "L25",
       "weight": 1.0,
       "_origin": "ast",
       "source": "frontend_src_pages_dashboardpage",
@@ -11254,7 +11451,7 @@
       "context": "import",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/pages/DashboardPage.jsx",
-      "source_location": "L23",
+      "source_location": "L25",
       "weight": 1.0,
       "_origin": "ast",
       "source": "frontend_src_pages_dashboardpage",
@@ -11266,7 +11463,7 @@
       "context": "import",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/pages/DashboardPage.jsx",
-      "source_location": "L23",
+      "source_location": "L25",
       "weight": 1.0,
       "_origin": "ast",
       "source": "frontend_src_pages_dashboardpage",
@@ -11278,7 +11475,7 @@
       "context": "argument",
       "confidence": "INFERRED",
       "source_file": "frontend/src/pages/DashboardPage.jsx",
-      "source_location": "L69",
+      "source_location": "L71",
       "weight": 1.0,
       "_origin": "ast",
       "source": "frontend_src_pages_dashboardpage_dashboardpage",
@@ -11291,7 +11488,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "frontend/src/pages/DashboardPage.jsx",
-      "source_location": "L199",
+      "source_location": "L274",
       "weight": 1.0,
       "_origin": "ast",
       "source": "frontend_src_pages_dashboardpage_dashboardpage",
@@ -11303,7 +11500,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "frontend/src/pages/DashboardPage.jsx",
-      "source_location": "L73",
+      "source_location": "L75",
       "weight": 1.0,
       "_origin": "ast",
       "source": "frontend_src_pages_dashboardpage_dashboardpage",

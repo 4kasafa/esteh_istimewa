@@ -131,11 +131,12 @@ describe("buildTransactionList", () => {
 
     const pemasukan = list.find((t) => t.type === "PEMASUKAN");
     expect(pemasukan.nominal).toBe(500000);
-    expect(pemasukan.keterangan).toBe("TRX-INC-001");
+    expect(pemasukan.keterangan).toBe("Laporan Penjualan Harian");
+    expect(pemasukan.keterangan).not.toMatch(/TRX-INC-001/);
 
     const pengeluaran = list.find((t) => t.type === "PENGELUARAN");
     expect(pengeluaran.nominal).toBe(25000);
-    expect(pengeluaran.keterangan).toBe("Operasional");
+    expect(pengeluaran.keterangan).toBe("Operasional - Beli Es Batu");
   });
 
   it("hanya mengambil record dengan pengeluaranList sebagai pengeluaran", () => {
@@ -231,5 +232,44 @@ describe("buildTransactionList", () => {
     });
     const list = buildTransactionList([mk("TRX-EXP-001", "Operasional Toko"), mk("TRX-EXP-002", "Kebersihan")]);
     expect(list.filter((t) => t.type === "PENGELUARAN")).toHaveLength(2);
+  });
+
+  it("keterangan deskriptif tanpa teks ID transaksi", () => {
+    const row = {
+      "ID TRANSAKSI": "TRX-20260319-120000-ABCD",
+      "NO TRANSAKSI": "TRX-20260319-120000-ABCD",
+      "TIME STAMP INPUT": "19-03-2026 10:00:00",
+      "ARUS DANA": "cabang_01",
+      STAFF: "Joko",
+      KETERANGAN: "Setoran sore",
+      "TOTAL PENJUALAN": 500000,
+      "UANG SETORAN": 500000,
+      pengeluaranList: [{ tipe: "Es Batu", nominal: 10000, keterangan: "Beli di depo" }],
+    };
+    const list = buildTransactionList([row]);
+    for (const t of list) {
+      expect(t.keterangan).not.toMatch(/TRX-/);
+      expect(t.keterangan).not.toMatch(/EXP-/);
+    }
+    expect(list.find((t) => t.type === "PEMASUKAN").keterangan).toBe("Setoran sore");
+    const exp = list.find((t) => t.type === "PENGELUARAN");
+    expect(exp.keterangan).toBe("Es Batu - Beli di depo");
+    expect(exp.parentTrxId).toBe("TRX-20260319-120000-ABCD");
+  });
+
+  it("pemasukan memakai KATEGORI non-Penjualan, fallback Laporan Penjualan Harian", () => {
+    const mkIncome = (kategori) => ({
+      "ID TRANSAKSI": `TRX-${kategori}`,
+      "TIME STAMP INPUT": "19-03-2026 10:00:00",
+      "ARUS DANA": "cabang_01",
+      STAFF: "Joko",
+      KATEGORI: kategori,
+      "TOTAL PENJUALAN": 100000,
+      "UANG SETORAN": 100000,
+    });
+    const list = buildTransactionList([mkIncome("Modal"), mkIncome("Penjualan")]);
+    const byCat = Object.fromEntries(list.map((t) => [t.id, t.keterangan]));
+    expect(byCat["TRX-Modal"]).toBe("Modal");
+    expect(byCat["TRX-Penjualan"]).toBe("Laporan Penjualan Harian");
   });
 });

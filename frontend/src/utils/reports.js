@@ -186,7 +186,7 @@ export function buildTransactionList(reportRows = []) {
       arusDana: item.arusDana,
       cabang: item.cabang,
       staff: item.staff,
-      keterangan: item.raw["NO TRANSAKSI"] || item.raw["ID TRANSAKSI"] || "Laporan Penjualan Harian",
+      keterangan: item.raw["KETERANGAN"] || (item.raw["KATEGORI"] && item.raw["KATEGORI"] !== "Penjualan" ? item.raw["KATEGORI"] : "Laporan Penjualan Harian"),
       nominal: item.totalPenjualan,
       raw: item.raw,
     }));
@@ -200,11 +200,13 @@ export function buildTransactionList(reportRows = []) {
         const arusDana = item.arusDana;
         const staff = item.staff;
         const nominal = parseLooseNumber(exp.nominal);
-        const keterangan = exp.tipe || "Pengeluaran";
+        const keterangan = exp.keterangan ? `${exp.tipe} - ${exp.keterangan}` : (exp.tipe || "Pengeluaran");
         const id = `${item.id}-EXP-${idx}`;
+        const isStandaloneExpense = String(item.raw["JENIS TRANSAKSI"] || "").toLowerCase() === "pengeluaran";
         return {
           type: "PENGELUARAN",
           id,
+          ...(!isStandaloneExpense ? { parentTrxId: item.id } : {}),
           timestamp: ts,
           arusDana,
           cabang: arusDana,

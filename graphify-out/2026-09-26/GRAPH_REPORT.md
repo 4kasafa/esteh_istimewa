@@ -1,11 +1,11 @@
 # Graph Report - estehh  (2026-09-26)
 
 ## Corpus Check
-- 86 files · ~94,172 words
+- 89 files · ~97,872 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 595 nodes · 927 edges · 61 communities (54 shown, 7 thin omitted)
+- 601 nodes · 938 edges · 61 communities (54 shown, 7 thin omitted)
 - Extraction: 99% EXTRACTED · 1% INFERRED · 0% AMBIGUOUS · INFERRED: 7 edges (avg confidence: 0.5)
 - Token cost: 0 input · 0 output
 
@@ -51,7 +51,7 @@
 - workflows/graphify.md
 - Setup.js
 - generate-icons.mjs
-- formatters.js
+- KasKeluarPanel.jsx
 - OnlineStatusBadge.jsx
 - 10) Negative Test `read_master` pakai token staff (harus gagal)
 - 10a) Negative Test `setup_rekap` pakai token staff (harus gagal)
@@ -84,13 +84,13 @@
 ## Surprising Connections (you probably didn't know these)
 - `KasKeluarPanel()` --calls--> `mapApiErrorMessage()`  [EXTRACTED]
   frontend/src/components/dashboard/KasKeluarPanel.jsx → frontend/src/utils/errors.js
+- `KasKeluarPanel()` --calls--> `toCurrency()`  [EXTRACTED]
+  frontend/src/components/dashboard/KasKeluarPanel.jsx → frontend/src/utils/formatters.js
 - `OmsetCard()` --calls--> `toCurrency()`  [EXTRACTED]
   frontend/src/components/dashboard/OverviewPanel.jsx → frontend/src/utils/formatters.js
 - `DepositCard()` --calls--> `toCurrency()`  [EXTRACTED]
   frontend/src/components/dashboard/OverviewPanel.jsx → frontend/src/utils/formatters.js
 - `MiniChips()` --calls--> `toCurrency()`  [EXTRACTED]
-  frontend/src/components/dashboard/OverviewPanel.jsx → frontend/src/utils/formatters.js
-- `OverviewPanel()` --calls--> `toPeriodValue()`  [EXTRACTED]
   frontend/src/components/dashboard/OverviewPanel.jsx → frontend/src/utils/formatters.js
 
 ## Import Cycles
@@ -99,12 +99,12 @@
 ## Communities (61 total, 7 thin omitted)
 
 ### Community 0 - "reports.js"
-Cohesion: 0.09
-Nodes (35): getDefaultFilter(), PAGE_SIZE_OPTIONS, ReportPanel(), ReportTable(), SmartRowMobile(), TRANSACTION_COLUMNS, TransactionTable(), filterRows() (+27 more)
+Cohesion: 0.10
+Nodes (34): getDefaultFilter(), PAGE_SIZE_OPTIONS, ReportPanel(), ReportTable(), SmartRowMobile(), TRANSACTION_COLUMNS, TransactionTable(), formatTimestamp() (+26 more)
 
 ### Community 1 - "DashboardPage.jsx"
-Cohesion: 0.08
-Nodes (26): ConfirmDialog(), Skeleton(), SkeletonCard(), SkeletonText(), AddCabangModal(), AddKaryawanModal(), CabangPanel(), normalizeCabang() (+18 more)
+Cohesion: 0.07
+Nodes (28): ConfirmDialog(), Skeleton(), SkeletonCard(), SkeletonText(), AddCabangModal(), AddKaryawanModal(), CabangPanel(), normalizeCabang() (+20 more)
 
 ### Community 2 - "useDashboardData.js"
 Cohesion: 0.13
@@ -115,8 +115,8 @@ Cohesion: 0.08
 Nodes (23): dependencies, lucide-react, react, react-dom, tailwindcss, @tailwindcss/vite, name, private (+15 more)
 
 ### Community 4 - "dashboard.js"
-Cohesion: 0.22
-Nodes (18): OverviewPanel(), applyDashboardFilters(), buildDashboardTableRows(), buildDonutData(), buildExecutiveKpi(), buildKpi(), buildLineSeries(), buildSeriesDayKeys() (+10 more)
+Cohesion: 0.12
+Nodes (34): buildSegments(), DonutChart(), buildPoints(), LineChart(), CompactTransactionTable(), DepositCard(), MiniChips(), OmsetCard() (+26 more)
 
 ### Community 5 - "Postman Unit Test - Gas Backend API"
 Cohesion: 0.33
@@ -214,9 +214,9 @@ Nodes (3): applyMasterDataValidations_(), resetAndCleanAllSheets(), setupMasterS
 Cohesion: 0.29
 Nodes (6): __dirname, iconsDir, publicDir, sizes, svgBuffer, svgPath
 
-### Community 44 - "formatters.js"
-Cohesion: 0.11
-Nodes (26): Alert(), CustomSelect(), buildSegments(), DonutChart(), buildEmptyExpense(), KasKeluarPanel(), buildPoints(), LineChart() (+18 more)
+### Community 44 - "KasKeluarPanel.jsx"
+Cohesion: 0.18
+Nodes (12): Alert(), CustomSelect(), buildEmptyExpense(), KasKeluarPanel(), PemasukanPanel(), defaultProps, PengeluaranPanel(), defaultProps (+4 more)
 
 ### Community 45 - "OnlineStatusBadge.jsx"
 Cohesion: 0.43
@@ -283,7 +283,7 @@ Cohesion: 0.67
 Nodes (3): 9b) Test Endpoint `read_database` bulanan by `TIME STAMP INPUT` (admin only), Request, Tests
 
 ## Knowledge Gaps
-- **215 isolated node(s):** `name`, `private`, `version`, `type`, `dev` (+210 more)
+- **216 isolated node(s):** `name`, `private`, `version`, `type`, `dev` (+211 more)
   These have ≤1 connection - possible missing edges or undocumented components.
 - **7 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
@@ -294,13 +294,13 @@ _Questions this graph is uniquely positioned to answer:_
   _High betweenness centrality (0.007) - this node is a cross-community bridge._
 - **Why does `Postman Unit Test - Gas Backend API` connect `Postman Unit Test - Gas Backend API` to `10) Negative Test `read_master` pakai token staff (harus gagal)`, `10a) Negative Test `setup_rekap` pakai token staff (harus gagal)`, `10b) Endpoint administratif GET hanya untuk admin`, `11) Negative Test `create` tanpa token`, `12) Test Endpoint `logout` (admin)`, `13) Negative Test token revoked (setelah logout)`, `3) Test Endpoint `login` (admin)`, `4) Test Endpoint `login` (staff)`, `5) Test Endpoint `create` (admin)`, `6) Test Endpoint `read` list (admin)`, `7) Test Endpoint `read` detail by `id``, `8) Test Endpoint `update` (admin)`, `9) Test Endpoint `read_database` (admin only)`, `9a) Test Endpoint `read` bulanan by `NO TRANSAKSI` (admin only)`, `9b) Test Endpoint `read_database` bulanan by `TIME STAMP INPUT` (admin only)`?**
   _High betweenness centrality (0.007) - this node is a cross-community bridge._
-- **Why does `mapApiErrorMessage()` connect `useDashboardData.js` to `formatters.js`?**
+- **Why does `mapApiErrorMessage()` connect `useDashboardData.js` to `KasKeluarPanel.jsx`?**
   _High betweenness centrality (0.006) - this node is a cross-community bridge._
 - **What connects `name`, `private`, `version` to the rest of the system?**
-  _215 weakly-connected nodes found - possible documentation gaps or missing edges._
+  _216 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `reports.js` be split into smaller, more focused modules?**
-  _Cohesion score 0.09446693657219973 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.09672830725462304 - nodes in this community are weakly interconnected._
 - **Should `DashboardPage.jsx` be split into smaller, more focused modules?**
-  _Cohesion score 0.07822410147991543 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.06972789115646258 - nodes in this community are weakly interconnected._
 - **Should `useDashboardData.js` be split into smaller, more focused modules?**
   _Cohesion score 0.12773109243697478 - nodes in this community are weakly interconnected._

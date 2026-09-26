@@ -15,6 +15,9 @@ export default function PengeluaranPanel({
   selectedBranch = "",
   user,
   onReloadMaster,
+  editData = null,
+  onCancelEdit,
+  onUpdateReport,
 }) {
   const branchList = useMemo(
     () => (branches.length > 0 ? branches : ["Cabang Utama"]),
@@ -45,6 +48,23 @@ export default function PengeluaranPanel({
   const [modalLoading, setModalLoading] = useState(false);
   const [alert, setAlert] = useState(null);
   const [submitLoading, setSubmitLoading] = useState(false);
+  const isEditing = Boolean(editData?.id || editData?.raw);
+
+  useEffect(() => {
+    if (!editData) return;
+    const raw = editData.raw || editData;
+    const ts = editData.timestamp instanceof Date ? editData.timestamp : null;
+    const pad = (n) => String(n).padStart(2, "0");
+    const tsDate = ts ? `${ts.getFullYear()}-${pad(ts.getMonth() + 1)}-${pad(ts.getDate())}` : "";
+    if (raw.TANGGAL) setTanggal(String(raw.TANGGAL).substring(0, 10));
+    else if (tsDate) setTanggal(tsDate);
+    if (raw.CABANG || editData.arusDana || editData.cabang) setCabang(raw.CABANG || editData.arusDana || editData.cabang || "");
+    const tipe = raw.TYPE_PENGELUARAN || raw.KATEGORI || raw["KATEGORI"] || "";
+    if (tipe) setSumber(tipe);
+    const nom = raw.NOMINAL ?? editData.nominal ?? "";
+    if (nom !== "" && nom !== undefined) setNominal(String(nom));
+    setKeterangan(raw.KETERANGAN || editData.keterangan?.split(" - ").slice(1).join(" - ") || "");
+  }, [editData]);
 
   useEffect(() => {
     if (!cabang && defaultBranch) setCabang(defaultBranch);
@@ -100,6 +120,27 @@ export default function PengeluaranPanel({
     const finalCabang = cabang || branchList[0] || "Cabang Utama";
     setSubmitLoading(true);
     try {
+      // ponytail: mode edit → update baris yang sama, bukan create baru.
+      if (isEditing && onUpdateReport) {
+        const payload = {
+          TANGGAL: tanggal,
+          CABANG: finalCabang,
+          "ARUS DANA": finalCabang,
+          KATEGORI: sumber,
+          NOMINAL: String(num),
+          "TOTAL PENGELUARAN": String(num),
+          PENGELUARAN: String(num),
+          "UANG KELUAR": String(num),
+          KETERANGAN: keterangan || "",
+          pengeluaranList: [{ tipe: sumber, nominal: num, keterangan: keterangan || "" }],
+        };
+        const editId = editData.id || editData.raw?.["ID TRANSAKSI"] || editData.raw?.["NO TRANSAKSI"];
+        const ok = await onUpdateReport(editId, payload);
+        if (!ok) throw new Error("Gagal menyimpan perubahan pengeluaran.");
+        setAlert({ type: "success", message: `Pengeluaran sebesar ${toCurrency(num)} berhasil diperbarui.` });
+        onSuccess?.();
+        return;
+      }
       const now = new Date();
       const waktuInput = `${String(now.getHours()).padStart(2, "0")}.${String(now.getMinutes()).padStart(2, "0")}.${String(now.getSeconds()).padStart(2, "0")}`;
       const rupiah = `Rp ${num.toLocaleString("id-ID")}`;
@@ -143,8 +184,8 @@ export default function PengeluaranPanel({
   return (
     <div className="space-y-5 pb-8 max-w-5xl mx-auto">
       <div>
-        <h2 className="text-xl sm:text-2xl font-black text-brand-green-dark tracking-tight">Pengeluaran</h2>
-        <p className="text-xs font-semibold text-brand-muted">Catat kas keluar langsung di luar closing shift.</p>
+        <h2 className="text-xl sm:text-2xl font-black text-brand-green-dark tracking-tight">{isEditing ? "Edit Pengeluaran" : "Pengeluaran"}</h2>
+        <p className="text-xs font-semibold text-brand-muted">{isEditing ? "Perbarui kas keluar yang sudah tercatat." : "Catat kas keluar langsung di luar closing shift."}</p>
       </div>
       {alert?.message && <Alert type={alert.type}>{alert.message}</Alert>}
       <form onSubmit={handleSubmit} noValidate className="space-y-5">
@@ -203,9 +244,14 @@ export default function PengeluaranPanel({
           </div>
         </section>
 
-        <div className="flex sm:justify-end">
+        <div className="flex flex-col sm:flex-row gap-2 sm:justify-end">
+          {isEditing && (
+            <button type="button" onClick={() => onCancelEdit?.()} disabled={submitLoading} className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-2xl border border-brand-green/20 px-6 py-3 text-xs font-black uppercase tracking-[0.25em] text-brand-green-dark hover:bg-brand-bg transition-all disabled:opacity-60 cursor-pointer">
+              <span>Batal</span>
+            </button>
+          )}
           <button type="submit" disabled={submitLoading} className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-2xl bg-brand-green px-6 py-3 text-xs font-black uppercase tracking-[0.25em] text-white shadow-lg shadow-brand-green/25 hover:bg-brand-green-dark transition-all disabled:opacity-60 cursor-pointer">
-            {submitLoading ? <span>Menyimpan...</span> : (<><CheckCircle2 size={16} /><span>Simpan Pengeluaran</span></>)}
+            {submitLoading ? <span>Menyimpan...</span> : isEditing ? (<><CheckCircle2 size={16} /><span>Simpan Perubahan</span></>) : (<><CheckCircle2 size={16} /><span>Simpan Pengeluaran</span></>)}
           </button>
         </div>
       </form>

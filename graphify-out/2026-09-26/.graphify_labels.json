@@ -43,7 +43,7 @@
   "41": "vite.config.js",
   "42": "gas_backend/prompt.md",
   "43": "generate-icons.mjs",
-  "44": "formatters.js",
+  "44": "KasKeluarPanel.jsx",
   "45": "OnlineStatusBadge.jsx",
   "46": "10) Negative Test `read_master` pakai token staff (harus gagal)",
   "47": "10a) Negative Test `setup_rekap` pakai token staff (harus gagal)",

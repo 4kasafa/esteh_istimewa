@@ -1,4 +1,4 @@
-import { BadgeCheck, CalendarDays, ChevronDown, Menu } from "lucide-react";
+import { BadgeCheck, CalendarDays, ChevronDown, Menu, RotateCw } from "lucide-react";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { toPeriodValue } from "../../utils/formatters";
 
@@ -20,6 +20,7 @@ export default function Topbar({
   onPeriodFilterChange,
   loading = false,
   isSyncing = false,
+  onRefresh,
 }) {
   const isStaff = String(user?.role || "").toLowerCase() === "staff";
   // ponytail: pakai pola yang sama seperti OnlineStatusBadge, tanpa hook baru.
@@ -190,12 +191,29 @@ export default function Topbar({
         </div>
 
         <div className="flex items-center gap-2">
-          {isSyncing && (
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-teal-50 border border-teal-200 text-[10px] font-black text-teal-700">
-              <span className="h-3 w-3 rounded-full border-2 border-teal-200 border-t-teal-600 animate-spin" />
-              Menyinkronkan...
-            </span>
-          )}
+          {(() => {
+            const syncing = isSyncing || loading;
+            return (
+              <button
+                onClick={onRefresh}
+                disabled={loading || isSyncing}
+                aria-label="Refresh data"
+                title="Refresh data"
+                className={
+                  syncing
+                    ? "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-teal-50 border border-teal-200 text-[12px] font-black text-teal-700 pointer-events-none"
+                    : "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-brand-bg hover:bg-brand-green/10 text-brand-green-dark border border-brand-green/15 cursor-pointer transition-all text-[12px] font-black"
+                }
+              >
+                {syncing ? (
+                  <span className="h-3 w-3 rounded-full border-2 border-teal-200 border-t-teal-600 animate-spin" />
+                ) : (
+                  <RotateCw size={12} className="shrink-0" />
+                )}
+                <span className="hidden sm:inline">{syncing ? "Menyinkronkan..." : "Refresh"}</span>
+              </button>
+            );
+          })()}
           {!isOnline && (
             <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-amber-50 border border-amber-200 text-[10px] font-black text-amber-700">
               Mode Offline

@@ -95,7 +95,7 @@ function handleUpdateMaster_(payload, session) {
   const headers = getTableHeaders_(sheet);
   const rows = readTable_(sheet);
 
-  // ponytail: bulk create (SetupWizard) — 1 request ganti N request serial.
+  // ponytail: bulk create (bulk create master) — 1 request ganti N request serial.
   if (Array.isArray(payload.data)) {
     return handleCreateManyMaster_(session, target, tabName, idField, sheet, headers, rows, payload.data);
   }
@@ -471,9 +471,9 @@ function revokeUserSessions_(username) {
 }
 
 /**
- * ponytail: bulk create 1 request (SetupWizard) — 1x baca + 1x setValues + sync 1x.
+ * ponytail: bulk create 1 request (bulk create master) — 1x baca + 1x setValues + sync 1x.
  * Item duplikat (nama/ID sudah ada, termasuk retry) dilewati sebagai skipped,
- * bukan error, sehingga retry aman dan wizard bisa lanjut.
+ * bukan error, sehingga retry aman.
  */
 function masterIdPrefix_(target) {
   if (target === "user") return "USR-";
