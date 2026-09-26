@@ -36,6 +36,19 @@ describe("chart builders", () => {
     expect(trend).toHaveLength(1);
     expect(trend[0].value).toBe(15000);
   });
+
+  it("buildTrendData handles YYYY-MM-DD and dotted waktu without falling back to today", () => {
+    const dbRows = [
+      { TANGGAL: "2026-02-10", "WAKTU INPUT": "10.00.00", "UANG MASUK": "20.000" },
+      { TANGGAL: "2026-02-10", "WAKTU INPUT": "1899-12-30 11:00:00", "UANG MASUK": "30.000" },
+      { TANGGAL: "2026-02-11", "UANG MASUK": "15.000" },
+    ];
+
+    const trend = buildTrendData(dbRows);
+    expect(trend).toHaveLength(2);
+    expect(trend[0].value).toBe(50000);
+    expect(trend[1].value).toBe(15000);
+  });
 });
 
 describe("buildExecutiveKpi", () => {

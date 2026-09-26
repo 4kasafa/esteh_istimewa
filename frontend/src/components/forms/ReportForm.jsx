@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { toCurrency, generateTrxId, getTodayDateString } from "../../utils/formatters";
 import CustomSelect from "../common/CustomSelect";
+import RupiahInput from "../common/RupiahInput";
 
 export default function ReportForm({
   value,
@@ -530,13 +531,11 @@ export default function ReportForm({
                   </div>
 
                   <div className="w-full sm:w-36 shrink-0">
-                    <input
-                      type="number"
-                      min="0"
-                      step="any"
+                    <RupiahInput
+                      showPrefix={false}
                       placeholder="Nominal (Rp)"
                       aria-label={`Nominal Pengeluaran ${index + 1}`}
-                      className="w-full rounded-xl border border-brand-green/15 bg-white px-3 py-2.5 text-xs font-bold text-brand-green-dark focus:outline-none focus:border-brand-green"
+                      className="rounded-xl px-3 py-2.5 text-xs"
                       value={item.nominal}
                       onChange={(e) => handleExpenseChange(index, "nominal", e.target.value)}
                       required
@@ -590,14 +589,11 @@ export default function ReportForm({
               <label htmlFor="uang-setoran" className={labelStyle}>
                 Uang Setoran Tunai (Rp)
               </label>
-              <input
+              <RupiahInput
                 id="uang-setoran"
-                type="number"
-                min="0"
-                step="any"
                 aria-label="Uang Setoran"
                 placeholder="Masukkan nominal uang tunai yang disetor (Rp)"
-                className="w-full rounded-2xl border-2 border-brand-green/30 bg-white px-5 py-3.5 text-base font-black text-brand-green-dark focus:outline-none focus:ring-4 focus:ring-brand-green/20 focus:border-brand-green transition-all"
+                className="border-2 border-brand-green/30 px-5 py-3.5 text-base"
                 value={value["UANG SETORAN"] ?? value["UANG MASUK"] ?? ""}
                 onChange={(e) => {
                   const val = e.target.value;

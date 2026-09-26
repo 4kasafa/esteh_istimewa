@@ -31,21 +31,23 @@ export function getTodayDateString() {
 }
 
 export function formatShortDate(ts) {
-  if (!(ts instanceof Date) || Number.isNaN(ts.getTime())) return "-";
-  const dd = String(ts.getDate()).padStart(2, "0");
-  const mm = String(ts.getMonth() + 1).padStart(2, "0");
-  const hh = String(ts.getHours()).padStart(2, "0");
-  const mi = String(ts.getMinutes()).padStart(2, "0");
+  const d = ts instanceof Date ? ts : parseTimestamp(ts);
+  if (!d || Number.isNaN(d.getTime())) return "-";
+  const dd = String(d.getDate()).padStart(2, "0");
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const hh = String(d.getHours()).padStart(2, "0");
+  const mi = String(d.getMinutes()).padStart(2, "0");
   return `${dd}/${mm} ${hh}:${mi}`;
 }
 
 export function formatTimestamp(ts) {
-  if (!(ts instanceof Date) || Number.isNaN(ts.getTime())) return "-";
-  const dd = String(ts.getDate()).padStart(2, "0");
-  const mm = String(ts.getMonth() + 1).padStart(2, "0");
-  const yyyy = ts.getFullYear();
-  const hh = String(ts.getHours()).padStart(2, "0");
-  const mi = String(ts.getMinutes()).padStart(2, "0");
+  const d = ts instanceof Date ? ts : parseTimestamp(ts);
+  if (!d || Number.isNaN(d.getTime())) return "-";
+  const dd = String(d.getDate()).padStart(2, "0");
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const yyyy = d.getFullYear();
+  const hh = String(d.getHours()).padStart(2, "0");
+  const mi = String(d.getMinutes()).padStart(2, "0");
   return `${dd}-${mm}-${yyyy} ${hh}.${mi}`;
 }
 
@@ -63,10 +65,49 @@ export function parseLooseNumber(value) {
 }
 
 export function parseTimestamp(value) {
-  const text = String(value || "").trim();
+  if (!value) return null;
+  if (value instanceof Date) {
+    return Number.isNaN(value.getTime()) ? null : new Date(value.getTime());
+  }
+
+  let text = String(value).trim();
   if (!text) return null;
 
-  let match = text.match(/^(\d{2})-(\d{2})-(\d{4})(?:\s+(\d{2})[:.](\d{2})[:.](\d{2}))?$/);
+  // Bersihkan epoch waktu bawaan Sheets (1899-12-30) jika tergabung dengan tanggal asli
+  if (text.includes("1899-12-30")) {
+    text = text.replace(/1899-12-30\s*/g, "").trim();
+  }
+
+  // Jika input berupa ID transaksi TRX/EXP yang membawa timestamp tanggal YYYYMMDD
+  const trxMatch = text.match(/(?:TRX|EXP)-(\d{4})(\d{2})(\d{2})(?:-(\d{2})(\d{2})(\d{2}))?/i);
+  if (trxMatch && (text.startsWith("TRX-") || text.startsWith("EXP-") || text.length <= 30)) {
+    return new Date(
+      Number(trxMatch[1]),
+      Number(trxMatch[2]) - 1,
+      Number(trxMatch[3]),
+      Number(trxMatch[4] || 0),
+      Number(trxMatch[5] || 0),
+      Number(trxMatch[6] || 0)
+    );
+  }
+
+  // 1. Format YYYY-MM-DD atau YYYY/MM/DD dengan opsi waktu (pemisah : atau .)
+  // Contoh: "2026-09-26 14:30:00", "2026-09-26 14.30.00", "2026-09-26", "2026/09/26 14:30"
+  let match = text.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})(?:[T\s]+(\d{1,2})[:.](\d{2})(?:[:.](\d{2}))?(?:\.\d+)?(?:Z|[+-]\d{2}:?\d{2})?)?$/i);
+  if (match) {
+    return new Date(
+      Number(match[1]),
+      Number(match[2]) - 1,
+      Number(match[3]),
+      Number(match[4] || 0),
+      Number(match[5] || 0),
+      Number(match[6] || 0)
+    );
+  }
+
+  // 2. Format DD-MM-YYYY atau DD/MM/YYYY dengan opsi waktu (pemisah : atau .)
+  // Contoh: "01-03-2026 22:22:26", "26/09/2026 14.30.00", "26/09/2026"
+  match = text.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})(?:[T\s]+(\d{1,2})[:.](\d{2})(?:[:.](\d{2}))?)?$/i);
   if (match) {
     return new Date(
       Number(match[3]),
@@ -74,11 +115,12 @@ export function parseTimestamp(value) {
       Number(match[1]),
       Number(match[4] || 0),
       Number(match[5] || 0),
-      Number(match[6] || 0),
+      Number(match[6] || 0)
     );
   }
 
-  match = text.match(/^(?:[^,]+,\s*)?(\d{1,2})\s+([A-Za-z]+)\s+(\d{4})(?:\s+(\d{1,2})[:.](\d{2})[:.](\d{2}))?$/i);
+  // 3. Format teks bulan Bahasa Indonesia / Inggris: e.g. "Minggu, 1 Maret 2026 22.22.26"
+  match = text.match(/^(?:[^,]+,\s*)?(\d{1,2})\s+([A-Za-z]+)\s+(\d{4})(?:[T\s]+(\d{1,2})[:.](\d{2})(?:[:.](\d{2}))?)?$/i);
   if (match) {
     const month = MONTH_MAP[String(match[2]).toLowerCase()];
     if (month !== undefined) {
@@ -88,12 +130,13 @@ export function parseTimestamp(value) {
         Number(match[1]),
         Number(match[4] || 0),
         Number(match[5] || 0),
-        Number(match[6] || 0),
+        Number(match[6] || 0)
       );
     }
   }
 
-  match = text.match(/^(?:[^,]+,\s*)?(\d{4})\s+([A-Za-z]+)\s+(\d{1,2})(?:\s+(\d{1,2})[:.](\d{2})[:.](\d{2}))?$/i);
+  // 4. Format teks bulan dengan tahun lebih dulu: e.g. "Minggu, 2026 Maret 01 12.48.56"
+  match = text.match(/^(?:[^,]+,\s*)?(\d{4})\s+([A-Za-z]+)\s+(\d{1,2})(?:[T\s]+(\d{1,2})[:.](\d{2})(?:[:.](\d{2}))?)?$/i);
   if (match) {
     const month = MONTH_MAP[String(match[2]).toLowerCase()];
     if (month !== undefined) {
@@ -103,14 +146,37 @@ export function parseTimestamp(value) {
         Number(match[3]),
         Number(match[4] || 0),
         Number(match[5] || 0),
-        Number(match[6] || 0),
+        Number(match[6] || 0)
       );
     }
   }
 
-  const fallback = new Date(text);
+  // 5. Fallback browser date parser dengan normalisasi titik jam ke titik dua
+  const normalizedText = text.replace(/(\d{2})\.(\d{2})\.(\d{2})/, "$1:$2:$3");
+  const fallback = new Date(normalizedText);
   if (!Number.isNaN(fallback.getTime())) return fallback;
+
   return null;
+}
+
+export function cleanRupiahInput(value) {
+  if (value === null || value === undefined) return "";
+  const text = String(value);
+  if (text === "") return "";
+  const digits = text.replace(/\D/g, "");
+  if (digits === "") return "";
+  // ponytail: normalisasi leading zeros tanpa Number() agar aman untuk nominal besar.
+  return digits.replace(/^0+(?=\d)/, "");
+}
+
+export function formatRupiahNumber(value) {
+  if (value === null || value === undefined) return "";
+  const text = String(value).trim();
+  if (text === "") return "";
+  const digits = text.replace(/\D/g, "");
+  if (digits === "") return "";
+  const normalized = digits.replace(/^0+(?=\d)/, "");
+  return normalized.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
 }
 
 export function toCurrency(value) {

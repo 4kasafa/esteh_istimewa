@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Coffee, Receipt, TrendingUp, Wallet } from "lucide-react";
+import { Coffee, CupSoda, Receipt, TrendingUp, Wallet } from "lucide-react";
 import DonutChart from "./DonutChart";
 import LineChart from "./LineChart";
 import { toCurrency, toPeriodValue, formatShortDate } from "../../utils/formatters";
@@ -71,7 +71,7 @@ function DepositCard({ totalDeposit, totalSales }) {
 function MiniChips({ totalExpenses, totalCups, topBranch }) {
   const chips = [
     { icon: Receipt, label: "Pengeluaran", value: toCurrency(totalExpenses), color: "text-amber-600 bg-amber-50" },
-    { icon: Coffee, label: "Total Cup", value: `${totalCups} Cup`, color: "text-emerald-700 bg-emerald-50" },
+    { icon: CupSoda, label: "Terjual", value: `${totalCups} Cup`, color: "text-emerald-700 bg-emerald-50" },
     { icon: TrendingUp, label: "Cabang Juara", value: topBranch || "-", color: "text-brand-green-dark bg-brand-green/5" },
   ];
 

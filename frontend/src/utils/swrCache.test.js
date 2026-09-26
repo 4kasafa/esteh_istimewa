@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { getSwrCache, removeSwrCache, setSwrCache } from "./swrCache";
+import { clearAllSwrCache, getSwrCache, removeSwrCache, setSwrCache } from "./swrCache";
 
 const PREFIX = "esteh_swr_";
 
@@ -48,4 +48,22 @@ describe("swrCache utility", () => {
     expect(getSwrCache("master")).toBeNull();
     expect(localStorage.getItem(PREFIX + "master")).toBeNull();
   });
+
+  it("clears all keys starting with PREFIX while keeping other keys", () => {
+    setSwrCache("master", { cabang: ["Pusat"] });
+    setSwrCache("reports_init", [{ id: 1 }]);
+    setSwrCache("reports_2026-09", [{ id: 2 }]);
+    localStorage.setItem("custom_other_key", "keep-me");
+
+    clearAllSwrCache();
+
+    expect(getSwrCache("master")).toBeNull();
+    expect(getSwrCache("reports_init")).toBeNull();
+    expect(getSwrCache("reports_2026-09")).toBeNull();
+    expect(localStorage.getItem(PREFIX + "master")).toBeNull();
+    expect(localStorage.getItem(PREFIX + "reports_init")).toBeNull();
+    expect(localStorage.getItem(PREFIX + "reports_2026-09")).toBeNull();
+    expect(localStorage.getItem("custom_other_key")).toBe("keep-me");
+  });
 });
+

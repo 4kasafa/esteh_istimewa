@@ -1,4 +1,5 @@
-import { parseLooseNumber, parseTimestamp, toPeriodValue, toShortIndonesianDay } from "./formatters";
+import { parseLooseNumber, toPeriodValue, toShortIndonesianDay } from "./formatters";
+import { extractRowTimestamp } from "./reports";
 
 function getArusDana(row) {
   return String(row.CABANG || row["ARUS DANA"] || row.ARUS_DANA || "Tanpa Area").trim() || "Tanpa Area";
@@ -16,10 +17,8 @@ function getAmount(row) {
 }
 
 function getTimestamp(row) {
-  const tsStr = row.TANGGAL
-    ? (row.TANGGAL + " " + (row["WAKTU INPUT"] || "00:00:00"))
-    : (row["TIME STAMP INPUT"] || row["TIMESTAMP INPUT"] || row["NO TRANSAKSI"] || row["ID TRANSAKSI"]);
-  return parseTimestamp(tsStr) || new Date();
+  const raw = row?.raw || row;
+  return extractRowTimestamp(raw);
 }
 
 function dateKey(date) {

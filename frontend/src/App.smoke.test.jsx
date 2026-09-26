@@ -574,6 +574,7 @@ describe("App smoke", () => {
 
     await waitFor(() => {
       expect(screen.getByLabelText(/username/i)).toBeInTheDocument();
+      expect(localStorage.length).toBe(0);
     });
 
     // Login as staff again -> report is reset

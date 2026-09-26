@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { isAuthErrorMessage, mapApiErrorMessage } from "../utils/errors";
-import { getSwrCache, removeSwrCache, setSwrCache } from "../utils/swrCache";
+import { clearAllSwrCache, getSwrCache, setSwrCache } from "../utils/swrCache";
 
 function toRows(data) {
   if (Array.isArray(data)) return data;
@@ -36,8 +36,7 @@ function toOptimisticRow(res, pengeluaranList = []) {
     "PENGELUARAN": res.PENGELUARAN ?? Math.max(0, nominal - setoran),
     "GELAS AWAL": res["GELAS AWAL"] ?? 0,
     "GELAS SISA": res["GELAS SISA"] ?? 0,
-    "GELAS LAKU": res["GELAS TERPAKAI"] ?? res["GELAS LAKU"] ?? 0,
-    "TIME STAMP INPUT": `${res.TANGGAL || ""} ${res["WAKTU INPUT"] || ""}`.trim(),
+    "TIME STAMP INPUT": `${res.TANGGAL || ""} ${String(res["WAKTU INPUT"] || "").replace(/\./g, ":")}`.trim() || res["TIME STAMP INPUT"] || res["TIMESTAMP INPUT"] || "",
     pengeluaranList: list,
   };
 }
@@ -135,8 +134,7 @@ export function useDashboardData({ token, isAdmin, request, onAuthError }) {
     setReportRows([]);
     setMasterData(DEFAULT_MASTER);
     // ponytail: logout membuang cache — jangan bocorkan data cabang ke sesi berikutnya.
-    removeSwrCache("master");
-    removeSwrCache("reports_init");
+    clearAllSwrCache();
     setSyncNote("");
     clearFeedback();
   }, [clearFeedback]);

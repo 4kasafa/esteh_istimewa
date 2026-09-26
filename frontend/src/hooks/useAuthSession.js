@@ -70,16 +70,7 @@ export function useAuthSession(apiUrl, onSessionExpired) {
     setError("");
     
     try {
-      localStorage.removeItem("gas_token");
-      localStorage.removeItem("gas_user");
-      localStorage.removeItem("gas_last_today_report");
-      // Logout = niatan keluar: credential relogin tak boleh nyangkut.
-      // (Sesi expired tidak lewat logout(), jadi gas_relogin selamat.)
-      localStorage.removeItem("gas_relogin");
-      // ponytail: kunci cache master panel (P1 tidak lagi menulisnya, ini migrasi sekali).
-      localStorage.removeItem("esteh_cabang_list");
-      localStorage.removeItem("esteh_karyawan_list");
-      localStorage.removeItem("esteh_bahan_list");
+      localStorage.clear();
     } catch (err) {
       console.error("Storage error:", err);
     }

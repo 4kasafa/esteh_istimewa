@@ -10,6 +10,7 @@ import {
 
 import Alert from "../common/Alert";
 import CustomSelect from "../common/CustomSelect";
+import RupiahInput from "../common/RupiahInput";
 import { getTodayDateString } from "../../utils/formatters";
 import { mapApiErrorMessage } from "../../utils/errors";
 import { toCurrency } from "../../utils/formatters";
@@ -152,7 +153,7 @@ export default function KasKeluarPanel({
     setSubmitLoading(true);
     try {
       const now = new Date();
-      const waktuInput = `${String(now.getHours()).padStart(2, "0")}.${String(now.getMinutes()).padStart(2, "0")}.${String(now.getSeconds()).padStart(2, "0")}`;
+      const waktuInput = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}:${String(now.getSeconds()).padStart(2, "0")}`;
       const rincian = validExpenses
         .map(
           (item) =>
@@ -351,13 +352,11 @@ export default function KasKeluarPanel({
 
                   {/* Nominal Pengeluaran */}
                   <div className="w-full sm:w-40 shrink-0">
-                    <input
-                      type="number"
-                      min="0"
-                      step="any"
+                    <RupiahInput
+                      showPrefix={false}
                       placeholder="Nominal (Rp)"
                       aria-label={`Nominal Pengeluaran ${index + 1}`}
-                      className="w-full rounded-xl border border-brand-green/15 bg-white px-3 py-2.5 text-xs font-bold text-brand-green-dark focus:outline-none focus:border-brand-green"
+                      className="rounded-xl px-3 py-2.5 text-xs"
                       value={item.nominal}
                       onChange={(e) => handleRowChange(index, "nominal", e.target.value)}
                       disabled={submitLoading}

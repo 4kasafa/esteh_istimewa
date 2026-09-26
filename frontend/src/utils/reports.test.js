@@ -71,6 +71,38 @@ describe("sanitizeReportRows", () => {
     expect(sanitized[0].totalPenjualan).toBe(0);
   });
 
+  it("preserves actual past date from TANGGAL and does not replace with current time", () => {
+    const rawData = [
+      {
+        "ID TRANSAKSI": "TRX-20260115-001",
+        TANGGAL: "2026-01-15",
+        "WAKTU INPUT": "14.30.00",
+        CABANG: "cabang_01",
+        "TOTAL PENJUALAN": 500000,
+      },
+      {
+        "ID TRANSAKSI": "TRX-20260220-002",
+        TANGGAL: "2026-02-20",
+        "WAKTU INPUT": "1899-12-30 09:15:00",
+        CABANG: "cabang_02",
+        "TOTAL PENJUALAN": 350000,
+      },
+    ];
+
+    const sanitized = sanitizeReportRows(rawData);
+    expect(sanitized[0].timestamp.getFullYear()).toBe(2026);
+    expect(sanitized[0].timestamp.getMonth()).toBe(0); // January
+    expect(sanitized[0].timestamp.getDate()).toBe(15);
+    expect(sanitized[0].timestamp.getHours()).toBe(14);
+    expect(sanitized[0].timestamp.getMinutes()).toBe(30);
+
+    expect(sanitized[1].timestamp.getFullYear()).toBe(2026);
+    expect(sanitized[1].timestamp.getMonth()).toBe(1); // February
+    expect(sanitized[1].timestamp.getDate()).toBe(20);
+    expect(sanitized[1].timestamp.getHours()).toBe(9);
+    expect(sanitized[1].timestamp.getMinutes()).toBe(15);
+  });
+
   it("handles STAFF field and extracts options correctly", () => {
     const rawData = [
       {

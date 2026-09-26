@@ -25,8 +25,8 @@
     "semantic_hash": ""
   },
   "frontend/src/App.smoke.test.jsx": {
-    "mtime": 1790387167.061362,
-    "ast_hash": "35309823f82225874e525f428d42fa36",
+    "mtime": 1790412286.9482462,
+    "ast_hash": "0fe448e8ab4b66a19e2df6a9e93dd2dd",
     "semantic_hash": ""
   },
   "frontend/src/components/common/Alert.jsx": {
@@ -45,8 +45,8 @@
     "semantic_hash": ""
   },
   "frontend/src/components/dashboard/AddCabangModal.jsx": {
-    "mtime": 1790151375.8602993,
-    "ast_hash": "1364808a10480e22b8f9e0b5aaa2e92d",
+    "mtime": 1790408124.981758,
+    "ast_hash": "c5d6a4ece4768fc13aed7d356e7aabe0",
     "semantic_hash": ""
   },
   "frontend/src/components/dashboard/AddKaryawanModal.jsx": {
@@ -55,8 +55,8 @@
     "semantic_hash": ""
   },
   "frontend/src/components/dashboard/CabangPanel.jsx": {
-    "mtime": 1790211017.2653744,
-    "ast_hash": "c52d6734e5f61fdd0b315904aff92994",
+    "mtime": 1790408127.9733605,
+    "ast_hash": "a6073f0d3c45c244547054dd9135833b",
     "semantic_hash": ""
   },
   "frontend/src/components/dashboard/DonutChart.jsx": {
@@ -70,8 +70,8 @@
     "semantic_hash": ""
   },
   "frontend/src/components/dashboard/KasKeluarPanel.jsx": {
-    "mtime": 1790334015.471741,
-    "ast_hash": "a58c59a1b009408bc2994d05150c8830",
+    "mtime": 1790415111.1367245,
+    "ast_hash": "b004496c38a8ed41a13cbc4ced29def0",
     "semantic_hash": ""
   },
   "frontend/src/components/dashboard/LineChart.jsx": {
@@ -85,8 +85,8 @@
     "semantic_hash": ""
   },
   "frontend/src/components/dashboard/ReportPanel.jsx": {
-    "mtime": 1790384309.526208,
-    "ast_hash": "5f74877f32e0fa2d05d749dbb515d51d",
+    "mtime": 1790415318.2088146,
+    "ast_hash": "388e43a22b2a83786c84005b018b19c0",
     "semantic_hash": ""
   },
   "frontend/src/components/dashboard/SettingPanel.jsx": {
@@ -120,13 +120,13 @@
     "semantic_hash": ""
   },
   "frontend/src/hooks/useAuthSession.js": {
-    "mtime": 1790338120.243468,
-    "ast_hash": "56db712082317e198ead62af414c0db8",
+    "mtime": 1790411817.184639,
+    "ast_hash": "874a44492b319b44c787463ba08de50b",
     "semantic_hash": ""
   },
   "frontend/src/hooks/useDashboardData.js": {
-    "mtime": 1790338195.8488882,
-    "ast_hash": "bb2a81d07fda2e6fc09acf3eb9eab180",
+    "mtime": 1790415129.251386,
+    "ast_hash": "50be8ef8fac6170323196574417a572a",
     "semantic_hash": ""
   },
   "frontend/src/main.jsx": {
@@ -135,8 +135,8 @@
     "semantic_hash": ""
   },
   "frontend/src/pages/DashboardPage.jsx": {
-    "mtime": 1790399237.7614644,
-    "ast_hash": "4ce9ef3e9f55f79dd42823dfa4160e82",
+    "mtime": 1790408110.425986,
+    "ast_hash": "85892cd885b7eec0af07f9ff68c01841",
     "semantic_hash": ""
   },
   "frontend/src/pages/LoginPage.jsx": {
@@ -155,13 +155,13 @@
     "semantic_hash": ""
   },
   "frontend/src/utils/dashboard.js": {
-    "mtime": 1790151375.8910758,
-    "ast_hash": "441ff1f2847d686cd8ac5de86d67a30c",
+    "mtime": 1790415402.0417578,
+    "ast_hash": "a47069dd33933c433b196cc8c89bcbb0",
     "semantic_hash": ""
   },
   "frontend/src/utils/dashboard.test.js": {
-    "mtime": 1790151375.8910758,
-    "ast_hash": "8cf1ec3acd0ab3bbedbdf9cec482800b",
+    "mtime": 1790415366.303157,
+    "ast_hash": "5cdd2947e529726661f781a9ac374545",
     "semantic_hash": ""
   },
   "frontend/src/utils/errors.js": {
@@ -170,18 +170,18 @@
     "semantic_hash": ""
   },
   "frontend/src/utils/formatters.js": {
-    "mtime": 1790383502.4112587,
-    "ast_hash": "17c2c31d96f5426471c254788e3607d4",
+    "mtime": 1790415079.8636315,
+    "ast_hash": "b200aace718af270245d885e636f42ad",
     "semantic_hash": ""
   },
   "frontend/src/utils/formatters.test.js": {
-    "mtime": 1790383568.7263663,
-    "ast_hash": "3d6b16b7feeb2e2ffe4b06d4f0808cdb",
+    "mtime": 1790415344.3066049,
+    "ast_hash": "2991b1bdcf3bfa67ba217954de143064",
     "semantic_hash": ""
   },
   "frontend/src/utils/reports.js": {
-    "mtime": 1790383534.8892004,
-    "ast_hash": "84e80f9facd891afb8f7184aec83e563",
+    "mtime": 1790415305.8359883,
+    "ast_hash": "69c989c10ff1148a0eb15c425a9257db",
     "semantic_hash": ""
   },
   "frontend/vite.config.js": {
@@ -220,13 +220,13 @@
     "semantic_hash": ""
   },
   "gas_backend/MasterService.js": {
-    "mtime": 1790338038.8677812,
-    "ast_hash": "69136c18ce72d60f67b49d2fecee9573",
+    "mtime": 1790408133.4428892,
+    "ast_hash": "161688026210b5ab02f8b3913c75352a",
     "semantic_hash": ""
   },
   "gas_backend/ResponseHelper.js": {
-    "mtime": 1790151375.9016936,
-    "ast_hash": "dc4b8c936484d6171e1141302b232f9c",
+    "mtime": 1790415183.1096478,
+    "ast_hash": "72f22674ac08ccdf0dce59c0b0e2c636",
     "semantic_hash": ""
   },
   "gas_backend/Setup.js": {
@@ -235,8 +235,8 @@
     "semantic_hash": ""
   },
   "gas_backend/SheetRepository.js": {
-    "mtime": 1790324587.363766,
-    "ast_hash": "0c1fbecf0d4e8a3d9cfb02d8a326f486",
+    "mtime": 1790415145.6807024,
+    "ast_hash": "5ef5efbf5b484ea48838936571952e04",
     "semantic_hash": ""
   },
   "gas_backend/SummaryService.js": {
@@ -245,8 +245,8 @@
     "semantic_hash": ""
   },
   "gas_backend/TransactionService.js": {
-    "mtime": 1790384217.9308114,
-    "ast_hash": "8f189ab274a943c610eeedc9ec2d563d",
+    "mtime": 1790415171.926169,
+    "ast_hash": "43fe2423014d0fa6b332371f80fdd555",
     "semantic_hash": ""
   },
   "frontend/AGENTS.md": {
@@ -330,8 +330,8 @@
     "semantic_hash": ""
   },
   "frontend/src/utils/reports.test.js": {
-    "mtime": 1790383582.9483972,
-    "ast_hash": "ea07c551303ba77dc0b1bb973beb1178",
+    "mtime": 1790415355.0357225,
+    "ast_hash": "00c0badc362323bf424e722f2b861725",
     "semantic_hash": ""
   },
   "frontend/src/components/dashboard/KaryawanPanel.test.jsx": {
@@ -390,8 +390,8 @@
     "semantic_hash": ""
   },
   "frontend/src/components/dashboard/PemasukanPanel.jsx": {
-    "mtime": 1790384291.8223424,
-    "ast_hash": "ab84186ff81a2e68d2ba159e6c92aae3",
+    "mtime": 1790415115.5523918,
+    "ast_hash": "2817e3ce80e8f342649ada95f9177b6d",
     "semantic_hash": ""
   },
   "frontend/src/components/dashboard/PemasukanPanel.test.jsx": {
@@ -400,28 +400,13 @@
     "semantic_hash": ""
   },
   "frontend/src/components/dashboard/PengeluaranPanel.jsx": {
-    "mtime": 1790384258.4184427,
-    "ast_hash": "db9f4b78589b29b54fe75067a70acf7b",
+    "mtime": 1790415119.0589454,
+    "ast_hash": "542ef14fe89aa17e24427354e4db429c",
     "semantic_hash": ""
   },
   "frontend/src/components/dashboard/PengeluaranPanel.test.jsx": {
     "mtime": 1790339581.683111,
     "ast_hash": "03b18b2b863e66ffd7713d7f50a701f6",
-    "semantic_hash": ""
-  },
-  "frontend/src/components/dashboard/SetupBanner.jsx": {
-    "mtime": 1790151375.8754385,
-    "ast_hash": "545b0dc0f0a1811447134d3a0c221200",
-    "semantic_hash": ""
-  },
-  "frontend/src/components/dashboard/SetupWizard.jsx": {
-    "mtime": 1790215109.9150252,
-    "ast_hash": "3bfc6156c70e225daad41350f4c66465",
-    "semantic_hash": ""
-  },
-  "frontend/src/components/dashboard/SetupWizard.test.jsx": {
-    "mtime": 1790215212.4469564,
-    "ast_hash": "723ddbe167262b92de2dc35b91e08d2a",
     "semantic_hash": ""
   },
   "frontend/src/components/dashboard/StokPanel.jsx": {
@@ -455,13 +440,13 @@
     "semantic_hash": ""
   },
   "frontend/src/utils/swrCache.js": {
-    "mtime": 1790324749.1515262,
-    "ast_hash": "fcaeb20727ab8b9e121ce141a7f1ae0d",
+    "mtime": 1790411809.49341,
+    "ast_hash": "ba8677acdefd8614f39ee1711ce96c2f",
     "semantic_hash": ""
   },
   "frontend/src/utils/swrCache.test.js": {
-    "mtime": 1790324587.4162064,
-    "ast_hash": "2716caa1180976613b482aa849406757",
+    "mtime": 1790411849.883799,
+    "ast_hash": "09de540b5f95044d6a59bf4ef9f1367c",
     "semantic_hash": ""
   },
   "skills-lock.json": {

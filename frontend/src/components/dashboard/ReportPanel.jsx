@@ -103,8 +103,9 @@ function SmartRowMobile({ item, expanded, onToggle, onEdit, onDelete, isAdmin })
   const shift = row.SHIFT ?? "-";
 
   // Timestamp ringkas
-  const tsRaw = row["TIME STAMP INPUT"] || row["TIMESTAMP INPUT"] || "";
-  const tsShort = tsRaw ? String(tsRaw).slice(0, 16).replace("T", " ") : "-";
+  const tsRaw = row["TIME STAMP INPUT"] || row["TIMESTAMP INPUT"] || row.TANGGAL || "";
+  const tsFormatted = formatTimestamp(tsRaw);
+  const tsShort = tsFormatted !== "-" ? tsFormatted : (tsRaw ? String(tsRaw).slice(0, 16).replace("T", " ") : "-");
 
   // Bahan baku (non-gelas, untuk expand)
   const bahanEntries = Object.entries(row).filter(([k]) => {

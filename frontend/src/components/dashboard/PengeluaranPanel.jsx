@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Banknote, CheckCircle2, Plus, Store, X } from "lucide-react";
 import Alert from "../common/Alert";
 import CustomSelect from "../common/CustomSelect";
+import RupiahInput from "../common/RupiahInput";
 import { getTodayDateString, toCurrency } from "../../utils/formatters";
 import { mapApiErrorMessage } from "../../utils/errors";
 
@@ -142,7 +143,7 @@ export default function PengeluaranPanel({
         return;
       }
       const now = new Date();
-      const waktuInput = `${String(now.getHours()).padStart(2, "0")}.${String(now.getMinutes()).padStart(2, "0")}.${String(now.getSeconds()).padStart(2, "0")}`;
+      const waktuInput = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}:${String(now.getSeconds()).padStart(2, "0")}`;
       const rupiah = `Rp ${num.toLocaleString("id-ID")}`;
       const payload = {
         TANGGAL: tanggal,
@@ -235,7 +236,7 @@ export default function PengeluaranPanel({
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label htmlFor="pengeluaran-nominal" className={labelStyle}>Jumlah Pengeluaran (Rp)</label>
-              <input id="pengeluaran-nominal" type="number" min="0" step="any" placeholder="Nominal (Rp)" className={inputStyle} value={nominal} onChange={(e) => setNominal(e.target.value)} disabled={submitLoading} />
+              <RupiahInput id="pengeluaran-nominal" placeholder="Nominal (Rp)" className="px-4 py-2.5" value={nominal} onChange={(e) => setNominal(e.target.value)} disabled={submitLoading} />
             </div>
             <div>
               <label htmlFor="pengeluaran-keterangan" className={labelStyle}>Keterangan (Opsional)</label>

@@ -1,5 +1,5 @@
 import { DENOMINATIONS_DATA } from "../constants/forms";
-import { parseLooseNumber, parseTimestamp, toPeriodValue } from "./formatters";
+import { formatTimestamp, parseLooseNumber, parseTimestamp, toPeriodValue } from "./formatters";
 
 const REPORT_TIMESTAMP_KEYS = ["TIME STAMP INPUT", "TIMESTAMP INPUT", "TANGGAL", "NO TRANSAKSI", "ID TRANSAKSI"];
 const REPORT_ARUS_DANA_KEYS = ["CABANG", "ARUS DANA", "ARUS_DANA"];
@@ -44,12 +44,62 @@ function buildDenominationList(rawRow) {
   })).filter((item) => item.value > 0);
 }
 
+export function extractRowTimestamp(raw) {
+  if (!raw || typeof raw !== "object") return new Date();
+
+  // 1. Coba kombinasi TANGGAL dan WAKTU INPUT terlebih dahulu
+  const rawTanggal = raw.TANGGAL || raw.tanggal || raw.Tgl || raw.tgl;
+  const rawWaktu = raw["WAKTU INPUT"] || raw["WAKTU"] || raw.waktuInput || raw.waktu || "";
+  if (rawTanggal) {
+    let cleanTanggal = String(rawTanggal).trim();
+    if (/^\d{4}-\d{2}-\d{2}\b/.test(cleanTanggal)) {
+      cleanTanggal = cleanTanggal.substring(0, 10);
+    }
+    let cleanWaktu = String(rawWaktu).trim();
+    if (cleanWaktu.includes("1899-12-30")) {
+      cleanWaktu = cleanWaktu.replace(/.*1899-12-30\s*/, "");
+    }
+    const combined = `${cleanTanggal} ${cleanWaktu}`.trim();
+    const parsedCombined = parseTimestamp(combined);
+    if (parsedCombined) return parsedCombined;
+
+    const parsedTgl = parseTimestamp(cleanTanggal);
+    if (parsedTgl) return parsedTgl;
+  }
+
+  // 2. Coba field-field kandidat secara berurutan
+  const candidateKeys = [
+    "TIME STAMP INPUT",
+    "TIMESTAMP INPUT",
+    "TIMESTAMP",
+    "TIME STAMP",
+    "TANGGAL",
+    "tanggal",
+    "NO TRANSAKSI",
+    "ID TRANSAKSI",
+    "id",
+  ];
+
+  for (const key of candidateKeys) {
+    const val = raw[key];
+    if (val !== undefined && val !== null && val !== "") {
+      const parsed = parseTimestamp(val);
+      if (parsed) return parsed;
+    }
+  }
+
+  return new Date();
+}
+
 export function sanitizeReportRows(rows) {
   return rows
     .map((rawItem) => {
       const raw = { ...rawItem };
-      const timestampStr = getField(raw, REPORT_TIMESTAMP_KEYS);
-      const timestamp = parseTimestamp(timestampStr) || new Date();
+      const rawTimestampStr = getField(raw, REPORT_TIMESTAMP_KEYS, "");
+      const timestamp = extractRowTimestamp(raw);
+      if (rawTimestampStr && (!raw["TIME STAMP INPUT"] || String(raw["TIME STAMP INPUT"]).includes("1899-12-30"))) {
+        raw["TIME STAMP INPUT"] = formatTimestamp(timestamp);
+      }
       const arusDana = String(getField(raw, REPORT_ARUS_DANA_KEYS, "cabang_01")).trim() || "cabang_01";
       const staff = String(getField(raw, REPORT_STAFF_KEYS, "Staff")).trim() || "Staff";
       const denomination = buildDenominationList(raw);
@@ -95,7 +145,7 @@ export function sanitizeReportRows(rows) {
       raw["ARUS DANA"] = arusDana;
       raw["STAFF"] = staff;
 
-      const id = String(getField(raw, ["ID TRANSAKSI", "NO TRANSAKSI", "id"], timestampStr)).trim();
+      const id = String(getField(raw, ["ID TRANSAKSI", "NO TRANSAKSI", "id"], rawTimestampStr)).trim();
 
       return {
         id,

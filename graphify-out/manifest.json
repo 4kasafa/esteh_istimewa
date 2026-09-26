@@ -25,8 +25,8 @@
     "semantic_hash": ""
   },
   "frontend/src/App.smoke.test.jsx": {
-    "mtime": 1790387167.061362,
-    "ast_hash": "35309823f82225874e525f428d42fa36",
+    "mtime": 1790412286.9482462,
+    "ast_hash": "0fe448e8ab4b66a19e2df6a9e93dd2dd",
     "semantic_hash": ""
   },
   "frontend/src/components/common/Alert.jsx": {
@@ -70,8 +70,8 @@
     "semantic_hash": ""
   },
   "frontend/src/components/dashboard/KasKeluarPanel.jsx": {
-    "mtime": 1790334015.471741,
-    "ast_hash": "a58c59a1b009408bc2994d05150c8830",
+    "mtime": 1790423005.5352583,
+    "ast_hash": "d6e448428e526a7df87c606873fdd722",
     "semantic_hash": ""
   },
   "frontend/src/components/dashboard/LineChart.jsx": {
@@ -85,8 +85,8 @@
     "semantic_hash": ""
   },
   "frontend/src/components/dashboard/ReportPanel.jsx": {
-    "mtime": 1790384309.526208,
-    "ast_hash": "5f74877f32e0fa2d05d749dbb515d51d",
+    "mtime": 1790415318.2088146,
+    "ast_hash": "388e43a22b2a83786c84005b018b19c0",
     "semantic_hash": ""
   },
   "frontend/src/components/dashboard/SettingPanel.jsx": {
@@ -95,8 +95,8 @@
     "semantic_hash": ""
   },
   "frontend/src/components/forms/ReportForm.jsx": {
-    "mtime": 1790339434.0762818,
-    "ast_hash": "74bce97886405e53de7b33d42c14f7a1",
+    "mtime": 1790422974.7780542,
+    "ast_hash": "b3de3a4534b44874887a532f8c75ded1",
     "semantic_hash": ""
   },
   "frontend/src/components/layout/Sidebar.jsx": {
@@ -120,13 +120,13 @@
     "semantic_hash": ""
   },
   "frontend/src/hooks/useAuthSession.js": {
-    "mtime": 1790338120.243468,
-    "ast_hash": "56db712082317e198ead62af414c0db8",
+    "mtime": 1790411817.184639,
+    "ast_hash": "874a44492b319b44c787463ba08de50b",
     "semantic_hash": ""
   },
   "frontend/src/hooks/useDashboardData.js": {
-    "mtime": 1790338195.8488882,
-    "ast_hash": "bb2a81d07fda2e6fc09acf3eb9eab180",
+    "mtime": 1790415129.251386,
+    "ast_hash": "50be8ef8fac6170323196574417a572a",
     "semantic_hash": ""
   },
   "frontend/src/main.jsx": {
@@ -155,13 +155,13 @@
     "semantic_hash": ""
   },
   "frontend/src/utils/dashboard.js": {
-    "mtime": 1790151375.8910758,
-    "ast_hash": "441ff1f2847d686cd8ac5de86d67a30c",
+    "mtime": 1790415402.0417578,
+    "ast_hash": "a47069dd33933c433b196cc8c89bcbb0",
     "semantic_hash": ""
   },
   "frontend/src/utils/dashboard.test.js": {
-    "mtime": 1790151375.8910758,
-    "ast_hash": "8cf1ec3acd0ab3bbedbdf9cec482800b",
+    "mtime": 1790415366.303157,
+    "ast_hash": "5cdd2947e529726661f781a9ac374545",
     "semantic_hash": ""
   },
   "frontend/src/utils/errors.js": {
@@ -170,18 +170,18 @@
     "semantic_hash": ""
   },
   "frontend/src/utils/formatters.js": {
-    "mtime": 1790383502.4112587,
-    "ast_hash": "17c2c31d96f5426471c254788e3607d4",
+    "mtime": 1790422862.0302083,
+    "ast_hash": "6881065e5c960aa2c484b1634e30ff80",
     "semantic_hash": ""
   },
   "frontend/src/utils/formatters.test.js": {
-    "mtime": 1790383568.7263663,
-    "ast_hash": "3d6b16b7feeb2e2ffe4b06d4f0808cdb",
+    "mtime": 1790422876.3586326,
+    "ast_hash": "05913e503b81b008086bd5afbaf6e57e",
     "semantic_hash": ""
   },
   "frontend/src/utils/reports.js": {
-    "mtime": 1790383534.8892004,
-    "ast_hash": "84e80f9facd891afb8f7184aec83e563",
+    "mtime": 1790415305.8359883,
+    "ast_hash": "69c989c10ff1148a0eb15c425a9257db",
     "semantic_hash": ""
   },
   "frontend/vite.config.js": {
@@ -225,8 +225,8 @@
     "semantic_hash": ""
   },
   "gas_backend/ResponseHelper.js": {
-    "mtime": 1790151375.9016936,
-    "ast_hash": "dc4b8c936484d6171e1141302b232f9c",
+    "mtime": 1790415183.1096478,
+    "ast_hash": "72f22674ac08ccdf0dce59c0b0e2c636",
     "semantic_hash": ""
   },
   "gas_backend/Setup.js": {
@@ -235,8 +235,8 @@
     "semantic_hash": ""
   },
   "gas_backend/SheetRepository.js": {
-    "mtime": 1790324587.363766,
-    "ast_hash": "0c1fbecf0d4e8a3d9cfb02d8a326f486",
+    "mtime": 1790415145.6807024,
+    "ast_hash": "5ef5efbf5b484ea48838936571952e04",
     "semantic_hash": ""
   },
   "gas_backend/SummaryService.js": {
@@ -245,8 +245,8 @@
     "semantic_hash": ""
   },
   "gas_backend/TransactionService.js": {
-    "mtime": 1790384217.9308114,
-    "ast_hash": "8f189ab274a943c610eeedc9ec2d563d",
+    "mtime": 1790415171.926169,
+    "ast_hash": "43fe2423014d0fa6b332371f80fdd555",
     "semantic_hash": ""
   },
   "frontend/AGENTS.md": {
@@ -330,8 +330,8 @@
     "semantic_hash": ""
   },
   "frontend/src/utils/reports.test.js": {
-    "mtime": 1790383582.9483972,
-    "ast_hash": "ea07c551303ba77dc0b1bb973beb1178",
+    "mtime": 1790415355.0357225,
+    "ast_hash": "00c0badc362323bf424e722f2b861725",
     "semantic_hash": ""
   },
   "frontend/src/components/dashboard/KaryawanPanel.test.jsx": {
@@ -390,8 +390,8 @@
     "semantic_hash": ""
   },
   "frontend/src/components/dashboard/PemasukanPanel.jsx": {
-    "mtime": 1790384291.8223424,
-    "ast_hash": "ab84186ff81a2e68d2ba159e6c92aae3",
+    "mtime": 1790423011.714073,
+    "ast_hash": "cf0718a78edd079b9bc8776076ad6d37",
     "semantic_hash": ""
   },
   "frontend/src/components/dashboard/PemasukanPanel.test.jsx": {
@@ -400,8 +400,8 @@
     "semantic_hash": ""
   },
   "frontend/src/components/dashboard/PengeluaranPanel.jsx": {
-    "mtime": 1790384258.4184427,
-    "ast_hash": "db9f4b78589b29b54fe75067a70acf7b",
+    "mtime": 1790423017.7017655,
+    "ast_hash": "e74736302b98309cdb0df125507d250d",
     "semantic_hash": ""
   },
   "frontend/src/components/dashboard/PengeluaranPanel.test.jsx": {
@@ -440,13 +440,13 @@
     "semantic_hash": ""
   },
   "frontend/src/utils/swrCache.js": {
-    "mtime": 1790324749.1515262,
-    "ast_hash": "fcaeb20727ab8b9e121ce141a7f1ae0d",
+    "mtime": 1790411809.49341,
+    "ast_hash": "ba8677acdefd8614f39ee1711ce96c2f",
     "semantic_hash": ""
   },
   "frontend/src/utils/swrCache.test.js": {
-    "mtime": 1790324587.4162064,
-    "ast_hash": "2716caa1180976613b482aa849406757",
+    "mtime": 1790411849.883799,
+    "ast_hash": "09de540b5f95044d6a59bf4ef9f1367c",
     "semantic_hash": ""
   },
   "skills-lock.json": {
@@ -477,6 +477,16 @@
   "frontend/public/icons/pwa-maskable-512.png": {
     "mtime": 1790151375.8602993,
     "ast_hash": "fece9ad7d51f937ce1275b432a903ac1",
+    "semantic_hash": ""
+  },
+  "frontend/src/components/common/RupiahInput.jsx": {
+    "mtime": 1790422911.3070078,
+    "ast_hash": "8f7e61c01ba396a17286820762f32c00",
+    "semantic_hash": ""
+  },
+  "frontend/src/components/common/RupiahInput.test.jsx": {
+    "mtime": 1790422920.5878718,
+    "ast_hash": "30a032fb4517831efb058dc57ff7ea9d",
     "semantic_hash": ""
   }
 }
